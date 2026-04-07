@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 영화관 - onnamu Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 공통 스타일 및 Glassmorphism 레이아웃 (gallery.html과 통일) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f4f7f6;
+            background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        /* ── 헤더 (gallery.html과 통일) ── */
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 70px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .logo { font-size: 24px; font-weight: 700; color: #333; text-decoration: none; }
+        .user-badge {
+            background-color: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .header-btn {
+            font-size: 12px; color: #777; text-decoration: none;
+            padding: 8px 18px; border: 1px solid rgba(0,0,0,0.1); border-radius: 20px;
+            transition: all 0.3s ease; background-color: rgba(255,255,255,0.3);
+        }
+        .header-btn:hover { color: #333; border-color: #999; background-color: #fff; }
+        .header-btn.active { color: white; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); border: none; }
+
+        /* ── 메인 콘텐츠 ── */
+        main { padding: 40px 30px; max-width: 1800px; margin: 0 auto; animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .page-header { margin-bottom: 35px; padding: 0 10px; text-align: center; }
+        .page-title { font-size: 28px; font-weight: 700; color: #333; margin-bottom: 10px; }
+        .page-subtitle { font-size: 16px; color: #666; }
+
+        /* ── 영화 그리드 (Glassmorphism 카드) ── */
+        .movies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 25px; }
+        
+        .movie-card {
+            position: relative; border-radius: 20px; overflow: hidden;
+            background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255,255,255,0.3);
+            cursor: pointer; transition: all 0.3s ease; box-shadow: 0 5px 15px rgba(0,0,0,0.04);
+            display: flex; flex-direction: column;
+        }
+        .movie-card:hover { transform: translateY(-8px) scale(1.01); box-shadow: 0 15px 35px rgba(0,0,0,0.1); border-color: #8ec5fc; }
+
+        /* 포스터 영역 (로딩 최적화: metadata) */
+        .movie-poster-area { position: relative; width: 100%; aspect-ratio: 16/9; overflow: hidden; background: rgba(0,0,0,0.05); }
+        .movie-poster-area video { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+        .movie-card:hover .movie-poster-area video { transform: scale(1.05); }
+
+        /* 재생 오버레이 (Portal 스타일) */
+        .play-overlay {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; background: rgba(0,0,0,0.2); backdrop-filter: blur(2px);
+        }
+        .play-overlay svg { width: 60px; height: 60px; filter: drop-shadow(0 2px 12px rgba(0,0,0,0.4)); }
+        .movie-card:hover .play-overlay { opacity: 1; }
+
+        /* 영화 정보 영역 (Glassmorphism) */
+        .movie-info {
+            padding: 20px; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(5px);
+        }
+        .movie-title { font-size: 18px; font-weight: 700; color: #333; margin-bottom: 12px; line-height: 1.4; }
+        .movie-meta { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #777; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 12px; }
+        
+        .folder-badge {
+            background-color: rgba(102, 126, 234, 0.1); color: #667eea;
+            padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+        }
+
+        /* ── 빈 상태 ── */
+        .empty { text-align: center; padding: 120px 20px; color: #999; grid-column: 1 / -1; background: rgba(255,255,255,0.4); border-radius: 20px; border: 1px dashed rgba(0,0,0,0.1); }
+        .empty-icon { font-size: 70px; margin-bottom: 25px; opacity: 0.5; display: inline-block; }
+
+        /* ── 모바일 화면 최적화 (글자 세로 떨어짐 방지) ── */
+        .header-btn, nav a {
+            white-space: nowrap; /* 핵심: 어떤 경우에도 버튼 안의 글자가 세로로 쪼개지지 않도록 강제 */
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column; /* 헤더 전체를 세로형 레이아웃으로 변경 */
+                height: auto;
+                padding: 15px 10px;
+                gap: 12px;
+            }
+            .header-left, .header-right, nav {
+                width: 100%;
+                justify-content: center; /* 요소들을 가운데 정렬 */
+                flex-wrap: wrap; /* 버튼이 많아 가로 공간이 부족하면 버튼 단위로 깔끔하게 줄바꿈 */
+                gap: 8px;
+            }
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <a class="logo" href="/">onnamu</a>
+        <span class="user-badge">{{ username }}</span>
+    </div>
+    <div class="header-right">
+        {% if is_admin %}
+            <a class="header-btn" href="/upload">📤 업로드</a>
+            <a class="header-btn" href="/manage">⚙️ 관리</a>
+        {% endif %}
+
+        <a class="header-btn" href="{{ url_for('gallery') }}?tab=videos">🎬 비디오 타일</a>
+        <a class="header-btn" href="{{ url_for('gallery') }}?tab=images">🖼️ 이미지 타일</a>
+        <a class="header-btn active" href="/movies">🍿 영화관</a>
+        <a class="header-btn logout" href="/logout">로그아웃</a>
+    </div>
+</header>
+
+<main>
+    <div class="page-header">
+        <div class="page-title">🍿 프라이빗 시네마 컬렉션</div>
+        <div class="page-subtitle">총 {{ movies|length }}편의 영화가 준비되어 있습니다.</div>
+    </div>
+
+    {% if movies %}
+    <div class="movies-grid">
+        {% for movie in movies %}
+        <div class="movie-card" onclick="location.href='/player/{{ movie.folder }}/{{ movie.name }}'">
+            <div class="movie-poster-area">
+                <video
+                    data-src="/media/{{ movie.path }}#t=10"
+                    muted playsinline preload="none">
+                </video>
+                <div class="play-overlay">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="24" fill="rgba(255,255,255,0.3)"/>
+                        <polygon points="19,15 36,24 19,33" fill="white"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="movie-info">
+                <div class="movie-title">{{ movie.stem }}</div>
+                <div class="movie-meta">
+                    <span class="folder-badge">📁 {{ movie.folder }}</span>
+                    <span>{{ format_size(movie.size) }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty">
+        <div class="empty-icon">🎬</div>
+        <div style="font-size: 18px; font-weight: 500;">컬렉션이 비어 있습니다</div>
+        <div style="margin-top: 10px; font-size: 14px; color: #888;">서버의 /media/**/movies 폴더에 영화 파일을 추가해주세요</div>
+    </div>
+    {% endif %}
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const lazyVideos = document.querySelectorAll("video[data-src]");
+
+    if ("IntersectionObserver" in window) {
+        // 화면 하단보다 300px 먼저 감지하여 미리 로딩 시작 (자연스러운 UX)
+        const videoObserver = new IntersectionObserver(function(entries, observer) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    const video = entry.target;
+                    video.src = video.dataset.src;
+                    video.load(); // 비디오 메타데이터 로드 강제 실행
+                    video.removeAttribute("data-src");
+                    observer.unobserve(video);
+                }
+            });
+        }, { rootMargin: "0px 0px 300px 0px", threshold: 0.01 });
+
+        lazyVideos.forEach(function(video) {
+            videoObserver.observe(video);
+        });
+    } else {
+        // Observer를 지원하지 않는 구형 브라우저 대응 (즉시 로딩)
+        lazyVideos.forEach(function(video) {
+            video.src = video.dataset.src;
+            video.load();
+        });
+    }
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,9 @@
+services:
+  portal:
+    build: .
+    container_name: my-portal
+    ports:
+      - "5001:5001"
+    restart: always
+    volumes:
+      - "C:/:/host_c:ro"

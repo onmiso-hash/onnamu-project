@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>📤 파일 업로드 - 갤러리</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 { font-size: 28px; margin-bottom: 10px; color: #333; }
+        .user-info {
+            background: #f0f0f0;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 14px;
+            color: #666;
+        }
+        .flash {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .flash.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .flash.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .flash.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 12px;
+            padding: 60px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+        .upload-area:hover { border-color: #667eea; background: #f8f9ff; }
+        .upload-area.dragover { border-color: #667eea; background: #e8ebff; }
+        .upload-icon { font-size: 60px; margin-bottom: 15px; }
+        .file-input { display: none; }
+        .selected-file {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #2e7d32;
+            display: none;
+        }
+        .folder-select { margin-bottom: 20px; }
+        .folder-select label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+        .folder-select select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 15px;
+            background: white;
+            cursor: pointer;
+        }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-upload {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-upload:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4); }
+        .btn-upload:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .back-link {
+            display: inline-block;
+            margin-top: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .back-link:hover { text-decoration: underline; }
+        .upload-info {
+            background: #fff8e1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #f57f17;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📤 파일 업로드</h1>
+        <div class="user-info">
+            👤 로그인: <strong>{{ session.username }}</strong>
+            {% if is_admin %}<span style="color: #e91e63; font-weight: 600;"> (관리자)</span>{% endif %}
+        </div>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        <div class="upload-info">
+            ℹ️ 최대 파일 크기: 500MB<br>
+            ✅ 지원 형식: 동영상 (mp4, mov, webm, mkv, avi) / 이미지 (jpg, png, gif, webp)
+        </div>
+        
+        <form id="uploadForm" method="POST" enctype="multipart/form-data">
+            {% if is_admin %}
+            <div class="folder-select">
+                <label for="folder">📁 저장 위치:</label>
+                <select name="folder" id="folder">
+                    {% for folder in available_folders %}
+                    <option value="{{ folder }}">{{ folder }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                    클릭하거나 파일을 드래그하세요
+                </div>
+                <div style="font-size: 14px; color: #999;">동영상 또는 이미지 파일</div>
+                <input type="file" name="file" id="fileInput" class="file-input" accept="video/*,image/*" required>
+            </div>
+            
+            <div class="selected-file" id="selectedFile"></div>
+            <button type="submit" class="btn btn-upload" id="uploadBtn" disabled>⬆️ 업로드</button>
+        </form>
+        
+        <a href="{{ url_for('gallery') }}" class="back-link">← 갤러리로 돌아가기</a>
+    </div>
+    
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFile = document.getElementById('selectedFile');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadForm = document.getElementById('uploadForm');
+        
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                fileInput.files = e.dataTransfer.files;
+                updateFileInfo();
+            }
+        });
+        fileInput.addEventListener('change', updateFileInfo);
+        
+        function updateFileInfo() {
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                selectedFile.innerHTML = `✅ 선택된 파일: <strong>${file.name}</strong> (${sizeMB} MB)`;
+                selectedFile.style.display = 'block';
+                uploadBtn.disabled = false;
+            } else {
+                selectedFile.style.display = 'none';
+                uploadBtn.disabled = true;
+            }
+        }
+        
+        uploadForm.addEventListener('submit', function() {
+            uploadBtn.innerHTML = '⏳ 업로드 중...';
+            uploadBtn.disabled = true;
+        });
+    </script>
+</body>
+</html>

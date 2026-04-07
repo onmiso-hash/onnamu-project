@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ username }}의 갤러리 - onnamu</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        /* 공통 스타일 및 Glassmorphism 레이아웃 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f4f7f6;
+            background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        
+        /* ── 헤더 (Portal 디자인 이식) ── */
+        header {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 0 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 70px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .logo { font-size: 24px; font-weight: 700; color: #333; text-decoration: none; }
+        .user-badge {
+            background-color: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        nav { display: flex; gap: 8px; }
+        nav a {
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 20px;
+            border-radius: 20px;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+        nav a:hover { color: #333; background: rgba(255,255,255,0.5); }
+        nav a.active { color: white; background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+
+        .header-right { display: flex; align-items: center; gap: 10px; }
+        .header-btn {
+            font-size: 12px; color: #777; text-decoration: none;
+            padding: 6px 14px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+            transition: all 0.3s ease; background-color: rgba(255,255,255,0.3);
+        }
+        .header-btn:hover { color: #333; border-color: #999; background-color: #fff; }
+
+        /* ── 메인 콘텐츠 ── */
+        main { padding: 30px; max-width: 1800px; margin: 0 auto; animation: fadeInUp 0.5s ease-out; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding: 0 10px; }
+        .page-title { font-size: 20px; font-weight: 700; color: #333; }
+        .file-count { font-size: 14px; color: #777; }
+
+        /* ── 그리드 (로딩 최적화된 타일) ── */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        
+        .tile {
+            position: relative; border-radius: 16px; overflow: hidden;
+            background: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255,255,255,0.3);
+            aspect-ratio: 16/9; cursor: pointer;
+            transition: all 0.3s ease; box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        }
+        .tile:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 10px 25px rgba(0,0,0,0.08); border-color: #8ec5fc; }
+
+        /* 미디어 스타일 (최적화 로직 포함) */
+        .tile video, .tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* 재생 아이콘 오버레이 (Portal 스타일) */
+        .tile .play-icon {
+            position: absolute; inset: 0;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s; pointer-events: none;
+            background: rgba(0,0,0,0.1); backdrop-filter: blur(2px);
+        }
+        .tile .play-icon svg { width: 50px; height: 50px; filter: drop-shadow(0 2px 10px rgba(0,0,0,0.3)); }
+        .tile:hover .play-icon { opacity: 1; }
+
+        /* 파일명 (Glassmorphism 라벨) */
+        .tile .label {
+            position: absolute; bottom: 10px; left: 10px; right: 10px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(5px);
+            border-radius: 10px; border: 1px solid rgba(255,255,255,0.4);
+            font-size: 12px; color: #333; font-weight: 500;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        /* 폴더 태그 */
+        .folder-tag {
+            position: absolute; top: 10px; right: 10px;
+            padding: 3px 9px; border-radius: 6px; font-size: 10px; font-weight: 600;
+            background: rgba(0,0,0,0.6); color: white; z-index: 2;
+        }
+
+        /* ── 페이지네이션 (v2 장점 이식) ── */
+        .pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 50px; padding-bottom: 20px; }
+        .pagination a, .pagination span {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; border-radius: 10px; font-size: 14px; text-decoration: none;
+            transition: all 0.3s ease; background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(255,255,255,0.3); color: #666;
+        }
+        .pagination a:hover { color: #333; background: #fff; border-color: rgba(0,0,0,0.1); transform: translateY(-2px); }
+        .pagination span.current { background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 700; border: none; box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3); }
+
+        /* ── 빈 상태 ── */
+        .empty { text-align: center; padding: 100px 20px; color: #999; grid-column: 1 / -1; background: rgba(255,255,255,0.4); border-radius: 16px; border: 1px dashed rgba(0,0,0,0.1); }
+        .empty svg { width: 60px; height: 60px; margin-bottom: 20px; opacity: 0.5; }
+
+        /* ── 라이트박스 ── */
+        #lightbox {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000;
+            display: none; align-items: center; justify-content: center; padding: 20px;
+            backdrop-filter: blur(10px); animation: fadeIn 0.3s ease;
+        }
+        #lightbox.open { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        #lightbox video, #lightbox img { max-width: 100%; max-height: 92vh; border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); border: 2px solid rgba(255,255,255,0.2); }
+        #lightbox .close-btn { position: fixed; top: 20px; right: 25px; font-size: 35px; color: rgba(255,255,255,0.6); cursor: pointer; background: none; border: none; transition: color 0.2s; }
+        #lightbox .close-btn:hover { color: #fff; }
+
+        /* ── 모바일 화면 최적화 (글자 세로 떨어짐 방지) ── */
+        .header-btn, nav a {
+            white-space: nowrap; /* 핵심: 어떤 경우에도 버튼 안의 글자가 세로로 쪼개지지 않도록 강제 */
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column; /* 헤더 전체를 세로형 레이아웃으로 변경 */
+                height: auto;
+                padding: 15px 10px;
+                gap: 12px;
+            }
+            .header-left, .header-right, nav {
+                width: 100%;
+                justify-content: center; /* 요소들을 가운데 정렬 */
+                flex-wrap: wrap; /* 버튼이 많아 가로 공간이 부족하면 버튼 단위로 깔끔하게 줄바꿈 */
+                gap: 8px;
+            }
+            .page-header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <a class="logo" href="/">onnamu</a>
+        <span class="user-badge">{{ username }}</span>
+    </div>
+    <nav>
+        <a href="/?tab=videos" class="{{ 'active' if tab == 'videos' else '' }}">🎬 영상 타일</a>
+        <a href="/?tab=images" class="{{ 'active' if tab == 'images' else '' }}">🖼️ 이미지 타일</a>
+    </nav>
+    <div class="header-right">
+        {% if is_admin %}
+        <a class="header-btn" href="/upload">📤 업로드</a>
+        <a class="header-btn" href="/manage">⚙️ 관리</a>
+        {% endif %}
+        <a class="header-btn" href="http://stream.onnamu.kr:50002/movies">🍿 영화관</a>
+        <a class="header-btn logout" href="/logout">로그아웃</a>
+    </div>
+</header>
+
+<main>
+    <div class="page-header">
+        <div class="page-title">
+            {% if tab == 'videos' %}🎬 내 비디오 컬렉션{% else %}🖼️ 내 포토 앨범{% endif %}
+        </div>
+        <div class="file-count">총 {{ total }}개 파일 · {{ page }}/{{ total_pages }}p</div>
+    </div>
+
+    {% if files %}
+    <div class="grid">
+    {% for f in files %}
+        <div class="tile" data-path="{{ f.path }}" data-type="{{ media_type }}">
+            <span class="folder-tag">{{ f.folder }}</span>
+            {% if media_type == 'video' %}
+                <video
+                    data-src="/media/{{ f.path }}#t=0.5"
+                    muted playsinline preload="none"
+                ></video>
+                <div class="play-icon">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="24" fill="rgba(255,255,255,0.2)"/>
+                        <polygon points="19,15 36,24 19,33" fill="white"/>
+                    </svg>
+                </div>
+            {% else %}
+                <img
+                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                    data-src="/thumbnail/{{ f.path }}"
+                    alt="{{ f.name }}"
+                >
+            {% endif %}
+            <div class="label">{{ f.name }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page > 1 %}
+            <a href="?tab={{ tab }}&page={{ page - 1 }}">‹</a>
+        {% endif %}
+
+        {% for p in range(1, total_pages + 1) %}
+            {% if p == page %}
+                <span class="current">{{ p }}</span>
+            {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+                <a href="?tab={{ tab }}&page={{ p }}">{{ p }}</a>
+            {% elif p == page - 3 or p == page + 3 %}
+                <span style="color:rgba(0,0,0,0.3)">…</span>
+            {% endif %}
+        {% endfor %}
+
+        {% if page < total_pages %}
+            <a href="?tab={{ tab }}&page={{ page + 1 }}">›</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <rect x="2" y="2" width="20" height="20" rx="3"/>
+            <path d="M8 12l3 3 5-5"/>
+        </svg>
+        <p>아직 파일이 없어요.<br>/media/{{ tab }} 폴더를 확인해보세요.</p>
+    </div>
+    {% endif %}
+</main>
+
+<div id="lightbox">
+    <button class="close-btn" id="lb-close">✕</button>
+    <div id="lb-content"></div>
+</div>
+
+<script>
+    const lb = document.getElementById('lightbox');
+    const lbContent = document.getElementById('lb-content');
+
+    // 라이트박스 로직 (최적화 버전)
+    /*
+    document.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+            const fileName = tile.dataset.name;
+            const type = tile.dataset.type;
+            const tab = type === 'video' ? 'videos' : 'images';
+            const src  = `/media/${tab}/${fileName}`;
+
+            if (type === 'video') {
+                // 원본 비디오 로드 (프레임 지정 제거)
+                lbContent.innerHTML = `<video src="${src}" controls autoplay muted playsinline></video>`;
+            } else {
+                lbContent.innerHTML = `<img src="${src}" alt="${fileName}">`;
+            }
+            lb.classList.add('open');
+        });
+    });
+    */
+    // ✅ 수정할 로직 (data-path를 그대로 가져와서 완벽한 경로 생성)
+    document.querySelectorAll('.tile').forEach(tile => {
+        tile.addEventListener('click', () => {
+            // 이 두 줄이 가장 핵심입니다!
+            const filePath = tile.dataset.path;
+            const type = tile.dataset.type;
+            const src  = `/media/${filePath}`;
+
+            if (type === 'video') {
+                lbContent.innerHTML = `<video src="${src}" controls autoplay muted playsinline></video>`;
+            } else {
+                lbContent.innerHTML = `<img src="${src}" alt="media">`;
+            }
+            lb.classList.add('open');
+        });
+    });
+
+    function closeLightbox() {
+        lb.classList.remove('open');
+        lbContent.innerHTML = '';
+    }
+
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeLightbox(); });
+
+    document.addEventListener("DOMContentLoaded", function() {
+        // 1. 뷰포트 진입 시 레이지 로드 (기본 로딩 최적화 - 기존 로직 포함)
+        const lazyMedias = document.querySelectorAll("video[data-src], img[data-src]");
+        if ("IntersectionObserver" in window) {
+            const loadObserver = new IntersectionObserver(function(entries, observer) {
+                entries.forEach(function(entry) {
+                    if (entry.isIntersecting) {
+                        const media = entry.target;
+                        media.src = media.dataset.src;
+                        if (media.tagName === 'VIDEO') {
+                            media.load();
+                        }
+                        media.removeAttribute("data-src");
+                        observer.unobserve(media);
+                    }
+                });
+            }, { rootMargin: "0px 0px 300px 0px", threshold: 0.01 });
+
+            lazyMedias.forEach(function(media) {
+                loadObserver.observe(media);
+            });
+        } else {
+            lazyMedias.forEach(function(media) {
+                media.src = media.dataset.src;
+                if (media.tagName === 'VIDEO') media.load();
+            });
+        }
+
+        // 2. PC 환경: 마우스 호버 시 영상 미리보기 재생
+        document.querySelectorAll('.tile video, .movie-poster-area video').forEach(video => {
+            video.addEventListener('mouseenter', () => {
+                video.play().catch(e => { /* 재생 차단 에러 무시 */ }); 
+            });
+            video.addEventListener('mouseleave', () => {
+                video.pause();
+                video.currentTime = 0.5; // 원래 썸네일 지점으로 복귀
+            });
+        });
+
+        // 3. 모바일/스크롤 환경: 화면 정면(중앙) 진입 시 영상 미리보기 재생
+        if ("IntersectionObserver" in window) {
+            const autoPlayObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    if (entry.isIntersecting) {
+                        video.play().catch(e => {}); // 화면에 70% 이상 보이면 재생
+                    } else {
+                        video.pause(); // 화면에서 벗어나면 정지 및 썸네일 복귀
+                        if (video.currentTime > 0) {
+                            video.currentTime = 0.5;
+                        }
+                    }
+                });
+            }, { threshold: 0.9 });
+
+            document.querySelectorAll('.tile video, .movie-poster-area video').forEach(video => {
+                autoPlayObserver.observe(video);
+            });
+        }
+    });
+</script>
+
+</body>
+</html>

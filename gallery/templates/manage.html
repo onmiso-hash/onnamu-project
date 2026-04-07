@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗂️ 파일 관리 - 갤러리</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* ── 전체 배경 및 폰트 통일 ── */
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f4f7f6;
+            background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);
+            min-height: 100vh;
+            padding: 30px;
+            color: #333;
+        }
+
+        /* ── 상단 헤더 (Glassmorphism) ── */
+        .header {
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 20px 30px;
+            border-radius: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        h1 { font-size: 24px; color: #333; font-weight: 700; }
+        
+        .admin-badge {
+            background-color: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        /* ── 탭 버튼 ── */
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab {
+            padding: 10px 22px;
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            cursor: pointer; font-size: 15px; font-weight: 500; color: #666;
+            transition: all 0.3s ease; backdrop-filter: blur(5px);
+        }
+        .tab:hover { background: rgba(255, 255, 255, 0.8); color: #333; transform: translateY(-2px); }
+        .tab.active {
+            background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* ── 파일 리스트 컨테이너 (Glassmorphism) ── */
+        .file-list {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 10px 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .file-item {
+            display: grid;
+            grid-template-columns: 40px 1fr 100px 180px 120px;
+            gap: 15px; align-items: center;
+            padding: 16px 10px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            transition: all 0.2s; border-radius: 12px;
+        }
+        .file-item:last-child { border-bottom: none; }
+        .file-item:hover { background: rgba(255, 255, 255, 0.6); transform: translateX(4px); }
+        
+        .file-icon { font-size: 24px; text-align: center; opacity: 0.8; }
+        .file-info { overflow: hidden; }
+        .file-name { font-weight: 600; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-path { font-size: 12px; color: #777; margin-top: 4px; }
+        
+        .folder-badge { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+        .folder-public { background: rgba(25, 118, 210, 0.1); color: #1976d2; }
+        .folder-private { background: rgba(194, 24, 91, 0.1); color: #c2185b; }
+        .folder-family { background: rgba(123, 31, 162, 0.1); color: #7b1fa2; }
+        
+        .folder-select {
+            padding: 8px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px;
+            font-size: 13px; cursor: pointer; background: rgba(255, 255, 255, 0.8);
+            color: #333; outline: none; font-family: 'Noto Sans KR', sans-serif;
+        }
+        
+        /* 액션 버튼들 */
+        .actions { display: flex; gap: 8px; justify-content: flex-end; }
+        .btn {
+            padding: 8px 14px; border: none; border-radius: 8px; font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .btn-move { background: rgba(76, 175, 80, 0.15); color: #2e7d32; }
+        .btn-move:hover { background: #4caf50; color: white; }
+        .btn-delete { background: rgba(244, 67, 54, 0.15); color: #c62828; }
+        .btn-delete:hover { background: #f44336; color: white; }
+        
+        .back-link {
+            display: inline-flex; justify-content: center; align-items: center;
+            margin-top: 25px; padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(5px);
+            color: #667eea; text-decoration: none; border-radius: 12px; font-weight: 600;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05); border: 1px solid rgba(255,255,255,0.4);
+            transition: all 0.3s;
+        }
+        .back-link:hover { background: white; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.1); }
+        
+        .empty-state { text-align: center; padding: 60px 20px; color: #777; font-weight: 500; }
+        
+        /* ── 디자인이 통일된 미리보기 툴팁 ── */
+        #preview-tooltip {
+            position: fixed; pointer-events: none; z-index: 1000; display: none;
+            background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            padding: 10px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.5); max-width: 320px; max-height: 240px; overflow: hidden;
+        }
+        #preview-tooltip img, #preview-tooltip video {
+            width: 100%; height: auto; max-height: 200px; border-radius: 8px; object-fit: contain; display: block;
+        }
+        
+        /* 토스트 메시지 (알림창) */
+        .toast {
+            position: fixed; top: 20px; right: 20px; padding: 15px 25px;
+            background: rgba(50, 50, 50, 0.85); backdrop-filter: blur(10px); color: white;
+            border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            z-index: 1000; display: none; font-weight: 500;
+        }
+        .toast.show { display: block; animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        /* ── 모바일 화면 최적화 (가로 깨짐 방지) ── */
+        @media (max-width: 800px) {
+            body { padding: 15px; }
+            .file-item {
+                grid-template-columns: 1fr; /* 모바일에서는 항목들을 세로로 쌓음 */
+                gap: 12px; padding: 20px 15px;
+                border: 1px solid rgba(0,0,0,0.05); margin-bottom: 10px;
+            }
+            .file-icon { display: none; }
+            .folder-select { width: 100%; }
+            .actions { justify-content: stretch; }
+            .btn { flex: 1; } /* 버튼을 양옆으로 꽉 차게 */
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗂️ 파일 관리</h1>
+        <span class="admin-badge">👑 ADMIN</span>
+    </div>
+    
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('videos')">🎬 동영상 ({{ videos|length }})</button>
+        <button class="tab" onclick="switchTab('images')">🖼️ 이미지 ({{ images|length }})</button>
+    </div>
+    
+    <div id="videos-list" class="file-list">
+        {% if videos %}
+            {% for file in videos %}
+            <div class="file-item" data-path="{{ file.path }}">
+                <div class="file-icon">🎬</div>
+                <div class="file-info">
+                    <div class="file-name" title="{{ file.name }}">{{ file.name }}</div>
+                    <div class="file-path">{{ file.path }}</div>
+                </div>
+                <div><span class="folder-badge folder-{{ file.folder }}">{{ file.folder }}</span></div>
+                <div>
+                    <select class="folder-select" data-current="{{ file.folder }}">
+                        {% for folder in all_folders %}
+                        <option value="{{ folder }}" {% if folder == file.folder %}selected{% endif %}>→ {{ folder }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-move" onclick="moveFile('{{ file.path }}', this)">이동</button>
+                    <button class="btn btn-delete" onclick="deleteFile('{{ file.path }}', this)">삭제</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">📭 동영상이 없습니다</div>
+        {% endif %}
+    </div>
+    
+    <div id="images-list" class="file-list" style="display: none;">
+        {% if images %}
+            {% for file in images %}
+            <div class="file-item" data-path="{{ file.path }}">
+                <div class="file-icon">🖼️</div>
+                <div class="file-info">
+                    <div class="file-name" title="{{ file.name }}">{{ file.name }}</div>
+                    <div class="file-path">{{ file.path }}</div>
+                </div>
+                <div><span class="folder-badge folder-{{ file.folder }}">{{ file.folder }}</span></div>
+                <div>
+                    <select class="folder-select" data-current="{{ file.folder }}">
+                        {% for folder in all_folders %}
+                        <option value="{{ folder }}" {% if folder == file.folder %}selected{% endif %}>→ {{ folder }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="actions">
+                    <button class="btn btn-move" onclick="moveFile('{{ file.path }}', this)">이동</button>
+                    <button class="btn btn-delete" onclick="deleteFile('{{ file.path }}', this)">삭제</button>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">📭 이미지가 없습니다</div>
+        {% endif %}
+    </div>
+    
+    <a href="{{ url_for('gallery') }}" class="back-link">← 갤러리로 돌아가기</a>
+    <div class="toast" id="toast"></div>
+    
+    <div id="preview-tooltip"></div>
+
+    <script>
+        function switchTab(type) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('videos-list').style.display = type === 'videos' ? 'block' : 'none';
+            document.getElementById('images-list').style.display = type === 'images' ? 'block' : 'none';
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+        
+        async function moveFile(path, btn) {
+            const fileItem = btn.closest('.file-item');
+            const select = fileItem.querySelector('.folder-select');
+            const newFolder = select.value;
+            const currentFolder = select.dataset.current;
+            
+            if (newFolder === currentFolder) {
+                showToast('⚠️ 같은 폴더입니다');
+                return;
+            }
+            if (!confirm(`"${newFolder}" 폴더로 이동하시겠습니까?`)) return;
+            
+            btn.disabled = true;
+            btn.textContent = '이동 중...';
+            
+            try {
+                const res = await fetch('/api/move', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ old_path: path, new_folder: newFolder })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(data.message);
+                    fileItem.dataset.path = data.new_path;
+                    select.dataset.current = newFolder;
+                    const badge = fileItem.querySelector('.folder-badge');
+                    badge.className = `folder-badge folder-${newFolder}`;
+                    badge.textContent = newFolder;
+                    const pathDiv = fileItem.querySelector('.file-path');
+                    pathDiv.textContent = data.new_path;
+                } else {
+                    showToast('❌ ' + data.error);
+                }
+            } catch (err) {
+                showToast('❌ 이동 실패: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '이동';
+            }
+        }
+        
+        async function deleteFile(path, btn) {
+            const fileName = path.split('/').pop();
+            if (!confirm(`"${fileName}"을(를) 정말 삭제하시겠습니까?\n\n⚠️ 이 작업은 되돌릴 수 없습니다.`)) return;
+            
+            btn.disabled = true;
+            btn.textContent = '삭제 중...';
+            
+            try {
+                const res = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ path: path })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    showToast(data.message);
+                    btn.closest('.file-item').remove();
+                } else {
+                    showToast('❌ ' + data.error);
+                    btn.disabled = false;
+                    btn.textContent = '삭제';
+                }
+            } catch (err) {
+                showToast('❌ 삭제 실패: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = '삭제';
+            }
+        }
+
+        // ── 미디어 미리보기 호버 로직 ──
+        document.addEventListener("DOMContentLoaded", () => {
+            const tooltip = document.getElementById('preview-tooltip');
+
+            document.querySelectorAll('.file-item').forEach(item => {
+                // 마우스가 파일 목록에 들어왔을 때
+                item.addEventListener('mouseenter', (e) => {
+                    const path = item.dataset.path;
+                    const isVideo = item.closest('#videos-list') !== null;
+                    
+                    if (isVideo) {
+                        // 영상은 네이티브 #t=0.5 트릭 사용
+                        tooltip.innerHTML = `<video src="/media/${path}#t=0.5" muted playsinline></video>`;
+                    } else {
+                        // 이미지는 가벼운 썸네일 라우팅 사용
+                        tooltip.innerHTML = `<img src="/thumbnail/${path}" alt="preview">`;
+                    }
+                    tooltip.style.display = 'block';
+                });
+
+                // 마우스가 파일 목록 안에서 움직일 때 (커서 따라다니기)
+                item.addEventListener('mousemove', (e) => {
+                    let x = e.clientX + 15; // 커서보다 살짝 우측
+                    let y = e.clientY + 15; // 커서보다 살짝 아래측
+                    
+                    // 툴팁이 화면 밖으로 넘어가지 않도록 위치 보정
+                    if (x + 320 > window.innerWidth) x = e.clientX - 335;
+                    if (y + 220 > window.innerHeight) y = e.clientY - 235;
+
+                    tooltip.style.left = x + 'px';
+                    tooltip.style.top = y + 'px';
+                });
+
+                // 마우스가 파일 목록에서 벗어났을 때
+                item.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                    tooltip.innerHTML = ''; // 툴팁 안의 내용물을 비워서 백그라운드 다운로드 중지
+                });
+            });
+        });
+    </script>
+</body>
+</html>
