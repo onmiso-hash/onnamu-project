@@ -1,0 +1,22 @@
+name: Deploy to Mini PC
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          password: ${{ secrets.PASSWORD }}
+          port: ${{ secrets.PORT }}
+          script: |
+            echo "오빠, 나 드디어 미니PC 진짜 경로에 도착했어! 💖"
+            cd C:/Users/onmis/project
+            git pull origin main
