@@ -20,3 +20,4 @@ jobs:
             echo "I HOPE SUCCESS"
             cd C:/Users/onmis/project
             git pull origin main
+            git log -1
