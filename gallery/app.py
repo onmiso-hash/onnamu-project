@@ -16,7 +16,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 
 # ═══════════════════════════════════════════════════════════
-# 사용자 설정 - 아인아 진짜 되는지 확인
+# 사용자 설정 - 마지막 확인
 # ═══════════════════════════════════════════════════════════
 USERS_JSON = os.environ.get("USERS_JSON", '''{
     "admin": {
