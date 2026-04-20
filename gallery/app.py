@@ -16,7 +16,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 
 # ═══════════════════════════════════════════════════════════
-# 사용자 설정 - 외부 파일 로드 방식 (아인 v1.1 최적화)
+# 사용자 설정 - 외부 파일 로드 방식 (아인 v1.1 최적화) 
 # ═══════════════════════════════════════════════════════════
 # .env나 docker-compose에서 USERS_CONF_PATH를 설정하지 않으면 기본값 사용
 USERS_CONF_PATH = os.environ.get("USERS_CONF_PATH", "/app/users.json")
