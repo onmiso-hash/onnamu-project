@@ -1,0 +1,12 @@
+{
+  "admin": {
+    "password": "chtqnf0708!",
+    "folders": ["public", "private", "family"],
+    "is_admin": true
+  },
+  "family": {
+    "password": "family123",
+    "folders": ["public", "family"],
+    "is_admin": false
+  }
+}
