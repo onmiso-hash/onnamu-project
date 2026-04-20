@@ -17,8 +17,4 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           script: |
-            echo "I HOPE SUCCESS 2222"
-            cd /d C:\Users\onmis\project
-            git fetch origin main
-            git reset --hard origin/main
-            git log -1
+            powershell -Command "cd C:\Users\onmis\project; git fetch origin main; git reset --hard origin/main; git log -1"
