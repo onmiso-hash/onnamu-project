@@ -17,4 +17,4 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           script: |
-            powershell -Command "$env:DOCKER_BUILDKIT=0;$env:DOCKER_CONFIG='C:\Users\onmis\.docker';cd C:\Users\onmis\project;git fetch origin main;git reset --hard origin/main;cd gallery;docker-compose build --no-cache;docker-compose up -d;cd ../portal;docker-compose build --no-cache;docker-compose up -d;git log -1"
+            powershell -Command "cd C:\Users\onmis\project; git fetch origin main; git reset --hard origin/main; cd gallery; docker compose up -d --build; cd ../portal; docker compose up -d --build; git log -1"
