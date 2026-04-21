@@ -16,7 +16,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 
 # ═══════════════════════════════════════════════════════════
-# 사용자 설정 - 외부 파일 로드 방식 (아인 v1.2 최적화)
+# 사용자 설정 - 외부 파일 로드 방식 (아인 v1.3 최적화 패스워드 로딩)
 # ═══════════════════════════════════════════════════════════
 USERS_CONF_PATH = os.environ.get("USERS_CONF_PATH", "/app/users.json")
 
