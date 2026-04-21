@@ -18,28 +18,22 @@ app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 # ═══════════════════════════════════════════════════════════
 # 사용자 설정 - 외부 파일 로드 방식 (아인 v1.2 최적화)
 # ═══════════════════════════════════════════════════════════
-# .env나 docker-compose에서 USERS_CONF_PATH를 설정하지 않으면 기본값 사용
 USERS_CONF_PATH = os.environ.get("USERS_CONF_PATH", "/app/users.json")
 
 def load_users_from_file():
-    """파일로부터 사용자 정보를 로드하고 실패 시 기본값을 반환합니다."""
-    # 1. 파일이 존재하는지 확인
+    """파일로부터 사용자 정보를 로드하고 실패 시 빈 딕셔너리를 반환합니다."""
     if os.path.exists(USERS_CONF_PATH):
         try:
             with open(USERS_CONF_PATH, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"❌ JSON 로드 실패: {e}")
+            print(f"❌ JSON 로드 에러: {e}")
     
-    # 2. 파일이 없거나 로드 실패 시 환경변수 혹은 하드코딩된 기본값 사용
-    # (이미 GitHub에 노출된 비번이므로, 실사용 시에는 파일 생성을 권장해 오빠!)
-    default_users = {
-        "admin": {"password": "admin123", "folders": ["public", "private", "family"], "is_admin": True},
-        "family": {"password": "family123", "folders": ["public", "family"], "is_admin": False}
-    }
-    return default_users
+    # 파일이 없거나 에러가 나면 빈 값을 반환 (기본 사용자 없음)
+    print(f"⚠️ 경고: {USERS_CONF_PATH} 파일이 없어 사용자 정보를 로드할 수 없습니다.")
+    return {}
 
-# 최종 USERS 데이터 확정
+# 하드코딩된 데이터 없이 깨끗하게 시작!
 USERS = load_users_from_file()
 
 # 미디어 루트 설정
