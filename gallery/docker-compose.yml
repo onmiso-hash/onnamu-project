@@ -1,0 +1,35 @@
+services:
+  my-gallery:
+    build: .
+    container_name: my-gallery
+    restart: unless-stopped
+    ports:
+      - "5002:5002"
+    volumes:
+      # 읽기 전용 미디어 폴더들
+      - C:/Users/onmis/media/public:/media/public:ro
+      - C:/Users/onmis/media/private:/media/private:ro
+      - C:/Users/onmis/media/family:/media/family:ro
+      
+      # 쓰기 가능 경로 (업로드용)
+      - C:/Users/onmis/media/public/videos:/media/public/videos:rw
+      - C:/Users/onmis/media/public/images:/media/public/images:rw
+      - C:/Users/onmis/media/private/videos:/media/private/videos:rw
+      - C:/Users/onmis/media/private/images:/media/private/images:rw
+      - C:/Users/onmis/media/family/videos:/media/family/videos:rw
+      - C:/Users/onmis/media/family/images:/media/family/images:rw
+      
+      # 사용자 설정 파일 볼륨
+      - ./users.json:/app/users.json:ro
+      
+    environment:
+      - USERS_CONF_PATH=/app/users.json
+      - SECRET_KEY=${SECRET_KEY}
+      - MEDIA_ROOT=/media
+      
+    networks:
+      - gallery-network
+
+networks:
+  gallery-network:
+    driver: bridge
