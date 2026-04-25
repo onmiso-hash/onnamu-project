@@ -1,11 +1,13 @@
-FROM nginx:alpine
+FROM python:3.11-slim
 
-# 소스 파일 복사 (HTML 및 client 폴더)
-COPY . /usr/share/nginx/html/
+WORKDIR /app
+
+# 소스 파일 복사
+COPY . .
 
 # 메인 페이지를 index.html로 설정
-RUN cp /usr/share/nginx/html/rdap-javascript_modify.html /usr/share/nginx/html/index.html
+RUN cp rdap-javascript_modify.html index.html
 
+# Python 내장 HTTP 서버를 사용하여 80포트로 서빙
 EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["python", "-m", "http.server", "80"]
