@@ -1,22 +1,18 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html><head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>도메인 krnic.kr - RDAP Lookup</title>
+<title>onnamu RDAP Lookup - 도메인 및 주소 조회</title>
 
-    <meta name="description" content="Source code generated using layoutit.com">
-    <meta name="author" content="LayoutIt!">
+    <meta name="description" content="onnamu RDAP Lookup Service">
+    <meta name="author" content="onnamu">
 
-    <!-- bootstrap.min.css (v3.3.5) — 단일 Bootstrap CSS로 통합 사용 -->
     <link href="./client/css/style.css" rel="stylesheet">
     <script src="./client/js/jquery.min.js"></script>
     <script src="./client/js/bootstrap.min.js"></script>
-    <!-- scripts.js 제거: 빈 파일(placeholder) -->
 	<script src="./client/js/rdap-client-view.js"></script>    
 
 	<link rel="stylesheet" href="./client/css/bootstrap.min.css" media="screen">
-	<!-- rdap.css + branding-test.css 통합 → rdap-custom.css (중복 dd/dl 스타일 제거, 오타 수정) -->
 	<link rel="stylesheet" href="./client/css/rdap-custom.css" media="screen">
-	<!-- bootstrap_v3/bootstrap.min.js 제거: layoutit2/bootstrap.min.js(v3.3.5)와 중복, v3.0.0으로 구버전 -->
 	<script language="javascript" src="./client/js/script.js"></script>
 	
 <script type="text/javaScript" language="javascript" defer="defer">
@@ -53,56 +49,107 @@ function inputQuery(inputQuery, ObjectNm)
 	fn_setInputValueFocus();
 }
 
-function fn_actionLogin() {
-	document.listForm.action = "/client/login/loginUsr.do";
-	document.listForm.submit();
-}
-
 function fn_goToLanguagePage(lang) {
-	//document.listForm.action = "/client/rdapQuery.do";
-	//var lang = document.listForm.lang.value;
-	location.href = "/client/rdapQuery.do" + '?lang=' + lang;
+	if(lang == '2') location.href = "rdap-javascript_modify_en.html";
+	else location.href = "rdap-javascript_modify.html";
 }
-
 </script>
-<script>
-//myApp.hidePleaseWait();
-</script></head>
+
+<style>
+    /* onnamu Theme Style */
+    .navbar-inverse {
+        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .navbar-inverse .navbar-brand {
+        color: white !important;
+        font-weight: bold;
+        font-size: 22px;
+        line-height: 50px;
+        padding-left: 15px;
+    }
+    .navbar-inverse .nav > li > a {
+        color: rgba(255,255,255,0.8) !important;
+        font-weight: 500;
+    }
+    .navbar-inverse .nav > li > a:hover {
+        color: white !important;
+        background: rgba(255,255,255,0.1);
+    }
+    .page-header {
+        border-bottom: 2px solid #764ba2;
+        margin-top: 30px;
+    }
+    .blog-title {
+        color: #333;
+        font-weight: 700;
+    }
+    .panel-primary {
+        border-color: #764ba2;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    }
+    .panel-primary > .panel-heading {
+        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        border-color: #764ba2;
+        font-weight: bold;
+        padding: 15px;
+    }
+    .btn-onnamu {
+        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        font-weight: bold;
+        padding: 8px 25px;
+        border-radius: 8px;
+        transition: all 0.3s;
+    }
+    .btn-onnamu:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+        color: white;
+    }
+    .footer {
+        background: #fdfdfd;
+        color: #666;
+        padding: 40px 0;
+        border-top: 1px solid #eee;
+        margin-top: 50px;
+    }
+    .listtd a {
+        color: #764ba2;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .listtd a:hover {
+        text-decoration: underline;
+    }
+</style>
+</head>
 
 <body style="padding-top: 70px;">
 
-
-
     <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
       <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="https://onnamu.kr">🌐 onnamu RDAP</a>
+        </div>
         <div class="collapse navbar-collapse">
-          <a href="#"><img src="./client/img/logo_kisa.png" alt="KISA 한국인터넷진흥원 로고"></a>
-	          <ul class="nav navbar-nav navbar-right" "="">
-	
-		
-		
-	            <li class="active"><a href="javascript:fn_goToLanguagePage('2');">ENG</a></li>
-		
-	
+	          <ul class="nav navbar-nav navbar-right">
+	            <li><a href="javascript:fn_goToLanguagePage('2');">English (ENG)</a></li>
 	          </ul>
-        </div><!-- /.nav-collapse -->
-      </div><!-- /.container -->
-    </div><!-- /.navbar -->
+        </div>
+      </div>
+    </div>
     
     <div class="container">
-		<div class="row">
-			<div class="col-md-12">
-				<ul class="nav nav-tabs">
-					<li><a href="/client/aboutRdap.do">About RDAP</a></li>
-					<li class="active"><a href="#">RDAP Web Client</a></li>
-					<li><a href="/client/rdapDown.do">Download</a></li>
-				</ul>
-			</div>
-		</div>
 	    <div class="row">
 			<div class="col-md-12">
 				<div class="page-header">
-					<h2 class="blog-title"><b>R</b>egistration <b>D</b>ata <b>A</b>ccess <b>P</b>rotocol - Web Client</h2>
+					<h2 class="blog-title"><b>RDAP</b> Web Client</h2>
+					<p class="text-muted">onnamu.kr 개인 서버 기반 인터넷 주소 자원 조회 서비스</p>
 				</div>
 			</div>
 	    </div>
@@ -111,52 +158,47 @@ function fn_goToLanguagePage(lang) {
     <div class="container">
 		<div class="row">
 			<div class="col-md-12">
-<!--  -->
-			<a href="https://whois.kisa.or.kr" class="a1" target="_blank">[KISA RDS] - Registration Directory Service</a>
+
 			<form onsubmit="doQuery();return false" name="listForm" method="post" class="form-inline" role="search">
 				<div class="panel panel-primary">
-					<div class="panel-body"><h3>RDAP 조회</h3>
-						<p>• 현재 페이지는 <b>Client-side</b>(JavaScript) Web Client 프로그램이며, Server-side Web Client 로의 전환은 <a href="/client/rdapRequestView.do">[<b>여기</b>]</a>를 클릭하시기 바랍니다.</p>
-						<p>• RDAP Client는 <b>JavaScript</b>를 사용하여 HTTP 상에서 인터넷 주소정보를 JSON 형식으로 조회 합니다. </p>
-						<p>• 아래의 Query Example을 선택하시거나 직접 대상 Object를 선택 후 주소 문자열을 입력하시여 조회(Query)를 실행해 보시기 바랍니다.</p>
-						<p>• 언어(language) 선택 값은 RDAP Request Headers(Accept-Language)에 설정되어 RDAP-Server로 전달됩니다.</p>
+					<div class="panel-heading"><h3 class="panel-title">서비스 안내</h3></div>
+					<div class="panel-body">
+						<p>• <b>RDAP</b>(Registration Data Access Protocol)는 기존 Whois를 대체하는 차세대 인터넷 주소 조회 프로토콜입니다.</p>
+						<p>• 본 서비스는 실시간으로 데이터를 조회하는 <b>Client-side</b>(JavaScript) 기반 시스템입니다.</p>
+						<p>• 아래 예시를 클릭하거나 직접 대상 정보를 입력하여 조회를 시작하세요.</p>
 					</div>
 				</div>
 				<div class="panel panel-primary">
     				<div class="panel-body">
 						<div class="panel panel-default">
-							<div class="panel-heading"><label>Query Example: (JavaScript)</label></div>
+							<div class="panel-heading"><label>조회 예시 (Query Examples)</label></div>
 							<div class="panel-body">
-								<table border="0">
+								<table class="table" style="margin-bottom: 0;">
 									<tbody id="stock_tbody">
 										<tr>
-											<td align="left" class="listtd" scope="row" width="30%">Query Domain Name</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('krnic.kr','Domain');">krnic.kr</a> , <a href="javascript:inputQuery('kisa.kr','Domain');">kisa.kr</a> , <a href="javascript:inputQuery('xn--3e0bx5e6xzftae3gxzpskhile.kr','Domain');">xn--3e0bx5e6xzftae3gxzpskhile.kr</a>  </td>
+											<td align="left" class="listtd" scope="row" width="25%">도메인 이름 (Domain)</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('google.com','Domain');">google.com</a> , <a href="javascript:inputQuery('apple.com','Domain');">apple.com</a> , <a href="javascript:inputQuery('kisa.or.kr','Domain');">kisa.or.kr</a></td>
 										</tr>
 										<tr>
-											<td align="left" class="listtd">Query Nameserver</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('ns0.kisa.or.kr','Nameserver');">ns0.kisa.or.kr</a> , <a href="javascript:inputQuery('center.kisa.or.kr','Nameserver');">center.kisa.or.kr</a> , <a href="javascript:inputQuery('hera.kisa.or.kr','Nameserver');">hera.kisa.or.kr</a></td>
+											<td align="left" class="listtd">네임서버 (Nameserver)</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('ns1.google.com','Nameserver');">ns1.google.com</a> , <a href="javascript:inputQuery('a.iana-servers.net','Nameserver');">a.iana-servers.net</a></td>
 										</tr>
 										<tr>
-											<td align="left" class="listtd">Query IP Address</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('202.30.50.51','IP/CIDR');">202.30.50.51</a> , <a href="javascript:inputQuery('2001:02B8::/32','IP/CIDR');">2001:02B8::/32</a></td>
+											<td align="left" class="listtd">IP 주소 (IP Address)</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('8.8.8.8','IP/CIDR');">8.8.8.8</a> , <a href="javascript:inputQuery('211.231.99.17','IP/CIDR');">211.231.99.17</a></td>
 										</tr>
 										<tr>
-											<td align="left" class="listtd">Query Autnum</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('9700','AS Number');">9700</a> , <a href="javascript:inputQuery('9711','AS Number');">9711</a></td>
-										</tr>
-										<tr>
-											<td align="left" class="listtd">Query Entity</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('VR-ARIN','Entity');">VR-ARIN</a> , <a href="javascript:inputQuery('CREW-RIPE','Entity');">CREW-RIPE</a> , <a href="javascript:inputQuery('AFNI30-FRNIC','Entity');">AFNI30-FRNIC</a> , <a href="javascript:inputQuery('IRT-APNIC-AP','Entity');">IRT-APNIC-AP</a></td>
+											<td align="left" class="listtd">AS 번호 (Autnum)</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('15169','AS Number');">15169</a> , <a href="javascript:inputQuery('9700','AS Number');">9700</a></td>
 										</tr>
 									</tbody>
 								</table>
 							</div>
 						</div>
-						<div class="form-group">
-				 			<div class="form-group">
-							  <label for="type">대상(Object) 선택 :</label>
-							  <select class="select form-control" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)">
+						<div class="well" style="background: #f9f9f9; border-radius: 10px;">
+							<div class="form-group">
+							  <label for="type">검색 대상 :</label>
+							  <select class="form-control" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)" style="border-radius: 6px;">
 								<option value="domain" selected="">Domain</option>
 								<option value="nameserver">Nameserver</option>
 								<option value="tld">TLD</option>
@@ -168,45 +210,30 @@ function fn_goToLanguagePage(lang) {
 								<option value="json">JSON</option>
 							  </select>
 							</div>
-							<div class="form-group">
-								<label for="object">&nbsp;대상(Object) 이름 :</label>
-								<input class="input form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Object Name" aria-label="Object Name" style="text-transform:lowercase;" autocomplete="off">
+							<div class="form-group" style="margin-left: 10px;">
+								<label for="object">입력 :</label>
+								<input class="form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="이름 또는 주소 입력" style="width: 300px; border-radius: 6px; text-transform:lowercase;" autocomplete="off">
 							</div>
-							<button id="button" type="button" class="btn btn-default" onclick="doQuery()">조회</button><br>
+							<button id="button" type="button" class="btn btn-onnamu" onclick="doQuery()" style="margin-left: 10px;">정보 조회하기</button>
 							<input type="hidden" id="lang" value="1">
 						</div>
 					</div>
 		  		</div>
 			</form>
 			
-
 			<!-- Response 영역 -->
-						
-				<div id="output-div"></div>
+			<div id="output-div"></div>
 
-	<div>
-		<br>
-		<br>
-	</div>
-
-	<div class="footer" role="navigation">
+	<div class="footer">
 		<div class="container">
 			<div class="text-center">
-				<p>🌐 <b>onnamu RDAP Service</b> v1.0</p>
-				<p style="font-size: 12px; color: #888;">본 서비스는 rdap.org의 공개 데이터를 활용하여 제공됩니다. | <a href="https://onnamu.kr">onnamu.kr</a></p>
-				<p style="font-size: 11px; color: #aaa;">Copyright© 2026 onnamu. All rights reserved.</p>
-			</div>
-		</div>
-	</div>
-	
-	<script>
-		document.getElementById('object').focus();
-		checkParams();
-	</script>
-
-</body></html>pull-left">
-				<span class="address" style="flat:right; font-size: 12px; line-height:1.6em;"><b>[나주본원]</b> (58324) 전라남도 나주시 진흥길 9 한국인터넷진흥원   TEL : 1433-25(수신자요금부담)</span>
-				<p class="copyright" style="flat:right; font-size: 12px; line-height:1.6em;">Copyright© 2025 KRNIC. All rights reserved.</p>
+				<p style="font-size: 18px;">🌐 <b>onnamu RDAP Service</b></p>
+				<p style="font-size: 13px; color: #888;">본 서비스는 IETF 표준 RDAP 프로토콜 및 rdap.org의 데이터를 활용하여 제공됩니다.</p>
+				<p style="font-size: 12px; color: #aaa; margin-top: 10px;">
+                    <a href="https://onnamu.kr" style="color: #764ba2;">Home</a> | 
+                    <a href="https://gallery.onnamu.kr" style="color: #764ba2;">Gallery</a> | 
+                    © 2026 onnamu Project
+                </p>
 			</div>
 		</div>
 	</div>
