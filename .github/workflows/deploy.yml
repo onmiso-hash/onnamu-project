@@ -17,4 +17,4 @@ jobs:
           password: ${{ secrets.PASSWORD }}
           port: ${{ secrets.PORT }}
           script: |
-            powershell -Command "cd D:\Project\onnamu-project; if ($?) { git fetch origin main; git reset --hard origin/main; cd gallery; docker compose up -d --build; cd ../portal; docker compose up -d --build; cd ../rdap; docker compose up -d --build; git log -1 } else { Write-Error 'Directory not found' }"
+            powershell -Command "cd C:\Users\onmis\project; git fetch origin main; git reset --hard origin/main; cd gallery; docker compose up -d --build; cd ../portal; docker compose up -d --build; cd ../rdap; docker compose up -d --build; git log -1"
