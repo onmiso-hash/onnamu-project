@@ -1,7 +1,7 @@
 import sys
 import os
 import logging
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 import ipaddress
 import asyncio
@@ -31,7 +31,9 @@ async def startup_event():
         logger.error("Bootstrap Manager is not available.")
 
 @app.get("/")
-async def root():
+async def root(request: Request = None):
+    if request:
+        logger.info(f"Root request received from: {request.client.host}, path: {request.url.path}")
     status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
     return {
         "message": "onnamu RDAP Bootstrap Server is running", 
