@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 IANA_BASE_URL = "https://data.iana.org/rdap/"
-FILES = ["dns.json", "ipv4.json", "ipv6.json", "autnum.json", "object-tags.json"]
+FILES = ["dns.json", "ipv4.json", "ipv6.json", "asn.json", "object-tags.json"]
 DATA_DIR = Path("./data")
 
 class BootstrapManager:

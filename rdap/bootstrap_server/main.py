@@ -109,7 +109,7 @@ async def redirect_autnum(number_str: str):
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid AS number format")
 
-    autnum_data = bootstrap_manager.data.get("autnum.json")
+    autnum_data = bootstrap_manager.data.get("asn.json")
     if autnum_data:
         for service in autnum_data.get("services", []):
             for range_str in service[0]:
