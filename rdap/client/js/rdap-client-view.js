@@ -137,8 +137,8 @@ window.onpopstate = function(e) {
 
 	// construct an RDAP URL for the given object
 	function getRDAPURL(typeval, object, lang) {
-		return 'https://rdap.kisa.or.kr/bootstrap/' + typeval + '/' + object;
-		//return 'https://rdap.org/' + typeval + '/' + object;
+		//return 'https://rdap.kisa.or.kr/bootstrap/' + typeval + '/' + object;
+		return 'https://rdap.org/' + typeval + '/' + object;
 
 	}
 
