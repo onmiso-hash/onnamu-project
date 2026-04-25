@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 @app.on_event("startup")
 async def startup_event():
     if bootstrap_manager:
-        # 데이터 수집 중 에러가 나도 서버가 죽지 않도록 예외 처리
         try:
             asyncio.create_task(bootstrap_manager.initialize())
             logger.info("Bootstrap Manager initialization started in background.")
@@ -38,15 +37,16 @@ async def root():
         "message": "onnamu RDAP Bootstrap Server is running", 
         "status": status,
         "endpoints": [
-            "/bootstrap/domain/{name}", 
-            "/bootstrap/ip/{address}", 
-            "/bootstrap/autnum/{number}", 
-            "/bootstrap/entity/{handle}",
-            "/bootstrap/{file}.json"
+            "/domain/{name}", 
+            "/ip/{address}", 
+            "/autnum/{number}", 
+            "/entity/{handle}",
+            "/{file}.json"
         ]
     }
 
-@app.get("/bootstrap/domain/{name}")
+# 1. 도메인 리다이렉트
+@app.get("/domain/{name}")
 async def redirect_domain(name: str):
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Data is still loading, please try again later")
@@ -62,7 +62,8 @@ async def redirect_domain(name: str):
                 
     raise HTTPException(status_code=404, detail="RDAP server for this TLD not found")
 
-@app.get("/bootstrap/ip/{address}")
+# 2. IP 리다이렉트 (v4/v6)
+@app.get("/ip/{address}")
 async def redirect_ip(address: str):
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Data is still loading")
@@ -83,7 +84,41 @@ async def redirect_ip(address: str):
         
     raise HTTPException(status_code=404, detail="RDAP server for this IP range not found")
 
-@app.get("/bootstrap/{filename}")
+# 3. AS 번호 리다이렉트
+@app.get("/autnum/{number}")
+async def redirect_autnum(number: int):
+    if not bootstrap_manager or not bootstrap_manager.data:
+        raise HTTPException(status_code=503, detail="Data is still loading")
+    autnum_data = bootstrap_manager.data.get("autnum.json")
+    if autnum_data:
+        for service in autnum_data.get("services", []):
+            for range_str in service[0]:
+                try:
+                    start, end = map(int, range_str.split("-"))
+                    if start <= number <= end:
+                        target_url = service[1][0]
+                        return RedirectResponse(url=f"{target_url}autnum/{number}", status_code=307)
+                except ValueError: continue
+    raise HTTPException(status_code=404, detail="Not found")
+
+# 4. 엔티티 리다이렉트
+@app.get("/entity/{handle}")
+async def redirect_entity(handle: str):
+    if not bootstrap_manager or not bootstrap_manager.data:
+        raise HTTPException(status_code=503, detail="Data is still loading")
+    tag_data = bootstrap_manager.data.get("object-tags.json")
+    if tag_data:
+        parts = handle.split("-")
+        if len(parts) > 1:
+            tag = parts[-1].upper()
+            for service in tag_data.get("services", []):
+                if tag in service[0]:
+                    target_url = service[1][0]
+                    return RedirectResponse(url=f"{target_url}entity/{handle}", status_code=307)
+    raise HTTPException(status_code=404, detail="Not found")
+
+# 5. 정적 파일 제공
+@app.get("/{filename}")
 async def get_bootstrap_file(filename: str):
     if not filename.endswith(".json"):
         filename += ".json"
