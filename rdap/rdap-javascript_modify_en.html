@@ -63,29 +63,41 @@ function fn_goToLanguagePage(lang) {
         box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         min-height: 60px;
     }
-    .navbar-inverse .container-fluid {
-        display: flex;
+    .navbar-inverse .container {
+        display: flex !important;
         align-items: center;
-        justify-content: space-between;
+        justify-content: space-between !important;
         min-height: 60px;
     }
+    .navbar-inverse .container::before,
+    .navbar-inverse .container::after {
+        display: none !important;
+        content: none !important;
+    }
     .navbar-header {
-        float: left;
+        float: none !important;
     }
     .navbar-collapse {
         display: flex !important;
-        float: right;
+        align-items: center;
         padding: 0;
         margin: 0;
         border: none;
+        float: none !important;
     }
     .navbar-inverse .navbar-brand {
         color: white !important;
         font-weight: bold;
         font-size: 22px;
-        padding: 15px;
+        padding: 15px 0; /* 좌측 패딩 제거하여 본문과 줄 맞춤 */
         margin: 0;
         display: block;
+    }
+    .navbar-right {
+        margin: 0 !important;
+    }
+    .navbar-right li a {
+        padding-right: 0 !important; /* 우측 패딩 제거하여 본문과 줄 맞춤 */
     }
     .navbar-inverse .nav {
         margin: 0;
@@ -154,7 +166,7 @@ function fn_goToLanguagePage(lang) {
 <body style="padding-top: 70px;">
 
     <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
-      <div class="container-fluid">
+      <div class="container">
         <div class="navbar-header">
           <a class="navbar-brand" href="https://onnamu.kr">🌐 onnamu RDAP</a>
         </div>
