@@ -8,6 +8,18 @@ services:
     networks:
       - rdap-network
 
+  bootstrap-server:
+    build:
+      context: ./bootstrap_server
+    container_name: rdap-bootstrap
+    restart: unless-stopped
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./bootstrap_server/data:/app/data
+    networks:
+      - rdap-network
+
 networks:
   rdap-network:
     driver: bridge
