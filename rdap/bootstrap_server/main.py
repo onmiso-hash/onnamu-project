@@ -96,22 +96,38 @@ async def redirect_ip(address: str):
         
     raise HTTPException(status_code=404, detail="RDAP server for this IP range not found")
 
-# 3. AS 번호 리다이렉트
-@app.get("/autnum/{number}")
-async def redirect_autnum(number: int):
+# 3. AS 번호 리다이렉트 (로직 보강)
+@app.get("/autnum/{number_str}")
+async def redirect_autnum(number_str: str):
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Data is still loading")
+    
+    # AS 접두사가 있으면 제거
+    clean_number_str = number_str.upper().replace("AS", "")
+    try:
+        number = int(clean_number_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid AS number format")
+
     autnum_data = bootstrap_manager.data.get("autnum.json")
     if autnum_data:
         for service in autnum_data.get("services", []):
             for range_str in service[0]:
                 try:
-                    start, end = map(int, range_str.split("-"))
+                    # 범위 형태(start-end)와 단일 숫자 형태 모두 처리
+                    if "-" in range_str:
+                        start_s, end_s = range_str.split("-")
+                        start, end = int(start_s), int(end_s)
+                    else:
+                        start = end = int(range_str)
+                    
                     if start <= number <= end:
                         target_url = service[1][0]
                         return RedirectResponse(url=f"{target_url}autnum/{number}", status_code=307)
-                except ValueError: continue
-    raise HTTPException(status_code=404, detail="Not found")
+                except (ValueError, IndexError):
+                    continue
+                    
+    raise HTTPException(status_code=404, detail="RDAP server for this AS number not found")
 
 # 4. 엔티티 리다이렉트
 @app.get("/entity/{handle}")
@@ -120,6 +136,7 @@ async def redirect_entity(handle: str):
         raise HTTPException(status_code=503, detail="Data is still loading")
     tag_data = bootstrap_manager.data.get("object-tags.json")
     if tag_data:
+        # 핸들에서 마지막 태그 추출 (예: AS-KISA -> KISA)
         parts = handle.split("-")
         if len(parts) > 1:
             tag = parts[-1].upper()
@@ -127,7 +144,7 @@ async def redirect_entity(handle: str):
                 if tag in service[0]:
                     target_url = service[1][0]
                     return RedirectResponse(url=f"{target_url}entity/{handle}", status_code=307)
-    raise HTTPException(status_code=404, detail="Not found")
+    raise HTTPException(status_code=404, detail="RDAP server for this entity tag not found")
 
 # 5. 정적 파일 제공
 @app.get("/{filename}")
