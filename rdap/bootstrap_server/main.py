@@ -2,6 +2,7 @@ import sys
 import os
 import logging
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 import ipaddress
 import asyncio
@@ -18,6 +19,15 @@ except ImportError as e:
 app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# CORS 설정 추가
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 모든 도메인 허용
+    allow_credentials=True,
+    allow_methods=["*"],  # 모든 HTTP 메소드 허용
+    allow_headers=["*"],  # 모든 HTTP 헤더 허용
+)
 
 @app.on_event("startup")
 async def startup_event():
