@@ -1,0 +1,210 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>도메인 krnic.kr - RDAP Lookup</title>
+
+    <meta name="description" content="Source code generated using layoutit.com">
+    <meta name="author" content="LayoutIt!">
+
+    <!-- bootstrap.min.css (v3.3.5) — 단일 Bootstrap CSS로 통합 사용 -->
+    <link href="./client/css/style.css" rel="stylesheet">
+    <script src="./client/js/jquery.min.js"></script>
+    <script src="./client/js/bootstrap.min.js"></script>
+    <!-- scripts.js 제거: 빈 파일(placeholder) -->
+	<script src="./client/js/rdap-client-view.js"></script>    
+
+	<link rel="stylesheet" href="./client/css/bootstrap.min.css" media="screen">
+	<!-- rdap.css + branding-test.css 통합 → rdap-custom.css (중복 dd/dl 스타일 제거, 오타 수정) -->
+	<link rel="stylesheet" href="./client/css/rdap-custom.css" media="screen">
+	<!-- bootstrap_v3/bootstrap.min.js 제거: layoutit2/bootstrap.min.js(v3.3.5)와 중복, v3.0.0으로 구버전 -->
+	<script language="javascript" src="./client/js/script.js"></script>
+	
+<script type="text/javaScript" language="javascript" defer="defer">
+function commonClick(objectItemId)
+{
+	const btnElement = document.getElementById(objectItemId);
+	const original = btnElement.innerText;
+	if(original.indexOf('▲') != -1){
+		btnElement.innerText = original.replaceAll('▲','▼'); 
+	}else if(original.indexOf('▼') != -1){
+		btnElement.innerText = original.replaceAll('▼','▲');
+	}
+}
+
+function fn_setInputValueFocus() {
+	const inputFoCus = document.getElementById('object');
+	const value = inputFoCus.value;
+
+	inputFoCus.focus();
+	inputFoCus.value = '';
+	inputFoCus.value = value;	
+}
+
+function inputQuery(inputQuery, ObjectNm)
+{
+	var form1 = document.listForm;
+	form1.object.value = inputQuery;
+
+	var selObject = document.querySelector("select[name=type]").options;
+	for(var i=0; i<selObject.length; i++) {
+		if (selObject[i].text == ObjectNm) selObject[i].selected = true;
+	}
+	
+	fn_setInputValueFocus();
+}
+
+function fn_actionLogin() {
+	document.listForm.action = "/client/login/loginUsr.do";
+	document.listForm.submit();
+}
+
+function fn_goToLanguagePage(lang) {
+	//document.listForm.action = "/client/rdapQuery.do";
+	//var lang = document.listForm.lang.value;
+	location.href = "/client/rdapQuery.do" + '?lang=' + lang;
+}
+
+</script>
+<script>
+//myApp.hidePleaseWait();
+</script></head>
+
+<body style="padding-top: 70px;">
+
+
+
+    <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="collapse navbar-collapse">
+          <a href="#"><img src="./client/img/logo_kisa.png" alt="KISA 한국인터넷진흥원 로고"></a>
+	          <ul class="nav navbar-nav navbar-right" "="">
+	
+		
+		
+	            <li class="active"><a href="javascript:fn_goToLanguagePage('2');">ENG</a></li>
+		
+	
+	          </ul>
+        </div><!-- /.nav-collapse -->
+      </div><!-- /.container -->
+    </div><!-- /.navbar -->
+    
+    <div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				<ul class="nav nav-tabs">
+					<li><a href="/client/aboutRdap.do">About RDAP</a></li>
+					<li class="active"><a href="#">RDAP Web Client</a></li>
+					<li><a href="/client/rdapDown.do">Download</a></li>
+				</ul>
+			</div>
+		</div>
+	    <div class="row">
+			<div class="col-md-12">
+				<div class="page-header">
+					<h2 class="blog-title"><b>R</b>egistration <b>D</b>ata <b>A</b>ccess <b>P</b>rotocol - Web Client</h2>
+				</div>
+			</div>
+	    </div>
+	</div>
+	
+    <div class="container">
+		<div class="row">
+			<div class="col-md-12">
+<!--  -->
+			<a href="https://whois.kisa.or.kr" class="a1" target="_blank">[KISA RDS] - Registration Directory Service</a>
+			<form onsubmit="doQuery();return false" name="listForm" method="post" class="form-inline" role="search">
+				<div class="panel panel-primary">
+					<div class="panel-body"><h3>RDAP 조회</h3>
+						<p>• 현재 페이지는 <b>Client-side</b>(JavaScript) Web Client 프로그램이며, Server-side Web Client 로의 전환은 <a href="/client/rdapRequestView.do">[<b>여기</b>]</a>를 클릭하시기 바랍니다.</p>
+						<p>• RDAP Client는 <b>JavaScript</b>를 사용하여 HTTP 상에서 인터넷 주소정보를 JSON 형식으로 조회 합니다. </p>
+						<p>• 아래의 Query Example을 선택하시거나 직접 대상 Object를 선택 후 주소 문자열을 입력하시여 조회(Query)를 실행해 보시기 바랍니다.</p>
+						<p>• 언어(language) 선택 값은 RDAP Request Headers(Accept-Language)에 설정되어 RDAP-Server로 전달됩니다.</p>
+					</div>
+				</div>
+				<div class="panel panel-primary">
+    				<div class="panel-body">
+						<div class="panel panel-default">
+							<div class="panel-heading"><label>Query Example: (JavaScript)</label></div>
+							<div class="panel-body">
+								<table border="0">
+									<tbody id="stock_tbody">
+										<tr>
+											<td align="left" class="listtd" scope="row" width="30%">Query Domain Name</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('krnic.kr','Domain');">krnic.kr</a> , <a href="javascript:inputQuery('kisa.kr','Domain');">kisa.kr</a> , <a href="javascript:inputQuery('xn--3e0bx5e6xzftae3gxzpskhile.kr','Domain');">xn--3e0bx5e6xzftae3gxzpskhile.kr</a>  </td>
+										</tr>
+										<tr>
+											<td align="left" class="listtd">Query Nameserver</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('ns0.kisa.or.kr','Nameserver');">ns0.kisa.or.kr</a> , <a href="javascript:inputQuery('center.kisa.or.kr','Nameserver');">center.kisa.or.kr</a> , <a href="javascript:inputQuery('hera.kisa.or.kr','Nameserver');">hera.kisa.or.kr</a></td>
+										</tr>
+										<tr>
+											<td align="left" class="listtd">Query IP Address</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('202.30.50.51','IP/CIDR');">202.30.50.51</a> , <a href="javascript:inputQuery('2001:02B8::/32','IP/CIDR');">2001:02B8::/32</a></td>
+										</tr>
+										<tr>
+											<td align="left" class="listtd">Query Autnum</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('9700','AS Number');">9700</a> , <a href="javascript:inputQuery('9711','AS Number');">9711</a></td>
+										</tr>
+										<tr>
+											<td align="left" class="listtd">Query Entity</td>
+											<td align="left" class="listtd">: <a href="javascript:inputQuery('VR-ARIN','Entity');">VR-ARIN</a> , <a href="javascript:inputQuery('CREW-RIPE','Entity');">CREW-RIPE</a> , <a href="javascript:inputQuery('AFNI30-FRNIC','Entity');">AFNI30-FRNIC</a> , <a href="javascript:inputQuery('IRT-APNIC-AP','Entity');">IRT-APNIC-AP</a></td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+						<div class="form-group">
+				 			<div class="form-group">
+							  <label for="type">대상(Object) 선택 :</label>
+							  <select class="select form-control" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)">
+								<option value="domain" selected="">Domain</option>
+								<option value="nameserver">Nameserver</option>
+								<option value="tld">TLD</option>
+								<option value="ip">IP/CIDR</option>
+								<option value="autnum">AS Number</option>
+								<option value="entity">Entity</option>
+								<option value="registrar">Registrar</option>
+								<option value="url">URL</option>
+								<option value="json">JSON</option>
+							  </select>
+							</div>
+							<div class="form-group">
+								<label for="object">&nbsp;대상(Object) 이름 :</label>
+								<input class="input form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Object Name" aria-label="Object Name" style="text-transform:lowercase;" autocomplete="off">
+							</div>
+							<button id="button" type="button" class="btn btn-default" onclick="doQuery()">조회</button><br>
+							<input type="hidden" id="lang" value="1">
+						</div>
+					</div>
+		  		</div>
+			</form>
+			
+
+			<!-- Response 영역 -->
+						
+				<div id="output-div"></div>
+
+	<div>
+		<br>
+		<br>
+	</div>
+
+	<div class="footer navbar-inverse navbar-bottom" role="navigation">
+	<hr style="margin-bottom: 0px;">
+		<div class="container">
+			<div class="navbar-text pull-left">
+				<a href="https://www.kisa.or.kr/" target="_blank"><img src="./client/img/logo_footer.gif" alt="KISA" width="70" height="21"></a>
+			</div>
+			<div class="navbar-text pull-left">
+				<span class="address" style="flat:right; font-size: 12px; line-height:1.6em;"><b>[나주본원]</b> (58324) 전라남도 나주시 진흥길 9 한국인터넷진흥원   TEL : 1433-25(수신자요금부담)</span>
+				<p class="copyright" style="flat:right; font-size: 12px; line-height:1.6em;">Copyright© 2025 KRNIC. All rights reserved.</p>
+			</div>
+		</div>
+	</div>
+	
+	<script>
+		document.getElementById('object').focus();
+		checkParams();
+	</script>
+
+</body></html>

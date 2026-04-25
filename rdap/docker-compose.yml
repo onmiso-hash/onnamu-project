@@ -1,0 +1,13 @@
+services:
+  my-rdap:
+    build: .
+    container_name: my-rdap
+    restart: unless-stopped
+    ports:
+      - "5003:80"
+    networks:
+      - rdap-network
+
+networks:
+  rdap-network:
+    driver: bridge

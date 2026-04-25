@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDAP Real-time Dashboard (5s)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; padding: 1.5rem; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        /* 갱신 중임을 알리는 애니메이션 효과 */
+        .refreshing { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+    </style>
+</head>
+<body class="p-6">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold text-gray-800">📊 RDAP Real-time Stats</h1>
+                    <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold animate-pulse">LIVE (5s)</span>
+                </div>
+                <p id="update-time" class="text-sm text-gray-500 mt-1 font-mono">준비 중...</p>
+            </div>
+            <div class="text-right">
+                <p class="text-xs text-gray-400 mb-1">자동 갱신 활성화됨</p>
+                <button onclick="location.reload()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-medium text-sm">
+                    즉시 수동 갱신
+                </button>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="card border-l-4 border-blue-500">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Hits</p>
+                <p id="total-hits" class="text-3xl font-bold text-gray-800">0</p>
+            </div>
+            <div class="card border-l-4 border-rose-500">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Misses</p>
+                <p id="total-misses" class="text-3xl font-bold text-gray-800">0</p>
+            </div>
+            <div class="card border-l-4 border-emerald-500">
+                <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Success Rate</p>
+                <p id="success-rate" class="text-3xl font-bold text-gray-800">0%</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card">
+                <h2 class="text-lg font-bold mb-4 text-gray-700">Hits by Category</h2>
+                <canvas id="categoryChart" height="200"></canvas>
+            </div>
+            <div class="card">
+                <h2 class="text-lg font-bold mb-4 text-gray-700">Top Access Client IPs</h2>
+                <canvas id="clientChart" height="200"></canvas>
+            </div>
+        </div>
+
+        <div class="card overflow-x-auto">
+            <h2 class="text-lg font-bold mb-4 text-gray-700">Bootstrap File Status</h2>
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 text-xs uppercase text-gray-500">
+                        <th class="p-4 border-b">Resource</th>
+                        <th class="p-4 border-b">Modified Date</th>
+                        <th class="p-4 border-b">Published Date</th>
+                    </tr>
+                </thead>
+                <tbody id="status-table-body" class="text-sm text-gray-700 font-mono"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 차트 인스턴스 저장용 변수 (중복 생성 방지)
+        let categoryChart = null;
+        let clientChart = null;
+
+        function parseHits(descriptionArray) {
+            if (!descriptionArray || descriptionArray.length === 0 || descriptionArray[0].includes("Zero queries.")) return 0;
+            let total = 0;
+            descriptionArray.forEach(item => {
+                const count = parseInt(item.split('=')[0].trim());
+                if(!isNaN(count)) total += count;
+            });
+            return total;
+        }
+
+        async function initDashboard() {
+            const apiUrl = 'https://rdap.kisa.or.kr/bootstrap/help';
+            const updateLabel = document.getElementById('update-time');
+            
+            try {
+                updateLabel.classList.add('refreshing'); // 갱신 중 애니메이션 시작
+
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+
+                const text = await response.text();
+                const data = JSON.parse(text);
+                const notices = data.notices;
+
+                // 1. 데이터 업데이트 (요약 정보)
+                const totalNotice = notices.find(n => n.title === "Totals");
+                let hits = 0, misses = 0;
+                if (totalNotice && !totalNotice.description[0].includes("Zero queries.")) {
+                    totalNotice.description.forEach(item => {
+                        if(item.includes('Hits')) hits = parseInt(item.split('=')[1]) || 0;
+                        if(item.includes('Misses')) misses = parseInt(item.split('=')[1]) || 0;
+                    });
+                }
+                document.getElementById('total-hits').innerText = hits.toLocaleString();
+                document.getElementById('total-misses').innerText = misses.toLocaleString();
+                const rate = (hits + misses) > 0 ? ((hits / (hits + misses)) * 100).toFixed(1) : 0;
+                document.getElementById('success-rate').innerText = rate + '%';
+
+                // 2. 카테고리별 막대 차트 갱신
+                const categories = ["Domain Hits", "IP Hits", "Entity Hits", "Nameserver Hits"];
+                const categoryValues = categories.map(cat => {
+                    const found = notices.find(n => n.title === cat);
+                    return found ? parseHits(found.description) : 0;
+                });
+
+                if (categoryChart) categoryChart.destroy(); // 기존 차트 삭제
+                categoryChart = new Chart(document.getElementById('categoryChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Domain', 'IP', 'Entity', 'Nameserver'],
+                        datasets: [{ label: 'Hits', data: categoryValues, backgroundColor: '#6366f1', borderRadius: 4 }]
+                    },
+                    options: { responsive: true, plugins: { legend: { display: false } }, animation: { duration: 400 } }
+                });
+
+                // 3. 클라이언트 IP 도넛 차트 갱신
+                const clientNotice = notices.find(n => n.title === "Access Client IP Hits");
+                let clientLabels = ["No Data"], clientValues = [1];
+                if (clientNotice && !clientNotice.description[0].includes("Zero queries.")) {
+                    clientLabels = clientNotice.description.map(d => d.split('=')[1].trim());
+                    clientValues = clientNotice.description.map(d => parseInt(d.split('=')[0]));
+                }
+
+                if (clientChart) clientChart.destroy(); // 기존 차트 삭제
+                clientChart = new Chart(document.getElementById('clientChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: clientLabels,
+                        datasets: [{ data: clientValues, backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'] }]
+                    },
+                    options: { cutout: '70%', animation: { duration: 400 } }
+                });
+
+                // 4. 테이블 데이터 업데이트
+                const tableBody = document.getElementById('status-table-body');
+                tableBody.innerHTML = '';
+                notices.filter(n => n.title.includes("Dates")).forEach(n => {
+                    const row = `
+                        <tr class="border-b hover:bg-gray-50 transition">
+                            <td class="p-4 font-semibold text-gray-800 text-xs">${n.title.split(' Bootstrap')[0]}</td>
+                            <td class="p-4 text-gray-500 text-[11px]">${n.description[0]}</td>
+                            <td class="p-4 text-gray-500 text-[11px]">${n.description[1]}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+
+                updateLabel.innerText = "Last sync: " + new Date().toLocaleTimeString();
+                updateLabel.classList.remove('refreshing');
+
+            } catch (error) {
+                console.error("Auto Refresh Failed:", error);
+                updateLabel.innerHTML = `<span class="text-rose-500 font-bold">Sync Failed: ${new Date().toLocaleTimeString()}</span>`;
+                updateLabel.classList.remove('refreshing');
+            }
+        }
+
+        // 초기 실행
+        initDashboard();
+
+        // 5초(5000ms)마다 주기적으로 실행
+        setInterval(initDashboard, 5000);
+    </script>
+</body>
+</html>

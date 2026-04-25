@@ -1,0 +1,123 @@
+@charset "UTF-8";
+
+/* =========================================================
+ * rdap-custom.css
+ * 통합 내역:
+ *   1) rdap.css + branding-test.css (중복 제거, 오타 수정)
+ *   2) bootstrap.min2.css 전용 커스텀 파트
+ *      (spinner, d-flex, align 유틸리티 등)
+ *      → bootstrap.min.css (v3.3.5) 단일 사용을 위해 흡수
+ * ========================================================= */
+
+/* --- List / Definition List 기본 스타일 --- */
+ol,
+ul,
+dl {
+	margin-top: 0;
+	margin-bottom: 1rem;
+	margin: 0;
+}
+
+ol ol,
+ul ul,
+ol ul,
+ul ol {
+	margin-bottom: 0;
+}
+
+dt {
+	font-weight: 700;
+}
+
+dd {
+	margin-bottom: 0.5rem;
+	margin-left: 0;
+	margin: 0.2em 0em 1em 2em;
+}
+
+blockquote {
+	margin: 0 0 1rem;
+}
+
+/* --- RDAP 전용 스타일 (구 branding-test.css) --- */
+.rdap-status-code,
+.rdap-event-time {
+	border-bottom: 1px dashed silver;
+}
+
+/* =========================================================
+ * 아래는 bootstrap.min2.css 전용 커스텀 파트 흡수
+ * bootstrap.min.css (v3.3.5) 에는 없는 스타일
+ * ========================================================= */
+
+/* --- Flexbox 유틸리티 --- */
+.d-flex {
+	display: flex !important;
+}
+
+/* --- 로딩 스피너 (spinner-border) --- */
+@keyframes spinner-border {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+.spinner-border {
+	display: inline-block;
+	width: 2rem;
+	height: 2rem;
+	vertical-align: middle;
+	border: .25em solid currentColor;
+	border-right-color: transparent;
+	border-radius: 50%;
+	animation: spinner-border .75s linear infinite;
+	margin: 0 auto;   /* 구 branding-test.css 오타 'auyto' → 'auto' 수정 */
+	display: block;   /* 구 branding-test.css 오버라이드 유지 */
+}
+
+.spinner-border-sm {
+	width: 1rem;
+	height: 1rem;
+	border-width: .2em;
+}
+
+/* --- 로딩 스피너 (spinner-grow) --- */
+@keyframes spinner-grow {
+	0% {
+		transform: scale(0);
+	}
+	50% {
+		opacity: 1;
+	}
+}
+
+.spinner-grow {
+	display: inline-block;
+	width: 2rem;
+	height: 2rem;
+	vertical-align: text-bottom;
+	background-color: currentColor;
+	border-radius: 50%;
+	opacity: 0;
+	animation: spinner-grow .75s linear infinite;
+}
+
+.spinner-grow-sm {
+	width: 1rem;
+	height: 1rem;
+}
+
+/* --- 수직 정렬 유틸리티 --- */
+.align-baseline    { vertical-align: baseline    !important; }
+.align-top         { vertical-align: top         !important; }
+.align-middle      { vertical-align: middle      !important; }
+.align-bottom      { vertical-align: bottom      !important; }
+.align-text-bottom { vertical-align: text-bottom !important; }
+.align-text-top    { vertical-align: text-top    !important; }
+
+/* --- Flexbox 정렬 유틸리티 --- */
+.justify-content-center { justify-content: center  !important; }
+.align-items-center     { align-items:     center  !important; }
+
+/* --- 배경색 유틸리티 --- */
+.bg-primary { background-color: #007bff !important; }
