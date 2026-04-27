@@ -90,10 +90,12 @@
         }
 
         async function initDashboard() {
-            // 현재 호스트가 로컬이면 localhost 호출, 아니면 공식 API 도메인 호출
-            const apiUrl = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
-                           ? 'http://localhost:8000/help' 
-                           : 'https://bootstrap.rdap.kr/help'; 
+            // 현재 호스트가 로컬(localhost, 127.0.0.1)이거나 로컬 파일(file://)로 열었을 경우 로컬 API 호출
+            const isLocal = window.location.hostname === 'localhost' || 
+                            window.location.hostname === '127.0.0.1' || 
+                            window.location.protocol === 'file:';
+                            
+            const apiUrl = isLocal ? 'http://localhost:8000/help' : 'https://bootstrap.rdap.kr/help';
             
             const updateLabel = document.getElementById('update-time');
             
