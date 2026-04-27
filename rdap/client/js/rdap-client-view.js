@@ -182,13 +182,20 @@ window.onpopstate = function(e) {
 			var xhr = new XMLHttpRequest();		
 			xhr.open('GET', url);
 			if(lang == '2') xhr.setRequestHeader("Accept-Language", "en");
-			//xhr.timeout = 25000;
-			xhr.timeout = 5000;
+			
+			// 7초 타임아웃 설정
+			xhr.timeout = 7000;
 			xhr.responseType = 'json';
 			
 			xhr.ontimeout = function() {
 				thawUI();
 				handleError(changeLanguage('Timeout performing query, please try again later.'));
+			};
+
+			// 네트워크 에러 또는 CORS 에러 발생 시 처리
+			xhr.onerror = function() {
+				thawUI();
+				handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
 			};
 			
 			xhr.onload = function() { handleResponse(xhr); };
@@ -1514,6 +1521,7 @@ window.onpopstate = function(e) {
 			else if (word == 'This Object does not exist.') word = '이 객체는 존재하지 않습니다.';
 			else if (word == 'Page not found') word = '페이지를 찾을 수 없음';
 			else if (word == 'Timeout performing query, please try again later.') word = '조회 수행 중 시간 초과가 발생했습니다. 이후 다시 시도해 주시기 바랍니다.';
+			else if (word == 'A network error occurred or the RDAP server does not allow CORS requests.') word = '네트워크 오류가 발생했거나, 해당 RDAP 서버가 브라우저 직접 조회(CORS)를 허용하지 않습니다.';
 			
 			else if (word == 'Full') word = '전체';
 			else if (word == 'Localizations') word = '현지화 정보';
