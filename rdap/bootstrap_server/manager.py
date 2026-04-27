@@ -16,7 +16,37 @@ DATA_DIR = Path("./data")
 class BootstrapManager:
     def __init__(self):
         self.data = {}
+        # 통계 데이터 초기화
+        self.stats = {
+            "total_hits": 0,
+            "total_misses": 0,
+            "categories": {
+                "domain": 0,
+                "ip": 0,
+                "ipv4": 0,
+                "ipv6": 0,
+                "autnum": 0,
+                "entity": 0,
+                "nameserver": 0
+            },
+            "client_ips": {} # {ip: count}
+        }
         DATA_DIR.mkdir(exist_ok=True)
+
+    def record_hit(self, category: str, client_ip: str = None, sub_category: str = None):
+        """조회 성공 시 통계를 기록합니다."""
+        self.stats["total_hits"] += 1
+        if category in self.stats["categories"]:
+            self.stats["categories"][category] += 1
+        if sub_category in self.stats["categories"]:
+            self.stats["categories"][sub_category] += 1
+            
+        if client_ip:
+            self.stats["client_ips"][client_ip] = self.stats["client_ips"].get(client_ip, 0) + 1
+
+    def record_miss(self):
+        """조회 실패 시 통계를 기록합니다."""
+        self.stats["total_misses"] += 1
 
     async def fetch_all(self):
         """IANA에서 모든 부트스트랩 파일을 다운로드합니다."""
