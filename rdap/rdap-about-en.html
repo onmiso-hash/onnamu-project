@@ -186,9 +186,10 @@
                         <p>Retrieve the latest raw data synchronized from IANA.</p>
                         <ul>
                             <li>Domain: <code>https://bootstrap.rdap.kr/dns.json</code></li>
-                            <li>IPv4: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
+                            <li>IPv4 Address: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
+                            <li>IPv6 Address: <code>https://bootstrap.rdap.kr/ipv6.json</code></li>
+                            <li>AS Number (Autnum): <code>https://bootstrap.rdap.kr/autnum.json</code></li>
                             <li>Object Tags: <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
-                            <li>(Available for ipv6.json and autnum.json as well)</li>
                         </ul>
 
                         <hr>
@@ -205,8 +206,8 @@
                             <li style="margin-top:10px;"><b>AS Number Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/autnum/15169</code><br>
                                 <small class="text-muted">→ Redirects to the managing AS registry server</small>
                             </li>
-                            <li style="margin-top:10px;"><b>Entity Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/AS-KISA</code><br>
-                                <small class="text-muted">→ Analyzes the tag and redirects to the KISA RDAP server</small>
+                            <li style="margin-top:10px;"><b>Entity (Contact/Org) Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/IPADM11-ARIN</code><br>
+                                <small class="text-muted">→ Analyzes the ARIN tag and redirects to the American Registry for Internet Numbers (ARIN) server</small>
                             </li>
                         </ul>
 					</div>

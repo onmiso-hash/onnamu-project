@@ -185,10 +185,11 @@
                         <h4><b>A. 부트스트랩 원본 JSON 파일 호출</b></h4>
                         <p>IANA에서 가져온 최신 데이터를 원본 그대로 받고 싶을 때 사용합니다.</p>
                         <ul>
-                            <li>도메인: <code>https://bootstrap.rdap.kr/dns.json</code></li>
-                            <li>IPv4: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
-                            <li>엔티티 태그: <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
-                            <li>(동일한 방식으로 ipv6.json, autnum.json 호출 가능)</li>
+                            <li>도메인(Domain): <code>https://bootstrap.rdap.kr/dns.json</code></li>
+                            <li>IPv4 주소: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
+                            <li>IPv6 주소: <code>https://bootstrap.rdap.kr/ipv6.json</code></li>
+                            <li>AS 번호(Autnum): <code>https://bootstrap.rdap.kr/autnum.json</code></li>
+                            <li>엔티티 태그(Object Tags): <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
                         </ul>
 
                         <hr>
@@ -205,8 +206,8 @@
                             <li style="margin-top:10px;"><b>AS 번호 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/autnum/15169</code><br>
                                 <small class="text-muted">→ 해당 AS를 관리하는 서버로 리다이렉트</small>
                             </li>
-                            <li style="margin-top:10px;"><b>엔티티(관리자) 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/AS-KISA</code><br>
-                                <small class="text-muted">→ KISA 태그를 분석하여 한국인터넷진흥원 서버로 리다이렉트</small>
+                            <li style="margin-top:10px;"><b>엔티티(관리자/기구) 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/IPADM11-ARIN</code><br>
+                                <small class="text-muted">→ ARIN 태그를 분석하여 북미인터넷주소관리기구(ARIN) 서버로 리다이렉트</small>
                             </li>
                         </ul>
 					</div>
