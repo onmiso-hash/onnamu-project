@@ -4,4 +4,9 @@ __pycache__/
 *.pyc
 .env
 users.json
+
+# Temporary images and captures
+temp_*.png
 captures/
+latest.png
+gemini_latest.png
