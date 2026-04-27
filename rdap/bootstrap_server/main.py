@@ -3,9 +3,10 @@ import os
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 import ipaddress
 import asyncio
+import httpx
 
 # 현재 디렉토리를 경로에 추가
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +21,9 @@ app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 공용 AsyncClient 생성 (효율적인 연결 관리)
+async_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
+
 # CORS 설정
 app.add_middleware(
     CORSMiddleware,
@@ -29,6 +33,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+async def proxy_rdap_request(target_url: str):
+    """외부 RDAP 서버에 요청을 보내고 결과를 반환하는 프록시 함수"""
+    try:
+        response = await async_client.get(target_url)
+        # 404 등 에러 발생 시에도 외부 서버의 응답(JSON)을 그대로 전달하거나 커스텀 에러 반환
+        if response.status_code == 200:
+            return response.json()
+        else:
+            # 외부 서버가 404를 보낸 경우 등을 클라이언트에게 그대로 전달
+            try:
+                return JSONResponse(status_code=response.status_code, content=response.json())
+            except:
+                raise HTTPException(status_code=response.status_code, detail="Remote server error")
+    except Exception as e:
+        logger.error(f"Proxy request failed: {e}")
+        raise HTTPException(status_code=502, detail=f"Failed to fetch data from remote RDAP server: {str(e)}")
+
 @app.on_event("startup")
 async def startup_event():
     if bootstrap_manager:
@@ -37,52 +58,60 @@ async def startup_event():
         except Exception as e:
             logger.error(f"Failed to start initialization: {e}")
 
+@app.on_event("shutdown")
+async def shutdown_event():
+    await async_client.aclose()
+
 @app.get("/")
 async def root(request: Request = None):
     status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
     return {"message": "onnamu RDAP Bootstrap Server is running", "status": status}
 
-# 1. 도메인 리다이렉트
+# 1. 도메인 조회 (Proxy 방식 우선 적용)
 @app.get("/domain/{name}")
-async def redirect_domain(name: str, request: Request):
+async def get_domain(name: str, request: Request):
     client_ip = request.client.host
     if not bootstrap_manager or not bootstrap_manager.data:
-        bootstrap_manager.record_miss()
         raise HTTPException(status_code=503, detail="Loading...")
+    
     tld = name.split(".")[-1].lower()
     dns_data = bootstrap_manager.data.get("dns.json")
     if dns_data:
         for service in dns_data.get("services", []):
             if tld in service[0]:
                 bootstrap_manager.record_hit("domain", client_ip)
-                return RedirectResponse(url=f"{service[1][0]}domain/{name}", status_code=307)
+                target_url = f"{service[1][0]}domain/{name}"
+                return await proxy_rdap_request(target_url)
+                
     bootstrap_manager.record_miss()
     raise HTTPException(status_code=404, detail="Not found")
 
-# 1-2. 네임서버 리다이렉트 추가
+# 1-2. 네임서버 조회
 @app.get("/nameserver/{name}")
-async def redirect_nameserver(name: str, request: Request):
+async def get_nameserver(name: str, request: Request):
     client_ip = request.client.host
     if not bootstrap_manager or not bootstrap_manager.data:
-        bootstrap_manager.record_miss()
         raise HTTPException(status_code=503, detail="Loading...")
+        
     tld = name.split(".")[-1].lower()
     dns_data = bootstrap_manager.data.get("dns.json")
     if dns_data:
         for service in dns_data.get("services", []):
             if tld in service[0]:
                 bootstrap_manager.record_hit("nameserver", client_ip)
-                return RedirectResponse(url=f"{service[1][0]}nameserver/{name}", status_code=307)
+                target_url = f"{service[1][0]}nameserver/{name}"
+                return await proxy_rdap_request(target_url)
+                
     bootstrap_manager.record_miss()
     raise HTTPException(status_code=404, detail="RDAP server for this nameserver TLD not found")
 
-# 2. IP 리다이렉트
+# 2. IP 조회
 @app.get("/ip/{address}")
-async def redirect_ip(address: str, request: Request):
+async def get_ip(address: str, request: Request):
     client_ip = request.client.host
     if not bootstrap_manager or not bootstrap_manager.data:
-        bootstrap_manager.record_miss()
         raise HTTPException(status_code=503, detail="Loading...")
+        
     try:
         ip_obj = ipaddress.ip_address(address)
         version = "ipv4.json" if ip_obj.version == 4 else "ipv6.json"
@@ -93,26 +122,29 @@ async def redirect_ip(address: str, request: Request):
                 for network_str in service[0]:
                     if ip_obj in ipaddress.ip_network(network_str):
                         bootstrap_manager.record_hit("ip", client_ip, sub_cat)
-                        return RedirectResponse(url=f"{service[1][0]}ip/{address}", status_code=307)
+                        target_url = f"{service[1][0]}ip/{address}"
+                        return await proxy_rdap_request(target_url)
     except Exception as e:
         bootstrap_manager.record_miss()
         raise HTTPException(status_code=400, detail=str(e))
+        
     bootstrap_manager.record_miss()
     raise HTTPException(status_code=404, detail="Not found")
 
-# 3. AS 번호 리다이렉트
+# 3. AS 번호 조회
 @app.get("/autnum/{number_str}")
-async def redirect_autnum(number_str: str, request: Request):
+async def get_autnum(number_str: str, request: Request):
     client_ip = request.client.host
     if not bootstrap_manager or not bootstrap_manager.data:
-        bootstrap_manager.record_miss()
         raise HTTPException(status_code=503, detail="Loading...")
+        
     clean_number = number_str.upper().replace("AS", "")
     try:
         number = int(clean_number)
     except ValueError:
         bootstrap_manager.record_miss()
         raise HTTPException(status_code=400, detail="Invalid format")
+        
     asn_data = bootstrap_manager.data.get("asn.json")
     if asn_data:
         for service in asn_data.get("services", []):
@@ -125,17 +157,18 @@ async def redirect_autnum(number_str: str, request: Request):
                         start = end = int(range_str)
                     if start <= number <= end:
                         bootstrap_manager.record_hit("autnum", client_ip)
-                        return RedirectResponse(url=f"{service[1][0]}autnum/{number}", status_code=307)
+                        target_url = f"{service[1][0]}autnum/{number}"
+                        return await proxy_rdap_request(target_url)
                 except: continue
+                
     bootstrap_manager.record_miss()
     raise HTTPException(status_code=404, detail="Not found")
 
-# 4. 엔티티 리다이렉트
+# 4. 엔티티 조회
 @app.get("/entity/{handle}")
-async def redirect_entity(handle: str, request: Request):
+async def get_entity(handle: str, request: Request):
     client_ip = request.client.host
     if not bootstrap_manager or not bootstrap_manager.data:
-        bootstrap_manager.record_miss()
         raise HTTPException(status_code=503, detail="Loading...")
         
     tag_data = bootstrap_manager.data.get("object-tags.json")
@@ -147,7 +180,8 @@ async def redirect_entity(handle: str, request: Request):
             for tag in tags:
                 if upper_handle.endswith("-" + tag.upper()) or upper_handle == tag.upper():
                     bootstrap_manager.record_hit("entity", client_ip)
-                    return RedirectResponse(url=f"{target_urls[0]}entity/{handle}", status_code=307)
+                    target_url = f"{target_urls[0]}entity/{handle}"
+                    return await proxy_rdap_request(target_url)
                     
     bootstrap_manager.record_miss()
     raise HTTPException(status_code=404, detail="RDAP server for this entity tag not found")
