@@ -65,6 +65,7 @@
                 <thead>
                     <tr class="bg-gray-50 text-xs uppercase text-gray-500">
                         <th class="p-4 border-b">Resource</th>
+                        <th class="p-4 border-b">Modified Date</th>
                         <th class="p-4 border-b">Published Date</th>
                     </tr>
                 </thead>
@@ -170,11 +171,17 @@
                 const tableBody = document.getElementById('status-table-body');
                 tableBody.innerHTML = '';
                 notices.filter(n => n.title.includes("Dates")).forEach(n => {
-                    // 백엔드에서 [Modified, Published] 배열을 보내주므로 Published(인덱스 1)만 사용
-                    const pubDate = n.description[1] || n.description[0] || '-';
+                    // 백엔드에서 [Modified, Published] 배열을 보내줍니다.
+                    const modDate = n.description[0] || '-';
+                    const pubDate = n.description[1] || '-';
+                    // KISA 형식에 맞춘 Title 문자열 정리
+                    let titleStr = n.title.replace(' Bootstrap File Modified and Published Dates', '');
+                    titleStr = titleStr.replace(' Bootstrap Dates', ''); // 이전 버전 하위호환
+                    
                     const row = `
                         <tr class="border-b hover:bg-gray-50 transition">
-                            <td class="p-4 font-semibold text-gray-800 text-xs">${n.title.replace(' Bootstrap Dates', '')}</td>
+                            <td class="p-4 font-semibold text-gray-800 text-xs">${titleStr}</td>
+                            <td class="p-4 text-gray-500 text-[11px]">${modDate}</td>
                             <td class="p-4 text-gray-500 text-[11px]">${pubDate}</td>
                         </tr>
                     `;

@@ -17,6 +17,7 @@ DATA_DIR = Path(__file__).parent / "data"
 class BootstrapManager:
     def __init__(self):
         self.data = {}
+        self.last_updated = {}
         # 통계 데이터 초기화
         self.stats = {
             "total_hits": 0,
@@ -65,6 +66,10 @@ class BootstrapManager:
                         file_path = DATA_DIR / filename
                         with open(file_path, "w", encoding="utf-8") as f:
                             json.dump(content, f, ensure_ascii=False, indent=2)
+                        
+                        from datetime import datetime, timezone
+                        self.last_updated[filename] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                        
                         logger.info(f"Successfully updated {filename} (Size: {len(str(content))} chars)")
                     else:
                         logger.error(f"Failed to fetch {filename}: HTTP {response.status_code}")
@@ -76,8 +81,13 @@ class BootstrapManager:
         for filename in FILES:
             file_path = DATA_DIR / filename
             if file_path.exists():
+                import os
+                from datetime import datetime, timezone
                 with open(file_path, "r", encoding="utf-8") as f:
                     self.data[filename] = json.load(f)
+                
+                mtime = os.path.getmtime(file_path)
+                self.last_updated[filename] = datetime.fromtimestamp(mtime, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
                 logger.info(f"Loaded {filename} from local storage")
 
     async def initialize(self):

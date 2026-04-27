@@ -183,64 +183,47 @@ async def get_help():
         "description": ip_desc
     })
     
-    # 4. Bootstrap Dates (기존 로직 유지)
+    # 4. Bootstrap Dates (KISA 형식 적용)
     file_map = {
-        "dns.json": "DNS",
+        "dns.json": "Domain",
         "ipv4.json": "IPv4",
         "ipv6.json": "IPv6",
-        "asn.json": "ASN",
-        "object-tags.json": "Object Tags"
+        "asn.json": "AS",
+        "object-tags.json": "Entity"
     }
     
     for filename, label in file_map.items():
         content = bootstrap_manager.data.get(filename)
-        mod_date = "-"
+        # 우리 서버가 업데이트한 시간을 Modified Date로 사용
+        mod_date = bootstrap_manager.last_updated.get(filename, "-")
         pub_date = "-"
         
         if content:
-            # 1. 'publication' 필드가 직접 있는 경우 (가장 정확)
+            # 1. 'publication' 필드가 있는 경우 (IANA 표준)
             if "publication" in content:
                 pub_date = content["publication"]
-            
-            # 2. 'description' 배열에서 날짜 검색
-            import re
-            date_pattern = re.compile(r"(\d{4}-\d{2}-\d{2})")
-            
-            desc = content.get("description", [])
-            for line in desc:
-                line_str = str(line)
-                found_dates = date_pattern.findall(line_str)
+            else:
+                # 2. 없는 경우 description 내에서 검색
+                import re
+                date_pattern = re.compile(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z?)")
+                desc = content.get("description", [])
                 
-                if "Modified" in line_str or "modified" in line_str:
-                    if found_dates: mod_date = found_dates[0]
-                    elif ":" in line_str: mod_date = line_str.split(":", 1)[1].strip()
-                
-                if "Publication" in line_str or "publication" in line_str:
-                    if found_dates: pub_date = found_dates[0]
-                    elif ":" in line_str: pub_date = line_str.split(":", 1)[1].strip()
-            
-            # 3. 만약 위에서 못 찾았는데 description에 날짜 형식이 있다면 할당
-            if mod_date == "-" and len(desc) > 1:
-                # 보통 두 번째 줄(index 1)에 수정일이 오는 경우가 많음
-                found = date_pattern.findall(str(desc[1]))
-                if found: mod_date = found[0]
-            if pub_date == "-" and len(desc) > 2:
-                # 보통 세 번째 줄(index 2)에 게시일이 오는 경우가 많음
-                found = date_pattern.findall(str(desc[2]))
-                if found: pub_date = found[0]
-            
-            # 3. 날짜 형식 깔끔하게 정리 (ISO 시간 등에서 날짜만 추출)
-            mod_date = mod_date.split("T")[0] if "T" in mod_date else mod_date
-            pub_date = pub_date.split("T")[0] if "T" in pub_date else pub_date
+                for line in desc:
+                    line_str = str(line)
+                    if "Publication" in line_str or "publication" in line_str:
+                        found_dates = date_pattern.findall(line_str)
+                        if found_dates: pub_date = found_dates[0]
+                        elif ":" in line_str: pub_date = line_str.split(":", 1)[1].strip()
+                        break
             
             notices.append({
-                "title": f"{label} Bootstrap Dates",
+                "title": f"{label} Bootstrap File Modified and Published Dates",
                 "description": [mod_date, pub_date]
             })
         else:
             # 데이터가 아직 로드되지 않은 경우
             notices.append({
-                "title": f"{label} Bootstrap Dates",
+                "title": f"{label} Bootstrap File Modified and Published Dates",
                 "description": ["Pending...", "Pending..."]
             })
 
