@@ -1,0 +1,125 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html><head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>About RDAP - onnamu RDAP Service</title>
+    <meta name="description" content="onnamu RDAP Service Information">
+    <meta name="author" content="onnamu">
+    <link href="./client/css/style.css" rel="stylesheet">
+    <script src="./client/js/jquery.min.js"></script>
+    <script src="./client/js/bootstrap.min.js"></script>
+	<link rel="stylesheet" href="./client/css/bootstrap.min.css" media="screen">
+	<link rel="stylesheet" href="./client/css/rdap-custom.css" media="screen">
+<style>
+    .navbar-inverse { background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.1); min-height: 60px; }
+    .navbar-inverse .navbar-brand { color: white !important; font-weight: bold; font-size: 22px; padding: 15px 0; }
+    .navbar-inverse .nav > li > a { color: rgba(255,255,255,0.8) !important; font-weight: 500; }
+    .page-header { border-bottom: 2px solid #764ba2; margin-top: 30px; }
+    .panel-primary { border-color: #764ba2; border-radius: 12px; overflow: hidden; }
+    .panel-primary > .panel-heading { background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-color: #764ba2; font-weight: bold; }
+    .footer { background: #fdfdfd; color: #666; padding: 40px 0; border-top: 1px solid #eee; margin-top: 50px; }
+    code { background-color: #f8f9fa; color: #d63384; padding: 2px 4px; border-radius: 4px; }
+    pre { background-color: #2d2d2d; color: #ccc; padding: 15px; border-radius: 8px; border: none; }
+    .method-tag { background: #764ba2; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-right: 5px; font-size: 0.9em; }
+</style>
+</head>
+<body style="padding-top: 70px;">
+    <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="https://onnamu.kr">🌐 onnamu RDAP</a>
+        </div>
+        <div class="collapse navbar-collapse">
+	          <ul class="nav navbar-nav navbar-right">
+	            <li><a href="rdap-about-en.html">English (ENG)</a></li>
+	          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <div class="container">
+	    <div class="row">
+			<div class="col-md-12">
+				<div class="page-header">
+					<h2 class="blog-title"><b>About RDAP</b> Service</h2>
+					<p class="text-muted">RDAP 표준 소개 및 API 사용 가이드</p>
+				</div>
+			</div>
+	    </div>
+
+        <div class="row" style="margin-bottom: 30px;">
+			<div class="col-md-12">
+				<ul class="nav nav-tabs">
+					<li class="active"><a href="#">About RDAP</a></li>
+					<li><a href="rdap-javascript-ko.html">RDAP Web Client</a></li>
+				</ul>
+			</div>
+        </div>
+
+		<div class="row">
+			<div class="col-md-12">
+				<div class="panel panel-primary">
+					<div class="panel-heading"><h3 class="panel-title">1. RDAP 서비스 소개</h3></div>
+					<div class="panel-body">
+						<p>• <b>RDAP (Registration Data Access Protocol)</b>는 기존 Whois 서비스의 한계를 극복하기 위해 IETF에서 정의한 차세대 인터넷 주소 정보 조회 프로토콜(RFC 7480~7484 등)입니다.</p>
+						<p>• <b>HTTP 기반 RESTful API:</b> 모든 데이터는 JSON 형식으로 제공되어 개발자가 연동하기 매우 편리합니다.</p>
+						<p>• <b>부트스트랩 서버:</b> 본 서비스는 자체 RDAP 부트스트랩 서버(<code>bootstrap.rdap.kr</code>)를 운영하여, 조회 대상에 따라 전 세계의 실제 RDAP 서버로 즉시 연결(Redirect)해주는 허브 역할을 수행합니다.</p>
+					</div>
+				</div>
+
+				<div class="panel panel-primary">
+					<div class="panel-heading"><h3 class="panel-title">2. API 호출 가이드</h3></div>
+					<div class="panel-body">
+                        <p>✦ 개발된 API는 표준 RESTful 방식으로 호출할 수 있습니다. <code>https://bootstrap.rdap.kr/</code>를 기준으로 호출 방법은 다음과 같습니다.</p>
+                        
+                        <h4><b>A. 부트스트랩 원본 JSON 파일 호출</b></h4>
+                        <p>IANA에서 가져온 최신 데이터를 원본 그대로 받고 싶을 때 사용합니다.</p>
+                        <ul>
+                            <li>도메인: <code>https://bootstrap.rdap.kr/dns.json</code></li>
+                            <li>IPv4: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
+                            <li>엔티티 태그: <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
+                            <li>(동일한 방식으로 ipv6.json, autnum.json 호출 가능)</li>
+                        </ul>
+
+                        <hr>
+                        
+                        <h4><b>B. 실시간 리다이렉트 서비스 호출 (핵심 기능)</b></h4>
+                        <p>서버가 데이터를 분석하여 해당 정보를 가진 실제 RDAP 서버 주소로 즉시 연결해줍니다.</p>
+                        <ul>
+                            <li><b>도메인 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/domain/google.com</code><br>
+                                <small class="text-muted">→ https://rdap.verisign.com/com/v1/domain/google.com으로 리다이렉트</small>
+                            </li>
+                            <li style="margin-top:10px;"><b>IP 주소 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/ip/8.8.8.8</code><br>
+                                <small class="text-muted">→ https://rdap.arin.net/registry/ip/8.8.8.8으로 리다이렉트 (대역 분석 결과)</small>
+                            </li>
+                            <li style="margin-top:10px;"><b>AS 번호 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/autnum/15169</code><br>
+                                <small class="text-muted">→ 해당 AS를 관리하는 서버로 리다이렉트</small>
+                            </li>
+                            <li style="margin-top:10px;"><b>엔티티(관리자) 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/AS-KISA</code><br>
+                                <small class="text-muted">→ KISA 태그를 분석하여 한국인터넷진흥원 서버로 리다이렉트</small>
+                            </li>
+                        </ul>
+					</div>
+				</div>
+
+				<div class="panel panel-primary">
+					<div class="panel-heading"><h3 class="panel-title">3. 테스트 방법 (cURL 예시)</h3></div>
+					<div class="panel-body">
+                        <p>터미널(CLI) 환경에서 다음과 같이 간단히 테스트해볼 수 있습니다.</p>
+                        <pre># 1. 리다이렉트 되는 주소를 확인하고 싶을 때 (-v 옵션)
+curl -v https://bootstrap.rdap.kr/domain/onnamu.kr
+
+# 2. 리다이렉트를 따라서 최종 결과까지 받고 싶을 때 (-L 옵션)
+curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="footer">
+		<div class="container text-center">
+			<p style="font-size: 18px;">🌐 <b>onnamu RDAP Service</b></p>
+			<p style="font-size: 12px; color: #aaa;">© 2026 onnamu Project | <a href="https://onnamu.kr" style="color: #764ba2;">Home</a></p>
+		</div>
+	</div>
+</body></html>

@@ -190,6 +190,15 @@ function fn_goToLanguagePage(lang) {
 	</div>
 	
     <div class="container">
+		<div class="row" style="margin-bottom: 30px;">
+			<div class="col-md-12">
+				<ul class="nav nav-tabs">
+					<li><a href="rdap-about-en.html">About RDAP</a></li>
+					<li class="active"><a href="#">RDAP Web Client</a></li>
+				</ul>
+			</div>
+		</div>
+
 		<div class="row">
 			<div class="col-md-12">
 
@@ -233,7 +242,7 @@ function fn_goToLanguagePage(lang) {
 								</table>
 							</div>
 						</div>
-						<div class="well" style="background: #f9f9f9; border-radius: 10px;">
+						<div class="well" style="background: #f9f9f9; border-radius: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 15px;">
 							<div class="form-group">
 							  <label for="type">Select Object :</label>
 							  <select class="form-control" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)" style="border-radius: 6px;">
@@ -248,11 +257,11 @@ function fn_goToLanguagePage(lang) {
 								<option value="json">JSON</option>
 							  </select>
 							</div>
-							<div class="form-group" style="margin-left: 10px;">
+							<div class="form-group">
 								<label for="object">Input :</label>
 								<input class="form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Enter name or address" style="width: 300px; border-radius: 6px;" autocomplete="off">
 							</div>
-							<button id="button" type="button" class="btn btn-onnamu" onclick="doQuery()" style="margin-left: 10px;">Run Query</button>
+							<button id="button" type="button" class="btn btn-onnamu" onclick="doQuery()">Run Query</button>
 							<input type="hidden" id="lang" value="2">
 						</div>
 					</div>
