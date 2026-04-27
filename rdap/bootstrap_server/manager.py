@@ -11,7 +11,8 @@ logger = logging.getLogger(__name__)
 
 IANA_BASE_URL = "https://data.iana.org/rdap/"
 FILES = ["dns.json", "ipv4.json", "ipv6.json", "asn.json", "object-tags.json"]
-DATA_DIR = Path("./data")
+# manager.py 파일 위치 기준으로 data 폴더 경로 설정
+DATA_DIR = Path(__file__).parent / "data"
 
 class BootstrapManager:
     def __init__(self):
