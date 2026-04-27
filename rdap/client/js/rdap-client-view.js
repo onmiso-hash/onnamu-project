@@ -183,22 +183,31 @@ window.onpopstate = function(e) {
 			xhr.open('GET', url);
 			if(lang == '2') xhr.setRequestHeader("Accept-Language", "en");
 			
-			// 7초 타임아웃 설정
-			xhr.timeout = 7000;
+			xhr.timeout = 10000;
 			xhr.responseType = 'json';
+			
+			xhr.onreadystatechange = function() {
+				if (xhr.readyState === 4) {
+					if (xhr.status === 0 && !xhr.response) {
+						thawUI();
+						handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
+					}
+				}
+			};
 			
 			xhr.ontimeout = function() {
 				thawUI();
 				handleError(changeLanguage('Timeout performing query, please try again later.'));
 			};
 
-			// 네트워크 에러 또는 CORS 에러 발생 시 처리
 			xhr.onerror = function() {
 				thawUI();
 				handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
 			};
 			
-			xhr.onload = function() { handleResponse(xhr); };
+			xhr.onload = function() { 
+				handleResponse(xhr); 
+			};
 			
 			xhr.send();
 		}
@@ -310,7 +319,9 @@ window.onpopstate = function(e) {
 	function handleResponse(xhr) {
 		thawUI();
 		
-		if(404 == xhr.status) {
+		if(0 == xhr.status) {
+			handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
+		}else if(404 == xhr.status) {
 			console.log('handleResponse: 404 Error');
 			if(xhr.response) handleError(changeLanguage('This Object does not exist.'), xhr.response);
 			else handleError(changeLanguage('Page not found'));
