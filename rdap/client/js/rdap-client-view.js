@@ -183,11 +183,23 @@ window.onpopstate = function(e) {
 			xhr.open('GET', url);
 			if(lang == '2') xhr.setRequestHeader("Accept-Language", "en");
 			
+			// 10초 XHR 타임아웃
 			xhr.timeout = 10000;
 			xhr.responseType = 'json';
 			
+			// 절대 타임아웃 안전장치 (12초)
+			// 브라우저가 어떤 이유로든 XHR 이벤트를 발생시키지 못할 경우를 대비
+			var absoluteTimeout = setTimeout(function() {
+				if (xhr.readyState !== 4) {
+					xhr.abort();
+					thawUI();
+					handleError(changeLanguage('Timeout performing query, please try again later.'));
+				}
+			}, 12000);
+			
 			xhr.onreadystatechange = function() {
 				if (xhr.readyState === 4) {
+					clearTimeout(absoluteTimeout); // 요청 완료 시 절대 타임아웃 해제
 					if (xhr.status === 0 && !xhr.response) {
 						thawUI();
 						handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
@@ -196,16 +208,19 @@ window.onpopstate = function(e) {
 			};
 			
 			xhr.ontimeout = function() {
+				clearTimeout(absoluteTimeout);
 				thawUI();
 				handleError(changeLanguage('Timeout performing query, please try again later.'));
 			};
 
 			xhr.onerror = function() {
+				clearTimeout(absoluteTimeout);
 				thawUI();
 				handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
 			};
 			
 			xhr.onload = function() { 
+				clearTimeout(absoluteTimeout);
 				handleResponse(xhr); 
 			};
 			
@@ -1578,4 +1593,13 @@ window.onpopstate = function(e) {
 		document.getElementById('type').disabled = false;
 		document.getElementById('object').disabled = false;
 		document.getElementById('button').disabled = false;
+		
+		// 로딩 스피너 제거 (만약 에러 발생 등으로 인해 남아있다면)
+		var spinTd = document.getElementById('spinTd');
+		if (spinTd) {
+			var div = document.getElementById('output-div');
+			if (div.innerHTML.indexOf('spinner-border') !== -1) {
+				div.innerHTML = ''; 
+			}
+		}
 	}
