@@ -169,7 +169,7 @@
 				</script>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">1. What is RDAP?</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">What is RDAP?</h3></div>
 					<div class="panel-body">
 						<p>• <b>RDAP (Registration Data Access Protocol)</b> is a next-generation protocol for querying internet resource registration data (RFC 7480~7484), designed by IETF to replace the aging Whois protocol.</p>
 						<p>• <b>HTTP-based RESTful API:</b> All data is provided in JSON format, making it highly developer-friendly.</p>
@@ -178,11 +178,11 @@
 				</div>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">2. API Usage Guide</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">API Usage Guide</h3></div>
 					<div class="panel-body">
                         <p>✦ Our APIs can be called using standard RESTful methods. Based on <code>https://bootstrap.rdap.kr/</code>, use the following endpoints:</p>
                         
-                        <h4><b>A. Bootstrap Source JSON Files</b></h4>
+                        <p><b>Bootstrap Source JSON Files</b></p>
                         <p>Retrieve the latest raw data synchronized from IANA.</p>
                         <ul>
                             <li>Domain: <code>https://bootstrap.rdap.kr/dns.json</code></li>
@@ -194,7 +194,7 @@
 
                         <hr>
                         
-                        <h4><b>B. Real-time Redirect Service (Core Feature)</b></h4>
+                        <p><b>Real-time Redirect Service (Core Feature)</b></p>
                         <p>The server analyzes the input and redirects you to the authoritative RDAP server.</p>
                         <ul>
                             <li><b>Domain Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/domain/google.com</code><br>
@@ -214,11 +214,11 @@
 				</div>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">3. How to Test (cURL Examples)</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">How to Test (cURL Examples)</h3></div>
 					<div class="panel-body">
                         <p>You can quickly test via Terminal (CLI) or browser address bar.</p>
                         <pre># 1. To check the redirect URL (-v option)
-curl -v https://bootstrap.rdap.kr/domain/onnamu.kr
+curl -v https://bootstrap.rdap.kr/domain/nic.car
 
 # 2. To follow the redirect and get the final result (-L option)
 curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>

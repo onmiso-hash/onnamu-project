@@ -169,7 +169,7 @@
 				</script>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">1. RDAP 서비스 소개</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">RDAP 서비스 소개</h3></div>
 					<div class="panel-body">
 						<p>• <b>RDAP (Registration Data Access Protocol)</b>는 기존 Whois 서비스의 한계를 극복하기 위해 IETF에서 정의한 차세대 인터넷 주소 정보 조회 프로토콜(RFC 7480~7484 등)입니다.</p>
 						<p>• <b>HTTP 기반 RESTful API:</b> 모든 데이터는 JSON 형식으로 제공되어 개발자가 연동하기 매우 편리합니다.</p>
@@ -178,11 +178,11 @@
 				</div>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">2. API 호출 가이드</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">API 호출 가이드</h3></div>
 					<div class="panel-body">
                         <p>✦ 개발된 API는 표준 RESTful 방식으로 호출할 수 있습니다. <code>https://bootstrap.rdap.kr/</code>를 기준으로 호출 방법은 다음과 같습니다.</p>
                         
-                        <h4><b>A. 부트스트랩 원본 JSON 파일 호출</b></h4>
+                        <p><b>부트스트랩 원본 JSON 파일 호출</b></p>
                         <p>IANA에서 가져온 최신 데이터를 원본 그대로 받고 싶을 때 사용합니다.</p>
                         <ul>
                             <li>도메인(Domain): <code>https://bootstrap.rdap.kr/dns.json</code></li>
@@ -194,7 +194,7 @@
 
                         <hr>
                         
-                        <h4><b>B. 실시간 리다이렉트 서비스 호출 (핵심 기능)</b></h4>
+                        <p><b>실시간 리다이렉트 서비스 호출 (핵심 기능)</b></p>
                         <p>서버가 데이터를 분석하여 해당 정보를 가진 실제 RDAP 서버 주소로 즉시 연결해줍니다.</p>
                         <ul>
                             <li><b>도메인 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/domain/google.com</code><br>
@@ -214,11 +214,11 @@
 				</div>
 
 				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">3. 테스트 방법 (cURL 예시)</h3></div>
+					<div class="panel-heading"><h3 class="panel-title">테스트 방법 (cURL 예시)</h3></div>
 					<div class="panel-body">
                         <p>터미널(CLI) 환경에서 다음과 같이 간단히 테스트해볼 수 있습니다.</p>
                         <pre># 1. 리다이렉트 되는 주소를 확인하고 싶을 때 (-v 옵션)
-curl -v https://bootstrap.rdap.kr/domain/onnamu.kr
+curl -v https://bootstrap.rdap.kr/domain/nic.car
 
 # 2. 리다이렉트를 따라서 최종 결과까지 받고 싶을 때 (-L 옵션)
 curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>
