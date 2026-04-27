@@ -203,13 +203,31 @@ async def get_help():
                 pub_date = content["publication"]
             
             # 2. 'description' 배열에서 날짜 검색
+            import re
+            date_pattern = re.compile(r"(\d{4}-\d{2}-\d{2})")
+            
             desc = content.get("description", [])
             for line in desc:
                 line_str = str(line)
+                found_dates = date_pattern.findall(line_str)
+                
                 if "Modified" in line_str or "modified" in line_str:
-                    mod_date = line_str.split(":", 1)[1].strip() if ":" in line_str else line_str
-                if ("Publication" in line_str or "publication" in line_str) and pub_date == "-":
-                    pub_date = line_str.split(":", 1)[1].strip() if ":" in line_str else line_str
+                    if found_dates: mod_date = found_dates[0]
+                    elif ":" in line_str: mod_date = line_str.split(":", 1)[1].strip()
+                
+                if "Publication" in line_str or "publication" in line_str:
+                    if found_dates: pub_date = found_dates[0]
+                    elif ":" in line_str: pub_date = line_str.split(":", 1)[1].strip()
+            
+            # 3. 만약 위에서 못 찾았는데 description에 날짜 형식이 있다면 할당
+            if mod_date == "-" and len(desc) > 1:
+                # 보통 두 번째 줄(index 1)에 수정일이 오는 경우가 많음
+                found = date_pattern.findall(str(desc[1]))
+                if found: mod_date = found[0]
+            if pub_date == "-" and len(desc) > 2:
+                # 보통 세 번째 줄(index 2)에 게시일이 오는 경우가 많음
+                found = date_pattern.findall(str(desc[2]))
+                if found: pub_date = found[0]
             
             # 3. 날짜 형식 깔끔하게 정리 (ISO 시간 등에서 날짜만 추출)
             mod_date = mod_date.split("T")[0] if "T" in mod_date else mod_date
