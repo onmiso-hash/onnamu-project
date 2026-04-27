@@ -55,6 +55,20 @@ async def redirect_domain(name: str):
                 return RedirectResponse(url=f"{service[1][0]}domain/{name}", status_code=307)
     raise HTTPException(status_code=404, detail="Not found")
 
+# 1-2. 네임서버 리다이렉트 추가
+@app.get("/nameserver/{name}")
+async def redirect_nameserver(name: str):
+    if not bootstrap_manager or not bootstrap_manager.data:
+        raise HTTPException(status_code=503, detail="Loading...")
+    # 호스트네임에서 TLD 추출 (예: ns1.google.com -> com, b.nic.art -> art)
+    tld = name.split(".")[-1].lower()
+    dns_data = bootstrap_manager.data.get("dns.json")
+    if dns_data:
+        for service in dns_data.get("services", []):
+            if tld in service[0]:
+                return RedirectResponse(url=f"{service[1][0]}nameserver/{name}", status_code=307)
+    raise HTTPException(status_code=404, detail="RDAP server for this nameserver TLD not found")
+
 # 2. IP 리다이렉트
 @app.get("/ip/{address}")
 async def redirect_ip(address: str):
