@@ -232,6 +232,16 @@ async def get_help():
         "notices": notices
     }
 
+@app.get("/dashboard")
+async def get_dashboard():
+    # rdap/bootstrap_server/main.py 위치에서 상위 폴더인 rdap/ 아래의 rdap-dashboard.html 찾기
+    dashboard_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rdap-dashboard.html")
+    if os.path.exists(dashboard_path):
+        from fastapi.responses import HTMLResponse
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    raise HTTPException(status_code=404, detail="Dashboard file not found")
+
 @app.get("/{filename}")
 async def get_bootstrap_file(filename: str):
     if not filename.endswith(".json"): filename += ".json"

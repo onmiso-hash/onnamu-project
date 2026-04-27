@@ -127,6 +127,14 @@ HTML_TEMPLATE = """
                     <div class="status-badge"><div class="dot"></div>Operational</div>
                 </div>
             </a>
+            <a href="https://bootstrap.rdap.kr/dashboard" target="_blank" class="glass-card service-link">
+                <div class="service-icon">📊</div>
+                <div class="service-info">
+                    <h3>RDAP Dashboard</h3>
+                    <p>Real-time Stats & Monitoring</p>
+                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                </div>
+            </a>
             <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🤖</div>
                 <div class="service-info">
