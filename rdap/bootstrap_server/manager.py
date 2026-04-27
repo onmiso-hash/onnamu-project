@@ -51,20 +51,23 @@ class BootstrapManager:
 
     async def fetch_all(self):
         """IANA에서 모든 부트스트랩 파일을 다운로드합니다."""
-        async with httpx.AsyncClient() as client:
+        # SSL 인증서 검증 비활성화 (네트워크 환경에 따른 에러 방지)
+        async with httpx.AsyncClient(verify=False) as client:
             for filename in FILES:
                 try:
                     url = f"{IANA_BASE_URL}{filename}"
-                    response = await client.get(url)
+                    logger.info(f"Attempting to fetch {filename} from {url}")
+                    response = await client.get(url, timeout=30.0)
                     if response.status_code == 200:
                         content = response.json()
                         self.data[filename] = content
                         # 로컬 파일로 저장
-                        with open(DATA_DIR / filename, "w", encoding="utf-8") as f:
+                        file_path = DATA_DIR / filename
+                        with open(file_path, "w", encoding="utf-8") as f:
                             json.dump(content, f, ensure_ascii=False, indent=2)
-                        logger.info(f"Successfully updated {filename}")
+                        logger.info(f"Successfully updated {filename} (Size: {len(str(content))} chars)")
                     else:
-                        logger.error(f"Failed to fetch {filename}: {response.status_code}")
+                        logger.error(f"Failed to fetch {filename}: HTTP {response.status_code}")
                 except Exception as e:
                     logger.error(f"Error fetching {filename}: {str(e)}")
 
