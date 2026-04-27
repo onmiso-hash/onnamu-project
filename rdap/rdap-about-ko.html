@@ -185,11 +185,11 @@
                         <p><b>부트스트랩 원본 JSON 파일 호출</b></p>
                         <p>IANA에서 가져온 최신 데이터를 원본 그대로 받고 싶을 때 사용합니다.</p>
                         <ul>
-                            <li>도메인(Domain): <code>https://bootstrap.rdap.kr/dns.json</code></li>
-                            <li>IPv4 주소: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
-                            <li>IPv6 주소: <code>https://bootstrap.rdap.kr/ipv6.json</code></li>
-                            <li>AS 번호(Autnum): <code>https://bootstrap.rdap.kr/autnum.json</code></li>
-                            <li>엔티티 태그(Object Tags): <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
+                            <li>도메인(Domain): <code><a href="https://bootstrap.rdap.kr/dns.json" target="_blank">https://bootstrap.rdap.kr/dns.json</a></code></li>
+                            <li>IPv4 주소: <code><a href="https://bootstrap.rdap.kr/ipv4.json" target="_blank">https://bootstrap.rdap.kr/ipv4.json</a></code></li>
+                            <li>IPv6 주소: <code><a href="https://bootstrap.rdap.kr/ipv6.json" target="_blank">https://bootstrap.rdap.kr/ipv6.json</a></code></li>
+                            <li>AS 번호(Autnum): <code><a href="https://bootstrap.rdap.kr/autnum.json" target="_blank">https://bootstrap.rdap.kr/autnum.json</a></code></li>
+                            <li>엔티티 태그(Object Tags): <code><a href="https://bootstrap.rdap.kr/object-tags.json" target="_blank">https://bootstrap.rdap.kr/object-tags.json</a></code></li>
                         </ul>
 
                         <hr>
@@ -197,16 +197,16 @@
                         <p><b>실시간 리다이렉트 서비스 호출 (핵심 기능)</b></p>
                         <p>서버가 데이터를 분석하여 해당 정보를 가진 실제 RDAP 서버 주소로 즉시 연결해줍니다.</p>
                         <ul>
-                            <li><b>도메인 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/domain/google.com</code><br>
+                            <li><b>도메인 조회:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/domain/google.com" target="_blank">https://bootstrap.rdap.kr/domain/google.com</a></code><br>
                                 <small class="text-muted">→ https://rdap.verisign.com/com/v1/domain/google.com으로 리다이렉트</small>
                             </li>
-                            <li style="margin-top:10px;"><b>IP 주소 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/ip/8.8.8.8</code><br>
+                            <li style="margin-top:10px;"><b>IP 주소 조회:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/ip/8.8.8.8" target="_blank">https://bootstrap.rdap.kr/ip/8.8.8.8</a></code><br>
                                 <small class="text-muted">→ https://rdap.arin.net/registry/ip/8.8.8.8으로 리다이렉트 (대역 분석 결과)</small>
                             </li>
-                            <li style="margin-top:10px;"><b>AS 번호 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/autnum/15169</code><br>
+                            <li style="margin-top:10px;"><b>AS 번호 조회:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/autnum/15169" target="_blank">https://bootstrap.rdap.kr/autnum/15169</a></code><br>
                                 <small class="text-muted">→ 해당 AS를 관리하는 서버로 리다이렉트</small>
                             </li>
-                            <li style="margin-top:10px;"><b>엔티티(관리자/기구) 조회:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/IPADM11-ARIN</code><br>
+                            <li style="margin-top:10px;"><b>엔티티(관리자/기구) 조회:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/entity/IPADM11-ARIN" target="_blank">https://bootstrap.rdap.kr/entity/IPADM11-ARIN</a></code><br>
                                 <small class="text-muted">→ ARIN 태그를 분석하여 북미인터넷주소관리기구(ARIN) 서버로 리다이렉트</small>
                             </li>
                         </ul>

@@ -185,11 +185,11 @@
                         <p><b>Bootstrap Source JSON Files</b></p>
                         <p>Retrieve the latest raw data synchronized from IANA.</p>
                         <ul>
-                            <li>Domain: <code>https://bootstrap.rdap.kr/dns.json</code></li>
-                            <li>IPv4 Address: <code>https://bootstrap.rdap.kr/ipv4.json</code></li>
-                            <li>IPv6 Address: <code>https://bootstrap.rdap.kr/ipv6.json</code></li>
-                            <li>AS Number (Autnum): <code>https://bootstrap.rdap.kr/autnum.json</code></li>
-                            <li>Object Tags: <code>https://bootstrap.rdap.kr/object-tags.json</code></li>
+                            <li>Domain: <code><a href="https://bootstrap.rdap.kr/dns.json" target="_blank">https://bootstrap.rdap.kr/dns.json</a></code></li>
+                            <li>IPv4 Address: <code><a href="https://bootstrap.rdap.kr/ipv4.json" target="_blank">https://bootstrap.rdap.kr/ipv4.json</a></code></li>
+                            <li>IPv6 Address: <code><a href="https://bootstrap.rdap.kr/ipv6.json" target="_blank">https://bootstrap.rdap.kr/ipv6.json</a></code></li>
+                            <li>AS Number (Autnum): <code><a href="https://bootstrap.rdap.kr/autnum.json" target="_blank">https://bootstrap.rdap.kr/autnum.json</a></code></li>
+                            <li>Object Tags: <code><a href="https://bootstrap.rdap.kr/object-tags.json" target="_blank">https://bootstrap.rdap.kr/object-tags.json</a></code></li>
                         </ul>
 
                         <hr>
@@ -197,16 +197,16 @@
                         <p><b>Real-time Redirect Service (Core Feature)</b></p>
                         <p>The server analyzes the input and redirects you to the authoritative RDAP server.</p>
                         <ul>
-                            <li><b>Domain Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/domain/google.com</code><br>
+                            <li><b>Domain Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/domain/google.com" target="_blank">https://bootstrap.rdap.kr/domain/google.com</a></code><br>
                                 <small class="text-muted">→ Redirects to: https://rdap.verisign.com/com/v1/domain/google.com</small>
                             </li>
-                            <li style="margin-top:10px;"><b>IP Address Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/ip/8.8.8.8</code><br>
+                            <li style="margin-top:10px;"><b>IP Address Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/ip/8.8.8.8" target="_blank">https://bootstrap.rdap.kr/ip/8.8.8.8</a></code><br>
                                 <small class="text-muted">→ Redirects to: https://rdap.arin.net/registry/ip/8.8.8.8 (based on range analysis)</small>
                             </li>
-                            <li style="margin-top:10px;"><b>AS Number Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/autnum/15169</code><br>
+                            <li style="margin-top:10px;"><b>AS Number Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/autnum/15169" target="_blank">https://bootstrap.rdap.kr/autnum/15169</a></code><br>
                                 <small class="text-muted">→ Redirects to the managing AS registry server</small>
                             </li>
-                            <li style="margin-top:10px;"><b>Entity (Contact/Org) Query:</b> <span class="method-tag">GET</span> <code>https://bootstrap.rdap.kr/entity/IPADM11-ARIN</code><br>
+                            <li style="margin-top:10px;"><b>Entity (Contact/Org) Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/entity/IPADM11-ARIN" target="_blank">https://bootstrap.rdap.kr/entity/IPADM11-ARIN</a></code><br>
                                 <small class="text-muted">→ Analyzes the ARIN tag and redirects to the American Registry for Internet Numbers (ARIN) server</small>
                             </li>
                         </ul>
