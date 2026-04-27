@@ -194,21 +194,36 @@ async def get_help():
     
     for filename, label in file_map.items():
         content = bootstrap_manager.data.get(filename)
+        mod_date = "-"
+        pub_date = "-"
+        
         if content:
-            # IANA 파일의 상단에 'description' 또는 'publication' 필드가 있는지 확인하여 날짜 추출
-            # 실제 IANA 파일 구조에 맞게 description 배열의 값을 활용
+            # 1. 'publication' 필드가 직접 있는 경우 (가장 정확)
+            if "publication" in content:
+                pub_date = content["publication"]
+            
+            # 2. 'description' 배열에서 날짜 검색
             desc = content.get("description", [])
-            # 일반적으로 0: 제목, 1: 수정일, 2: 게시일 등의 형식을 가질 수 있음
-            # IANA 형식에 따른 안전한 추출 시도
-            mod_date = "-"
-            pub_date = "-"
             for line in desc:
-                if "Modified" in line: mod_date = line.split(":", 1)[1].strip() if ":" in line else line
-                if "Publication" in line: pub_date = line.split(":", 1)[1].strip() if ":" in line else line
+                line_str = str(line)
+                if "Modified" in line_str or "modified" in line_str:
+                    mod_date = line_str.split(":", 1)[1].strip() if ":" in line_str else line_str
+                if ("Publication" in line_str or "publication" in line_str) and pub_date == "-":
+                    pub_date = line_str.split(":", 1)[1].strip() if ":" in line_str else line_str
+            
+            # 3. 날짜 형식 깔끔하게 정리 (ISO 시간 등에서 날짜만 추출)
+            mod_date = mod_date.split("T")[0] if "T" in mod_date else mod_date
+            pub_date = pub_date.split("T")[0] if "T" in pub_date else pub_date
             
             notices.append({
                 "title": f"{label} Bootstrap Dates",
                 "description": [mod_date, pub_date]
+            })
+        else:
+            # 데이터가 아직 로드되지 않은 경우
+            notices.append({
+                "title": f"{label} Bootstrap Dates",
+                "description": ["Pending...", "Pending..."]
             })
 
     return {
