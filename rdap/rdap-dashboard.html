@@ -90,26 +90,29 @@
         }
 
         async function initDashboard() {
-            const apiUrl = 'https://rdap.kisa.or.kr/bootstrap/help';
+            // 현재 호스트의 /help 엔드포인트 호출 (상대 경로 또는 환경에 맞게 조정)
+            const apiUrl = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
+                           ? 'http://localhost:8000/help' 
+                           : '/help'; 
+            
             const updateLabel = document.getElementById('update-time');
             
             try {
-                updateLabel.classList.add('refreshing'); // 갱신 중 애니메이션 시작
+                updateLabel.classList.add('refreshing'); 
 
                 const response = await fetch(apiUrl);
                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
 
-                const text = await response.text();
-                const data = JSON.parse(text);
-                const notices = data.notices;
+                const data = await response.json();
+                const notices = data.notices || [];
 
                 // 1. 데이터 업데이트 (요약 정보)
                 const totalNotice = notices.find(n => n.title === "Totals");
                 let hits = 0, misses = 0;
-                if (totalNotice && !totalNotice.description[0].includes("Zero queries.")) {
+                if (totalNotice && totalNotice.description) {
                     totalNotice.description.forEach(item => {
-                        if(item.includes('Hits')) hits = parseInt(item.split('=')[1]) || 0;
-                        if(item.includes('Misses')) misses = parseInt(item.split('=')[1]) || 0;
+                        if(item.toLowerCase().includes('hits')) hits = parseInt(item.split('=')[1]) || 0;
+                        if(item.toLowerCase().includes('misses')) misses = parseInt(item.split('=')[1]) || 0;
                     });
                 }
                 document.getElementById('total-hits').innerText = hits.toLocaleString();
@@ -118,17 +121,27 @@
                 document.getElementById('success-rate').innerText = rate + '%';
 
                 // 2. 카테고리별 막대 차트 갱신
-                const categories = ["Domain Hits", "IP Hits", "Entity Hits", "Nameserver Hits"];
-                const categoryValues = categories.map(cat => {
-                    const found = notices.find(n => n.title === cat);
-                    return found ? parseHits(found.description) : 0;
+                const categoryMapping = {
+                    "Domain": ["Domain Hits", "DNS Hits"],
+                    "IP": ["IP Hits", "IPv4 Hits", "IPv6 Hits"],
+                    "Entity": ["Entity Hits", "Object Tags Hits"],
+                    "Nameserver": ["Nameserver Hits"]
+                };
+
+                const categoryValues = Object.keys(categoryMapping).map(label => {
+                    let sum = 0;
+                    categoryMapping[label].forEach(title => {
+                        const found = notices.find(n => n.title === title);
+                        if(found) sum += parseHits(found.description);
+                    });
+                    return sum;
                 });
 
-                if (categoryChart) categoryChart.destroy(); // 기존 차트 삭제
+                if (categoryChart) categoryChart.destroy(); 
                 categoryChart = new Chart(document.getElementById('categoryChart'), {
                     type: 'bar',
                     data: {
-                        labels: ['Domain', 'IP', 'Entity', 'Nameserver'],
+                        labels: Object.keys(categoryMapping),
                         datasets: [{ label: 'Hits', data: categoryValues, backgroundColor: '#6366f1', borderRadius: 4 }]
                     },
                     options: { responsive: true, plugins: { legend: { display: false } }, animation: { duration: 400 } }
@@ -137,30 +150,30 @@
                 // 3. 클라이언트 IP 도넛 차트 갱신
                 const clientNotice = notices.find(n => n.title === "Access Client IP Hits");
                 let clientLabels = ["No Data"], clientValues = [1];
-                if (clientNotice && !clientNotice.description[0].includes("Zero queries.")) {
-                    clientLabels = clientNotice.description.map(d => d.split('=')[1].trim());
-                    clientValues = clientNotice.description.map(d => parseInt(d.split('=')[0]));
+                if (clientNotice && clientNotice.description && !clientNotice.description[0].includes("Zero queries.")) {
+                    clientLabels = clientNotice.description.map(d => d.includes('=') ? d.split('=')[1].trim() : d);
+                    clientValues = clientNotice.description.map(d => d.includes('=') ? parseInt(d.split('=')[0]) : 0);
                 }
 
-                if (clientChart) clientChart.destroy(); // 기존 차트 삭제
+                if (clientChart) clientChart.destroy(); 
                 clientChart = new Chart(document.getElementById('clientChart'), {
                     type: 'doughnut',
                     data: {
                         labels: clientLabels,
-                        datasets: [{ data: clientValues, backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe'] }]
+                        datasets: [{ data: clientValues, backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'] }]
                     },
                     options: { cutout: '70%', animation: { duration: 400 } }
                 });
 
-                // 4. 테이블 데이터 업데이트
+                // 4. 테이블 데이터 업데이트 (부트스트랩 날짜)
                 const tableBody = document.getElementById('status-table-body');
                 tableBody.innerHTML = '';
                 notices.filter(n => n.title.includes("Dates")).forEach(n => {
                     const row = `
                         <tr class="border-b hover:bg-gray-50 transition">
-                            <td class="p-4 font-semibold text-gray-800 text-xs">${n.title.split(' Bootstrap')[0]}</td>
-                            <td class="p-4 text-gray-500 text-[11px]">${n.description[0]}</td>
-                            <td class="p-4 text-gray-500 text-[11px]">${n.description[1]}</td>
+                            <td class="p-4 font-semibold text-gray-800 text-xs">${n.title.replace(' Bootstrap Dates', '')}</td>
+                            <td class="p-4 text-gray-500 text-[11px]">${n.description[0] || '-'}</td>
+                            <td class="p-4 text-gray-500 text-[11px]">${n.description[1] || '-'}</td>
                         </tr>
                     `;
                     tableBody.innerHTML += row;
@@ -170,7 +183,7 @@
                 updateLabel.classList.remove('refreshing');
 
             } catch (error) {
-                console.error("Auto Refresh Failed:", error);
+                console.error("Dashboard Update Failed:", error);
                 updateLabel.innerHTML = `<span class="text-rose-500 font-bold">Sync Failed: ${new Date().toLocaleTimeString()}</span>`;
                 updateLabel.classList.remove('refreshing');
             }

@@ -137,6 +137,71 @@ async def redirect_entity(handle: str):
                     
     raise HTTPException(status_code=404, detail="RDAP server for this entity tag not found")
 
+@app.get("/help")
+async def get_help():
+    if not bootstrap_manager or not bootstrap_manager.data:
+        return {"notices": [{"title": "Status", "description": ["Initializing..."]}]}
+    
+    notices = []
+    
+    # 1. Totals (통계 기능이 연동되지 않았으므로 임시 데이터)
+    notices.append({
+        "title": "Totals",
+        "description": [
+            "Hits = 2450",
+            "Misses = 120"
+        ]
+    })
+    
+    # 2. Hits by Category (임시 데이터)
+    notices.append({"title": "Domain Hits", "description": ["1850 = domain"]})
+    notices.append({"title": "IP Hits", "description": ["450 = ipv4", "50 = ipv6"]})
+    notices.append({"title": "Entity Hits", "description": ["85 = entity"]})
+    notices.append({"title": "Nameserver Hits", "description": ["15 = nameserver"]})
+    
+    # 3. Access Client IP Hits (임시 데이터)
+    notices.append({
+        "title": "Access Client IP Hits",
+        "description": [
+            "1200 = 127.0.0.1",
+            "850 = 192.168.0.1",
+            "400 = 10.0.0.1"
+        ]
+    })
+    
+    # 4. Bootstrap Dates (실제 데이터 기반)
+    file_map = {
+        "dns.json": "DNS",
+        "ipv4.json": "IPv4",
+        "ipv6.json": "IPv6",
+        "asn.json": "ASN",
+        "object-tags.json": "Object Tags"
+    }
+    
+    for filename, label in file_map.items():
+        content = bootstrap_manager.data.get(filename)
+        if content:
+            # IANA 파일의 상단에 'description' 또는 'publication' 필드가 있는지 확인하여 날짜 추출
+            # 실제 IANA 파일 구조에 맞게 description 배열의 값을 활용
+            desc = content.get("description", [])
+            # 일반적으로 0: 제목, 1: 수정일, 2: 게시일 등의 형식을 가질 수 있음
+            # IANA 형식에 따른 안전한 추출 시도
+            mod_date = "-"
+            pub_date = "-"
+            for line in desc:
+                if "Modified" in line: mod_date = line.split(":", 1)[1].strip() if ":" in line else line
+                if "Publication" in line: pub_date = line.split(":", 1)[1].strip() if ":" in line else line
+            
+            notices.append({
+                "title": f"{label} Bootstrap Dates",
+                "description": [mod_date, pub_date]
+            })
+
+    return {
+        "rdapConformance": ["rdap_level_0"],
+        "notices": notices
+    }
+
 @app.get("/{filename}")
 async def get_bootstrap_file(filename: str):
     if not filename.endswith(".json"): filename += ".json"
