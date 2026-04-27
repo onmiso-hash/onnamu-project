@@ -21,8 +21,12 @@ app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 공용 AsyncClient 생성 (효율적인 연결 관리)
-async_client = httpx.AsyncClient(timeout=10.0, follow_redirects=True)
+# 공용 AsyncClient 생성 (타임아웃 연장 및 SSL 검증 완화 옵션 검토)
+async_client = httpx.AsyncClient(
+    timeout=20.0, 
+    follow_redirects=True,
+    verify=False  # 일부 RDAP 서버의 인증서 문제로 인한 502 방지
+)
 
 # CORS 설정
 app.add_middleware(
@@ -36,19 +40,32 @@ app.add_middleware(
 async def proxy_rdap_request(target_url: str):
     """외부 RDAP 서버에 요청을 보내고 결과를 반환하는 프록시 함수"""
     try:
+        logger.info(f"Proxying request to: {target_url}")
         response = await async_client.get(target_url)
-        # 404 등 에러 발생 시에도 외부 서버의 응답(JSON)을 그대로 전달하거나 커스텀 에러 반환
-        if response.status_code == 200:
-            return response.json()
-        else:
-            # 외부 서버가 404를 보낸 경우 등을 클라이언트에게 그대로 전달
-            try:
-                return JSONResponse(status_code=response.status_code, content=response.json())
-            except:
-                raise HTTPException(status_code=response.status_code, detail="Remote server error")
+        
+        # 외부 서버의 응답 상태 코드를 그대로 유지하며 결과 반환
+        try:
+            content = response.json()
+            return JSONResponse(status_code=response.status_code, content=content)
+        except Exception:
+            # JSON이 아닌 경우 (에러 페이지 등)
+            return JSONResponse(
+                status_code=response.status_code, 
+                content={"errorCode": response.status_code, "title": "Remote Server Error", "description": [response.text[:200]]}
+            )
+
+    except httpx.TimeoutException:
+        logger.error(f"Proxy timeout for: {target_url}")
+        return JSONResponse(
+            status_code=504, 
+            content={"errorCode": 504, "title": "Gateway Timeout", "description": ["The remote RDAP server took too long to respond."]}
+        )
     except Exception as e:
-        logger.error(f"Proxy request failed: {e}")
-        raise HTTPException(status_code=502, detail=f"Failed to fetch data from remote RDAP server: {str(e)}")
+        logger.error(f"Proxy request failed for {target_url}: {e}")
+        return JSONResponse(
+            status_code=502, 
+            content={"errorCode": 502, "title": "Bad Gateway", "description": [f"Failed to fetch data: {str(e)}"]}
+        )
 
 @app.on_event("startup")
 async def startup_event():
