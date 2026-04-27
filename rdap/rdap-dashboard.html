@@ -90,10 +90,10 @@
         }
 
         async function initDashboard() {
-            // 현재 호스트의 /help 엔드포인트 호출 (상대 경로 또는 환경에 맞게 조정)
+            // 현재 호스트가 로컬이면 localhost 호출, 아니면 공식 API 도메인 호출
             const apiUrl = window.location.origin.includes('localhost') || window.location.origin.includes('127.0.0.1') 
                            ? 'http://localhost:8000/help' 
-                           : '/help'; 
+                           : 'https://bootstrap.rdap.kr/help'; 
             
             const updateLabel = document.getElementById('update-time');
             
