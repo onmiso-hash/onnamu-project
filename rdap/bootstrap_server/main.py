@@ -84,10 +84,18 @@ async def root(request: Request = None):
     status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
     return {"message": "onnamu RDAP Bootstrap Server is running", "status": status}
 
+def get_client_ip(request: Request):
+    """실제 클라이언트 IP를 가져옵니다. (프록시 헤더 고려)"""
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        # X-Forwarded-For는 'client, proxy1, proxy2' 형태일 수 있으므로 첫 번째 값을 선택
+        return x_forwarded_for.split(",")[0].strip()
+    return request.client.host
+
 # 1. 도메인 조회 (Proxy 방식 우선 적용)
 @app.get("/domain/{name}")
 async def get_domain(name: str, request: Request):
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Loading...")
     
@@ -106,7 +114,7 @@ async def get_domain(name: str, request: Request):
 # 1-2. 네임서버 조회
 @app.get("/nameserver/{name}")
 async def get_nameserver(name: str, request: Request):
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Loading...")
         
@@ -125,7 +133,7 @@ async def get_nameserver(name: str, request: Request):
 # 2. IP 조회
 @app.get("/ip/{address}")
 async def get_ip(address: str, request: Request):
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Loading...")
         
@@ -151,7 +159,7 @@ async def get_ip(address: str, request: Request):
 # 3. AS 번호 조회
 @app.get("/autnum/{number_str}")
 async def get_autnum(number_str: str, request: Request):
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Loading...")
         
@@ -184,7 +192,7 @@ async def get_autnum(number_str: str, request: Request):
 # 4. 엔티티 조회
 @app.get("/entity/{handle}")
 async def get_entity(handle: str, request: Request):
-    client_ip = request.client.host
+    client_ip = get_client_ip(request)
     if not bootstrap_manager or not bootstrap_manager.data:
         raise HTTPException(status_code=503, detail="Loading...")
         
