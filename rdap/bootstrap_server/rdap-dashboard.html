@@ -55,17 +55,19 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 items-start">
-            <div class="card">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card flex flex-col h-full">
                 <h2 class="text-lg font-bold mb-4 text-gray-700">Hits by Category</h2>
-                <div class="chart-container">
+                <div class="flex-1 min-h-[280px] relative">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
-            <div class="card">
+            <div class="card flex flex-col h-full">
                 <h2 class="text-lg font-bold mb-4 text-gray-700">Top Access Client IPs</h2>
-                <div class="chart-container">
-                    <canvas id="clientChart"></canvas>
+                <div class="flex-1 min-h-[280px] flex items-center justify-center">
+                    <div class="relative w-full h-full max-h-[240px]">
+                        <canvas id="clientChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -161,7 +163,6 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        layout: { padding: { bottom: 0 } }, // 하단 패딩 명시적 제거
                         plugins: { legend: { display: false } },
                         scales: { 
                             y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }, 
@@ -187,7 +188,6 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        layout: { padding: { top: 40, bottom: 40, left: 20, right: 20 } }, 
                         cutout: '70%',
                         plugins: { 
                             legend: { 
