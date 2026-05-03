@@ -56,19 +56,23 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card flex flex-col" style="height: 300px;">
+            <div class="card flex flex-col h-[320px]">
                 <h2 class="text-lg font-bold mb-2 text-gray-700">Hits by Category</h2>
-                <div class="flex-1 relative w-full h-full">
+                <div class="flex-1 relative w-full h-full pb-2">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
-            <div class="card flex flex-col" style="height: 300px;">
+            <div class="card flex flex-col h-[320px]">
                 <h2 class="text-lg font-bold mb-2 text-gray-700">Top Access Client IPs</h2>
-                <div class="flex-1 relative w-full h-full">
-                    <canvas id="clientChart"></canvas>
+                <div class="flex-1 flex items-center justify-center relative w-full h-full pb-2">
+                    <!-- 원 그래프가 절대 이 크기를 넘지 못하도록 고정 박스 생성 -->
+                    <div style="position: relative; width: 100%; max-width: 250px; height: 250px;">
+                        <canvas id="clientChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
+
 
         <div class="card overflow-x-auto mb-8">
             <h2 class="text-lg font-bold mb-4 text-gray-700">Bootstrap File Status</h2>
@@ -161,7 +165,7 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        layout: { padding: { top: 10, bottom: 5 } },
+                        layout: { padding: { top: 10, bottom: 0 } },
                         plugins: { legend: { display: false } },
                         scales: { 
                             y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 } } }, 
@@ -186,8 +190,7 @@
                     },
                     options: { 
                         responsive: true, 
-                        maintainAspectRatio: false,
-                        layout: { padding: { top: 10, bottom: 20, left: 50, right: 50 } },
+                        maintainAspectRatio: true, // 고정 박스 안에서는 비율 유지
                         cutout: '70%',
                         plugins: { 
                             legend: { 
