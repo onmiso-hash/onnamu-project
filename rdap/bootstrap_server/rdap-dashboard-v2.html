@@ -27,11 +27,11 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">📊 RDAP Statistics</h1>
-                    <span class="bg-indigo-500/20 text-indigo-400 text-[10px] px-2 py-0.5 rounded-full border border-indigo-500/30 font-bold uppercase tracking-wider">v2.0.1</span>
+                    <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-0.5 rounded-full border border-indigo-500/30 font-bold uppercase tracking-wider">v2.0.2</span>
                 </div>
                 <div class="flex items-center gap-2 mt-2">
                     <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <p id="update-time" class="text-xs text-slate-400 font-mono italic">Initializing dashboard...</p>
+                    <p id="update-time" class="text-sm text-slate-400 font-mono italic">Initializing dashboard...</p>
                 </div>
             </div>
             <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-full transition-all text-sm font-semibold shadow-lg shadow-indigo-500/20 flex items-center gap-2">
@@ -45,23 +45,23 @@
         <!-- Stats Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             <div class="card stat-card border-blue-500 shadow-xl shadow-blue-500/5">
-                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Hits</p>
-                <p id="total-hits" class="text-3xl font-bold text-white tabular-nums">0</p>
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Total Hits</p>
+                <p id="total-hits" class="text-4xl font-bold text-white tabular-nums">0</p>
             </div>
             <div class="card stat-card border-rose-500 shadow-xl shadow-rose-500/5">
-                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Misses</p>
-                <p id="total-misses" class="text-3xl font-bold text-white tabular-nums">0</p>
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Total Misses</p>
+                <p id="total-misses" class="text-4xl font-bold text-white tabular-nums">0</p>
             </div>
             <div class="card stat-card border-emerald-500 shadow-xl shadow-emerald-500/5">
-                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Success Rate</p>
-                <p id="success-rate" class="text-3xl font-bold text-white tabular-nums">0%</p>
+                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Success Rate</p>
+                <p id="success-rate" class="text-4xl font-bold text-white tabular-nums">0%</p>
             </div>
         </div>
 
         <!-- Charts Grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div class="card">
-                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
                     <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
                     Hits by Category
                 </h2>
@@ -70,12 +70,12 @@
                 </div>
             </div>
             <div class="card">
-                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
                     <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
                     Top Access Client IPs
                 </h2>
                 <div class="chart-wrapper">
-                    <div style="width: 180px; height: 180px;">
+                    <div style="width: 200px; height: 200px;">
                         <canvas id="clientChart"></canvas>
                     </div>
                 </div>
@@ -85,20 +85,20 @@
         <!-- Table Grid -->
         <div class="grid grid-cols-1 gap-8 mb-8">
             <div class="card overflow-hidden">
-                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
                     <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
                     Bootstrap File Status
                 </h2>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="text-[10px] uppercase text-slate-500 border-b border-slate-700/50">
+                            <tr class="text-xs uppercase text-slate-500 border-b border-slate-700/50">
                                 <th class="py-3 px-4">Resource</th>
                                 <th class="py-3 px-4">Modified Date (KST)</th>
                                 <th class="py-3 px-4 text-right">Published Date</th>
                             </tr>
                         </thead>
-                        <tbody id="status-table-body" class="text-xs text-slate-400 font-mono"></tbody>
+                        <tbody id="status-table-body" class="text-sm text-slate-400 font-mono"></tbody>
                     </table>
                 </div>
             </div>
@@ -106,7 +106,7 @@
 
         <!-- Rankings -->
         <div class="card">
-            <h2 class="text-sm font-bold mb-6 text-slate-300 flex items-center gap-2">
+            <h2 class="text-base font-bold mb-6 text-slate-300 flex items-center gap-2">
                 <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
                 🏆 Real-time Popularity Rankings
             </h2>
@@ -192,11 +192,11 @@
                             y: { 
                                 beginAtZero: true, 
                                 grid: { color: '#334155', drawBorder: false }, 
-                                ticks: { color: '#94a3b8', font: { size: 10 } } 
+                                ticks: { color: '#94a3b8', font: { size: 11 } } 
                             },
                             x: { 
                                 grid: { display: false }, 
-                                ticks: { color: '#94a3b8', font: { size: 10 } } 
+                                ticks: { color: '#94a3b8', font: { size: 11 } } 
                             }
                         },
                         layout: { padding: 0 }
@@ -230,7 +230,7 @@
                         plugins: {
                             legend: {
                                 position: 'right',
-                                labels: { color: '#94a3b8', boxWidth: 8, font: { size: 10 }, padding: 8 }
+                                labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 10 }
                             }
                         }
                     }
@@ -246,8 +246,8 @@
                     tableBody.innerHTML += `
                         <tr class="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
                             <td class="py-3 px-4 font-bold text-slate-300">${titleStr}</td>
-                            <td class="py-3 px-4 text-indigo-400">${modDate}</td>
-                            <td class="py-3 px-4 text-slate-500 text-right">${pubDate}</td>
+                            <td class="py-3 px-4 text-indigo-400 font-medium">${modDate}</td>
+                            <td class="py-3 px-4 text-slate-500 text-right font-medium">${pubDate}</td>
                         </tr>
                     `;
                 });
@@ -260,21 +260,21 @@
                     const found = notices.find(n => n.title === title);
                     if (found) {
                         const section = document.createElement('div');
-                        section.className = 'bg-slate-800/50 rounded-lg border border-slate-700/50 flex flex-col h-[350px] overflow-hidden';
+                        section.className = 'bg-slate-800/50 rounded-lg border border-slate-700/50 flex flex-col h-[380px] overflow-hidden';
                         let itemsHtml = (found.description && !found.description[0].includes("No data.")) 
                             ? found.description.map((item, idx) => {
                                 const parts = item.split('=');
-                                return `<div class="flex justify-between items-center text-[10px] py-2 px-3 border-b border-slate-700/30 last:border-0 hover:bg-indigo-500/10 transition group">
+                                return `<div class="flex justify-between items-center text-xs py-2.5 px-3 border-b border-slate-700/30 last:border-0 hover:bg-indigo-500/10 transition group">
                                     <div class="flex items-center gap-2 overflow-hidden">
-                                        <span class="text-slate-500 font-mono w-4">${idx + 1}</span>
+                                        <span class="text-slate-500 font-mono w-5">${idx + 1}</span>
                                         <span class="font-medium text-slate-300 truncate group-hover:text-indigo-400">${parts.slice(1).join('=').trim()}</span>
                                     </div>
                                     <span class="text-indigo-400 font-bold ml-2">${parts[0].trim()}</span>
                                 </div>`;
                             }).join('')
-                            : `<div class="flex items-center justify-center h-full text-slate-500 text-xs italic">No data</div>`;
+                            : `<div class="flex items-center justify-center h-full text-slate-500 text-sm italic">No data</div>`;
                         section.innerHTML = `
-                            <div class="p-3 bg-slate-800 border-b border-slate-700/50 flex justify-between items-center"><h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${title.replace(' Top 100', '')}</h3></div>
+                            <div class="p-3 bg-slate-800 border-b border-slate-700/50 flex justify-between items-center"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">${title.replace(' Top 100', '')}</h3></div>
                             <div class="flex-1 overflow-y-auto custom-scrollbar">${itemsHtml}</div>`;
                         top100Container.appendChild(section);
                     }
