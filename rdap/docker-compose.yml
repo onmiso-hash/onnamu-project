@@ -10,7 +10,8 @@ services:
 
   bootstrap-server:
     build:
-      context: ./bootstrap_server
+      context: .
+      dockerfile: ./bootstrap_server/Dockerfile
     container_name: rdap-bootstrap
     restart: unless-stopped
     ports:
