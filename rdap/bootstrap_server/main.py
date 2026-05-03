@@ -89,12 +89,18 @@ async def get_dashboard():
     # 1. 현재 디렉토리 확인 (Docker 환경)
     dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rdap-dashboard.html")
     if os.path.exists(dashboard_path):
-        return FileResponse(dashboard_path)
+        return FileResponse(
+            dashboard_path, 
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+        )
     
     # 2. 부모 디렉토리 확인 (로컬 개발 환경)
     dashboard_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rdap-dashboard.html")
     if os.path.exists(dashboard_path):
-        return FileResponse(dashboard_path)
+        return FileResponse(
+            dashboard_path,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+        )
         
     raise HTTPException(status_code=404, detail="Dashboard file not found")
 
