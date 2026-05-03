@@ -27,7 +27,7 @@
             <div>
                 <div class="flex items-center gap-3">
                     <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">📊 RDAP Statistics</h1>
-                    <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-0.5 rounded-full border border-indigo-500/30 font-bold uppercase tracking-wider">v2.0.2</span>
+                    <span class="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-0.5 rounded-full border border-indigo-500/30 font-bold uppercase tracking-wider">v2.0.3</span>
                 </div>
                 <div class="flex items-center gap-2 mt-2">
                     <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
@@ -75,7 +75,7 @@
                     Top Access Client IPs
                 </h2>
                 <div class="chart-wrapper">
-                    <div style="width: 200px; height: 200px;">
+                    <div style="width: 218px; height: 218px;">
                         <canvas id="clientChart"></canvas>
                     </div>
                 </div>
@@ -181,7 +181,7 @@
                             data: categoryValues, 
                             backgroundColor: '#6366f1', 
                             borderRadius: 4,
-                            barThickness: 30
+                            barThickness: 50
                         }]
                     },
                     options: {
@@ -226,7 +226,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: true,
-                        cutout: '75%',
+                        cutout: '60%',
                         plugins: {
                             legend: {
                                 position: 'right',
