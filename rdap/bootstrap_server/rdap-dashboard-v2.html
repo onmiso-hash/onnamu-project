@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>RDAP Real-time Dashboard v2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
+        body { font-family: 'Pretendard', sans-serif; background-color: #0f172a; color: #f8fafc; }
+        .card { background: #1e293b; padding: 1.25rem; border-radius: 1rem; border: 1px solid #334155; }
+        .stat-card { border-left: 4px solid #6366f1; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .chart-wrapper { height: 220px; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+        canvas { max-width: 100% !important; max-height: 100% !important; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-emerald-400">📊 RDAP Statistics</h1>
+                    <span class="bg-indigo-500/20 text-indigo-400 text-[10px] px-2 py-0.5 rounded-full border border-indigo-500/30 font-bold uppercase tracking-wider">v2.0.1</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <p id="update-time" class="text-xs text-slate-400 font-mono italic">Initializing dashboard...</p>
+                </div>
+            </div>
+            <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-full transition-all text-sm font-semibold shadow-lg shadow-indigo-500/20 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Manual Refresh
+            </button>
+        </header>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
+            <div class="card stat-card border-blue-500 shadow-xl shadow-blue-500/5">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Hits</p>
+                <p id="total-hits" class="text-3xl font-bold text-white tabular-nums">0</p>
+            </div>
+            <div class="card stat-card border-rose-500 shadow-xl shadow-rose-500/5">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Total Misses</p>
+                <p id="total-misses" class="text-3xl font-bold text-white tabular-nums">0</p>
+            </div>
+            <div class="card stat-card border-emerald-500 shadow-xl shadow-emerald-500/5">
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-widest mb-1">Success Rate</p>
+                <p id="success-rate" class="text-3xl font-bold text-white tabular-nums">0%</p>
+            </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            <div class="card">
+                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                    <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                    Hits by Category
+                </h2>
+                <div class="chart-wrapper">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                    <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                    Top Access Client IPs
+                </h2>
+                <div class="chart-wrapper">
+                    <div style="width: 180px; height: 180px;">
+                        <canvas id="clientChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Grid -->
+        <div class="grid grid-cols-1 gap-8 mb-8">
+            <div class="card overflow-hidden">
+                <h2 class="text-sm font-bold mb-4 text-slate-300 flex items-center gap-2">
+                    <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                    Bootstrap File Status
+                </h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-[10px] uppercase text-slate-500 border-b border-slate-700/50">
+                                <th class="py-3 px-4">Resource</th>
+                                <th class="py-3 px-4">Modified Date (KST)</th>
+                                <th class="py-3 px-4 text-right">Published Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="status-table-body" class="text-xs text-slate-400 font-mono"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rankings -->
+        <div class="card">
+            <h2 class="text-sm font-bold mb-6 text-slate-300 flex items-center gap-2">
+                <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
+                🏆 Real-time Popularity Rankings
+            </h2>
+            <div id="top100-content" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+        </div>
+    </div>
+
+    <script>
+        let categoryChart = null;
+        let clientChart = null;
+
+        function parseHits(descriptionArray) {
+            if (!descriptionArray || descriptionArray.length === 0 || descriptionArray[0].includes("Zero queries.")) return 0;
+            let total = 0;
+            descriptionArray.forEach(item => {
+                const parts = item.split('=');
+                if(parts.length >= 2) {
+                    const count = parseInt(parts[0].trim());
+                    if(!isNaN(count)) total += count;
+                }
+            });
+            return total;
+        }
+
+        async function updateDashboard() {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const apiUrl = isLocal ? '/help' : 'https://bootstrap.rdap.kr/help';
+            
+            try {
+                const response = await fetch(`${apiUrl}?t=${Date.now()}`);
+                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                const data = await response.json();
+                const notices = data.notices || [];
+
+                // 1. Stats Update
+                const totalNotice = notices.find(n => n.title === "Totals");
+                let hits = 0, misses = 0;
+                if (totalNotice && totalNotice.description) {
+                    totalNotice.description.forEach(item => {
+                        if(item.toLowerCase().includes('hits')) hits = parseInt(item.split('=')[1]) || 0;
+                        if(item.toLowerCase().includes('misses')) misses = parseInt(item.split('=')[1]) || 0;
+                    });
+                }
+                document.getElementById('total-hits').innerText = hits.toLocaleString();
+                document.getElementById('total-misses').innerText = misses.toLocaleString();
+                const rate = (hits + misses) > 0 ? ((hits / (hits + misses)) * 100).toFixed(1) : 0;
+                document.getElementById('success-rate').innerText = rate + '%';
+
+                // 2. Bar Chart
+                const categoryMapping = {
+                    "Domain": ["Domain Hits", "DNS Hits"],
+                    "IP": ["IP Hits", "IPv4 Hits", "IPv6 Hits"],
+                    "Entity": ["Entity Hits", "Object Tags Hits"],
+                    "Nameserver": ["Nameserver Hits"]
+                };
+                const categoryValues = Object.keys(categoryMapping).map(label => {
+                    let sum = 0;
+                    categoryMapping[label].forEach(title => {
+                        const found = notices.find(n => n.title === title);
+                        if(found) sum += parseHits(found.description);
+                    });
+                    return sum;
+                });
+
+                if (categoryChart) categoryChart.destroy();
+                categoryChart = new Chart(document.getElementById('categoryChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: Object.keys(categoryMapping),
+                        datasets: [{ 
+                            label: 'Hits', 
+                            data: categoryValues, 
+                            backgroundColor: '#6366f1', 
+                            borderRadius: 4,
+                            barThickness: 30
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: '#334155', drawBorder: false }, 
+                                ticks: { color: '#94a3b8', font: { size: 10 } } 
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { color: '#94a3b8', font: { size: 10 } } 
+                            }
+                        },
+                        layout: { padding: 0 }
+                    }
+                });
+
+                // 3. Doughnut Chart
+                const clientNotice = notices.find(n => n.title === "Access Client IP Hits");
+                let clientLabels = ["No Data"], clientValues = [1];
+                if (clientNotice && clientNotice.description && !clientNotice.description[0].includes("Zero queries.")) {
+                    clientLabels = clientNotice.description.map(d => d.includes('=') ? d.split('=')[1].trim() : d);
+                    clientValues = clientNotice.description.map(d => d.includes('=') ? parseInt(d.split('=')[0]) : 0);
+                }
+
+                if (clientChart) clientChart.destroy();
+                clientChart = new Chart(document.getElementById('clientChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: clientLabels,
+                        datasets: [{ 
+                            data: clientValues, 
+                            backgroundColor: ['#6366f1', '#4f46e5', '#4338ca', '#3730a3', '#312e81'], 
+                            borderWidth: 2,
+                            borderColor: '#1e293b'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        cutout: '75%',
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#94a3b8', boxWidth: 8, font: { size: 10 }, padding: 8 }
+                            }
+                        }
+                    }
+                });
+
+                // 4. Status Table
+                const tableBody = document.getElementById('status-table-body');
+                tableBody.innerHTML = '';
+                notices.filter(n => n.title.includes("Dates")).forEach(n => {
+                    const modDate = n.description[0] || '-';
+                    const pubDate = n.description[1] || '-';
+                    let titleStr = n.title.replace(' Bootstrap File Modified and Published Dates', '').replace(' Bootstrap Dates', '');
+                    tableBody.innerHTML += `
+                        <tr class="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
+                            <td class="py-3 px-4 font-bold text-slate-300">${titleStr}</td>
+                            <td class="py-3 px-4 text-indigo-400">${modDate}</td>
+                            <td class="py-3 px-4 text-slate-500 text-right">${pubDate}</td>
+                        </tr>
+                    `;
+                });
+
+                // 5. Rankings
+                const top100Container = document.getElementById('top100-content');
+                top100Container.innerHTML = '';
+                const top100Titles = ["Overall Top 100", "Domain Top 100", "Nameserver Top 100", "IP Address Top 100", "AS Number Top 100", "Entity Top 100"];
+                top100Titles.forEach(title => {
+                    const found = notices.find(n => n.title === title);
+                    if (found) {
+                        const section = document.createElement('div');
+                        section.className = 'bg-slate-800/50 rounded-lg border border-slate-700/50 flex flex-col h-[350px] overflow-hidden';
+                        let itemsHtml = (found.description && !found.description[0].includes("No data.")) 
+                            ? found.description.map((item, idx) => {
+                                const parts = item.split('=');
+                                return `<div class="flex justify-between items-center text-[10px] py-2 px-3 border-b border-slate-700/30 last:border-0 hover:bg-indigo-500/10 transition group">
+                                    <div class="flex items-center gap-2 overflow-hidden">
+                                        <span class="text-slate-500 font-mono w-4">${idx + 1}</span>
+                                        <span class="font-medium text-slate-300 truncate group-hover:text-indigo-400">${parts.slice(1).join('=').trim()}</span>
+                                    </div>
+                                    <span class="text-indigo-400 font-bold ml-2">${parts[0].trim()}</span>
+                                </div>`;
+                            }).join('')
+                            : `<div class="flex items-center justify-center h-full text-slate-500 text-xs italic">No data</div>`;
+                        section.innerHTML = `
+                            <div class="p-3 bg-slate-800 border-b border-slate-700/50 flex justify-between items-center"><h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">${title.replace(' Top 100', '')}</h3></div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar">${itemsHtml}</div>`;
+                        top100Container.appendChild(section);
+                    }
+                });
+
+                document.getElementById('update-time').innerText = "Live status: Synced at " + new Date().toLocaleTimeString();
+            } catch (error) {
+                document.getElementById('update-time').innerHTML = `<span class="text-rose-500">Sync Failed: ${error.message}</span>`;
+            }
+        }
+        updateDashboard();
+        setInterval(updateDashboard, 5000);
+    </script>
+</body>
+</html>

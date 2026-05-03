@@ -87,15 +87,21 @@ async def root(request: Request = None):
 @app.get("/dashboard")
 async def get_dashboard():
     # 1. 현재 디렉토리 확인 (Docker 환경)
-    dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rdap-dashboard.html")
+    # v2 대시보드로 변경하여 캐시 문제 해결 및 레이아웃 개선
+    dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rdap-dashboard-v2.html")
     if os.path.exists(dashboard_path):
         return FileResponse(
             dashboard_path, 
-            headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+                "Surrogate-Control": "no-store"
+            }
         )
     
     # 2. 부모 디렉토리 확인 (로컬 개발 환경)
-    dashboard_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rdap-dashboard.html")
+    dashboard_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rdap-dashboard-v2.html")
     if os.path.exists(dashboard_path):
         return FileResponse(
             dashboard_path,
@@ -324,10 +330,13 @@ async def get_help():
                 "description": ["Pending...", "Pending..."]
             })
 
-    return {
-        "rdapConformance": ["rdap_level_0"],
-        "notices": notices
-    }
+    return JSONResponse(
+        content={
+            "rdapConformance": ["rdap_level_0"],
+            "notices": notices
+        },
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
 
 @app.get("/{filename}")
 async def get_bootstrap_file(filename: str):
