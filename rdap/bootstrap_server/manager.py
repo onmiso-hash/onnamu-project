@@ -31,11 +31,19 @@ class BootstrapManager:
                 "entity": 0,
                 "nameserver": 0
             },
-            "client_ips": {} # {ip: count}
+            "client_ips": {}, # {ip: count}
+            "top_objects": {
+                "domain": {},
+                "nameserver": {},
+                "ip": {},
+                "autnum": {},
+                "entity": {},
+                "all": {}
+            }
         }
         DATA_DIR.mkdir(exist_ok=True)
 
-    def record_hit(self, category: str, client_ip: str = None, sub_category: str = None):
+    def record_hit(self, category: str, client_ip: str = None, sub_category: str = None, object_key: str = None):
         """조회 성공 시 통계를 기록합니다."""
         self.stats["total_hits"] += 1
         if category in self.stats["categories"]:
@@ -46,9 +54,46 @@ class BootstrapManager:
         if client_ip:
             self.stats["client_ips"][client_ip] = self.stats["client_ips"].get(client_ip, 0) + 1
 
+        if object_key:
+            # 카테고리별 Top 100
+            if category in self.stats["top_objects"]:
+                self.stats["top_objects"][category][object_key] = self.stats["top_objects"][category].get(object_key, 0) + 1
+            # 전체 Top 100
+            self.stats["top_objects"]["all"][object_key] = self.stats["top_objects"]["all"].get(object_key, 0) + 1
+            
+        self.save_stats()
+
     def record_miss(self):
         """조회 실패 시 통계를 기록합니다."""
         self.stats["total_misses"] += 1
+        self.save_stats()
+
+    def save_stats(self):
+        """통계를 로컬 파일에 저장합니다."""
+        try:
+            stats_path = DATA_DIR / "stats.json"
+            with open(stats_path, "w", encoding="utf-8") as f:
+                json.dump(self.stats, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save stats: {e}")
+
+    def load_stats(self):
+        """로컬 파일에서 통계를 로드합니다."""
+        stats_path = DATA_DIR / "stats.json"
+        if stats_path.exists():
+            try:
+                with open(stats_path, "r", encoding="utf-8") as f:
+                    loaded_stats = json.load(f)
+                    # 기존 stats 구조에 덮어쓰기 (새로운 필드가 추가되었을 수 있으므로 업데이트 방식 사용)
+                    for key, value in loaded_stats.items():
+                        if key in self.stats:
+                            if isinstance(value, dict) and isinstance(self.stats[key], dict):
+                                self.stats[key].update(value)
+                            else:
+                                self.stats[key] = value
+                logger.info("Loaded statistics from local storage")
+            except Exception as e:
+                logger.error(f"Failed to load stats: {e}")
 
     async def fetch_all(self):
         """IANA에서 모든 부트스트랩 파일을 다운로드합니다."""
@@ -93,6 +138,7 @@ class BootstrapManager:
     async def initialize(self):
         """초기 데이터 로드 및 스케줄러 설정을 수행합니다."""
         self.load_local()
+        self.load_stats()
         await self.fetch_all() # 시작 시 항상 최신 데이터 시도
 
         # 24시간마다 갱신하는 스케줄러 시작

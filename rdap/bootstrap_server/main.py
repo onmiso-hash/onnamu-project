@@ -3,7 +3,7 @@ import os
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 import ipaddress
 import asyncio
 import httpx
@@ -84,6 +84,13 @@ async def root(request: Request = None):
     status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
     return {"message": "onnamu RDAP Bootstrap Server is running", "status": status}
 
+@app.get("/dashboard")
+async def get_dashboard():
+    dashboard_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "rdap-dashboard.html")
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    raise HTTPException(status_code=404, detail="Dashboard file not found")
+
 def get_client_ip(request: Request):
     """실제 클라이언트 IP를 가져옵니다. (프록시 헤더 고려)"""
     x_forwarded_for = request.headers.get("X-Forwarded-For")
@@ -104,7 +111,7 @@ async def get_domain(name: str, request: Request):
     if dns_data:
         for service in dns_data.get("services", []):
             if tld in service[0]:
-                bootstrap_manager.record_hit("domain", client_ip)
+                bootstrap_manager.record_hit("domain", client_ip, object_key=name)
                 target_url = f"{service[1][0]}domain/{name}"
                 return await proxy_rdap_request(target_url)
                 
@@ -123,7 +130,7 @@ async def get_nameserver(name: str, request: Request):
     if dns_data:
         for service in dns_data.get("services", []):
             if tld in service[0]:
-                bootstrap_manager.record_hit("nameserver", client_ip)
+                bootstrap_manager.record_hit("nameserver", client_ip, object_key=name)
                 target_url = f"{service[1][0]}nameserver/{name}"
                 return await proxy_rdap_request(target_url)
                 
@@ -146,7 +153,7 @@ async def get_ip(address: str, request: Request):
             for service in ip_data.get("services", []):
                 for network_str in service[0]:
                     if ip_obj in ipaddress.ip_network(network_str):
-                        bootstrap_manager.record_hit("ip", client_ip, sub_cat)
+                        bootstrap_manager.record_hit("ip", client_ip, sub_cat, object_key=address)
                         target_url = f"{service[1][0]}ip/{address}"
                         return await proxy_rdap_request(target_url)
     except Exception as e:
@@ -181,7 +188,7 @@ async def get_autnum(number_str: str, request: Request):
                     else:
                         start = end = int(range_str)
                     if start <= number <= end:
-                        bootstrap_manager.record_hit("autnum", client_ip)
+                        bootstrap_manager.record_hit("autnum", client_ip, object_key=f"AS{number}")
                         target_url = f"{service[1][0]}autnum/{number}"
                         return await proxy_rdap_request(target_url)
                 except: continue
@@ -204,7 +211,7 @@ async def get_entity(handle: str, request: Request):
             target_urls = service[2]
             for tag in tags:
                 if upper_handle.endswith("-" + tag.upper()) or upper_handle == tag.upper():
-                    bootstrap_manager.record_hit("entity", client_ip)
+                    bootstrap_manager.record_hit("entity", client_ip, object_key=handle)
                     target_url = f"{target_urls[0]}entity/{handle}"
                     return await proxy_rdap_request(target_url)
                     
@@ -241,8 +248,26 @@ async def get_help():
         "title": "Access Client IP Hits",
         "description": ip_desc
     })
+
+    # 4. Top 100 Rankings
+    top_map = [
+        ("all", "Overall Top 100"),
+        ("domain", "Domain Top 100"),
+        ("nameserver", "Nameserver Top 100"),
+        ("ip", "IP Address Top 100"),
+        ("autnum", "AS Number Top 100"),
+        ("entity", "Entity Top 100")
+    ]
     
-    # 4. Bootstrap Dates (KISA 형식 적용)
+    for key, title in top_map:
+        sorted_objs = sorted(stats["top_objects"].get(key, {}).items(), key=lambda x: x[1], reverse=True)[:100]
+        obj_desc = [f"{count} = {obj}" for obj, count in sorted_objs] if sorted_objs else ["No data."]
+        notices.append({
+            "title": title,
+            "description": obj_desc
+        })
+    
+    # 5. Bootstrap Dates (KISA 형식 적용)
     file_map = {
         "dns.json": "Domain",
         "ipv4.json": "IPv4",

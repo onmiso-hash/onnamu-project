@@ -13,6 +13,12 @@
         /* 갱신 중임을 알리는 애니메이션 효과 */
         .refreshing { animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        
+        /* 커스텀 스크롤바 스타일 */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #818cf8; }
     </style>
 </head>
 <body class="p-6">
@@ -59,7 +65,7 @@
             </div>
         </div>
 
-        <div class="card overflow-x-auto">
+        <div class="card overflow-x-auto mb-8">
             <h2 class="text-lg font-bold mb-4 text-gray-700">Bootstrap File Status</h2>
             <table class="w-full text-left border-collapse">
                 <thead>
@@ -71,6 +77,17 @@
                 </thead>
                 <tbody id="status-table-body" class="text-sm text-gray-700 font-mono"></tbody>
             </table>
+        </div>
+
+        <!-- Top 100 Rankings Section -->
+        <div class="card">
+            <h2 class="text-lg font-bold mb-6 text-gray-700 flex items-center gap-2">
+                🏆 Top 100 Rankings
+                <span class="text-xs font-normal text-gray-400">(Real-time popularity)</span>
+            </h2>
+            <div id="top100-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Top 100 Lists will be injected here -->
+            </div>
         </div>
     </div>
 
@@ -186,6 +203,61 @@
                         </tr>
                     `;
                     tableBody.innerHTML += row;
+                });
+
+                // 5. Top 100 Rankings 갱신
+                const top100Container = document.getElementById('top100-content');
+                top100Container.innerHTML = '';
+                
+                const top100Titles = [
+                    "Overall Top 100", "Domain Top 100", "Nameserver Top 100", 
+                    "IP Address Top 100", "AS Number Top 100", "Entity Top 100"
+                ];
+
+                top100Titles.forEach(title => {
+                    const found = notices.find(n => n.title === title);
+                    if (found) {
+                        const section = document.createElement('div');
+                        section.className = 'bg-gray-50 rounded-xl border border-gray-100 flex flex-col h-[400px] overflow-hidden';
+                        
+                        let itemsHtml = '';
+                        if (found.description && !found.description[0].includes("No data.")) {
+                            itemsHtml = found.description.map((item, idx) => {
+                                const parts = item.split('=');
+                                const count = parts[0].trim();
+                                const val = parts.slice(1).join('=').trim();
+                                return `
+                                    <div class="flex justify-between items-center text-[11px] py-2 px-3 border-b border-gray-100 last:border-0 hover:bg-white transition group">
+                                        <div class="flex items-center gap-2 overflow-hidden">
+                                            <span class="text-gray-400 font-mono w-5 flex-shrink-0">${idx + 1}.</span>
+                                            <span class="font-medium text-gray-700 truncate group-hover:text-indigo-600" title="${val}">${val}</span>
+                                        </div>
+                                        <span class="bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">${count}</span>
+                                    </div>
+                                `;
+                            }).join('');
+                        } else {
+                            itemsHtml = `
+                                <div class="flex flex-col items-center justify-center h-full text-gray-400 py-10">
+                                    <svg class="w-8 h-8 mb-2 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                                    <p class="text-xs italic">No query data yet</p>
+                                </div>
+                            `;
+                        }
+
+                        section.innerHTML = `
+                            <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center">
+                                <h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider flex items-center gap-2">
+                                    ${title.replace(' Top 100', '')}
+                                </h3>
+                                <span class="text-[10px] font-bold text-indigo-400">Hits</span>
+                            </div>
+                            <div class="flex-1 overflow-y-auto custom-scrollbar bg-white/50">
+                                ${itemsHtml}
+                            </div>
+                        `;
+                        top100Container.appendChild(section);
+                    }
                 });
 
                 updateLabel.innerText = "Last sync: " + new Date().toLocaleTimeString();
