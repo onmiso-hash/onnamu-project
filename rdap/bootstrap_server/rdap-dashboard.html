@@ -65,9 +65,9 @@
             <div class="card flex flex-col h-[320px]">
                 <h2 class="text-lg font-bold mb-2 text-gray-700">Top Access Client IPs</h2>
                 <div class="flex-1 flex items-center justify-center relative w-full h-full pb-2">
-                    <!-- 원 그래프가 절대 이 크기를 넘지 못하도록 고정 박스 생성 -->
-                    <div style="position: relative; width: 100%; max-width: 250px; height: 250px;">
-                        <canvas id="clientChart"></canvas>
+                    <!-- 원 그래프가 절대 이 크기를 넘지 못하도록 고정 박스 생성 및 캔버스 자체 크기 제한 -->
+                    <div style="position: relative; width: 100%; max-width: 250px; height: 250px; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="clientChart" style="max-height: 250px !important;"></canvas>
                     </div>
                 </div>
             </div>
