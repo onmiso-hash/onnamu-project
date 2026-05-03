@@ -18,8 +18,8 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 10px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #818cf8; }
 
-        /* 차트 컨테이너 높이 고정 */
-        .chart-container { position: relative; height: 320px; width: 100%; }
+        /* 차트 영역 높이를 더 줄여서 여백 최적화 */
+        .chart-container { position: relative; height: 250px; width: 100%; }
     </style>
 </head>
 <body class="p-6">
@@ -161,8 +161,12 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
+                        layout: { padding: { bottom: 0 } }, // 하단 패딩 명시적 제거
                         plugins: { legend: { display: false } },
-                        scales: { y: { beginAtZero: true, grid: { color: '#f3f4f6' } }, x: { grid: { display: false } } }
+                        scales: { 
+                            y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 10 } } }, 
+                            x: { grid: { display: false }, ticks: { font: { size: 10 } } } 
+                        }
                     }
                 });
 
@@ -183,8 +187,14 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        cutout: '65%',
-                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+                        layout: { padding: 25 }, // 원 크기를 줄이기 위해 내부 패딩 추가
+                        cutout: '70%',
+                        plugins: { 
+                            legend: { 
+                                position: 'right', 
+                                labels: { boxWidth: 10, font: { size: 10 }, padding: 15 } 
+                            } 
+                        }
                     }
                 });
 
