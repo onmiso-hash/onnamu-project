@@ -56,14 +56,14 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card flex flex-col" style="height: 350px;">
-                <h2 class="text-lg font-bold mb-4 text-gray-700">Hits by Category</h2>
+            <div class="card flex flex-col" style="height: 300px;">
+                <h2 class="text-lg font-bold mb-2 text-gray-700">Hits by Category</h2>
                 <div class="flex-1 relative w-full h-full">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
-            <div class="card flex flex-col" style="height: 350px;">
-                <h2 class="text-lg font-bold mb-4 text-gray-700">Top Access Client IPs</h2>
+            <div class="card flex flex-col" style="height: 300px;">
+                <h2 class="text-lg font-bold mb-2 text-gray-700">Top Access Client IPs</h2>
                 <div class="flex-1 relative w-full h-full">
                     <canvas id="clientChart"></canvas>
                 </div>
@@ -161,7 +161,7 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        layout: { padding: { bottom: 10 } },
+                        layout: { padding: { top: 10, bottom: 5 } },
                         plugins: { legend: { display: false } },
                         scales: { 
                             y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 } } }, 
@@ -187,12 +187,12 @@
                     options: { 
                         responsive: true, 
                         maintainAspectRatio: false,
-                        layout: { padding: { top: 30, bottom: 30, left: 30, right: 30 } },
+                        layout: { padding: { top: 10, bottom: 20, left: 50, right: 50 } },
                         cutout: '70%',
                         plugins: { 
                             legend: { 
-                                position: 'right', 
-                                labels: { boxWidth: 12, font: { size: 11 }, padding: 20 } 
+                                position: 'bottom', 
+                                labels: { boxWidth: 10, font: { size: 11 }, padding: 10 } 
                             } 
                         }
                     }
