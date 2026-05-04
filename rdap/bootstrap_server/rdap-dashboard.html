@@ -30,21 +30,21 @@
         <header class="mb-8 flex justify-between items-center">
             <div>
                 <div class="flex items-center gap-3">
-                    <h1 class="text-3xl font-bold text-gray-800">📊 RDAP Stats <span class="text-sm font-normal text-rose-500">(v00:25)</span></h1>
+                    <h1 class="text-3xl font-bold text-gray-800">📊 RDAP Stats <span class="text-sm font-normal text-rose-500">(v00:26)</span></h1>
                     <span class="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-bold animate-pulse">LIVE (5s)</span>
                 </div>
                 <p id="update-time" class="text-sm text-gray-500 mt-1 font-mono">준비 중...</p>
             </div>
             <div class="text-right">
                 <p class="text-xs text-gray-400 mb-1">자동 갱신 활성화됨</p>
-                <button onclick="location.reload()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition font-medium text-sm">
+                <button onclick="location.reload()" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition font-medium text-sm">
                     즉시 수동 갱신
                 </button>
             </div>
         </header>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="card border-l-4 border-blue-500">
+            <div class="card border-l-4 border-emerald-500">
                 <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Hits</p>
                 <p id="total-hits" class="text-3xl font-bold text-gray-800">0</p>
             </div>
@@ -52,25 +52,25 @@
                 <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Total Misses</p>
                 <p id="total-misses" class="text-3xl font-bold text-gray-800">0</p>
             </div>
-            <div class="card border-l-4 border-emerald-500">
+            <div class="card border-l-4 border-green-600">
                 <p class="text-xs text-gray-500 uppercase font-bold tracking-wider">Success Rate</p>
                 <p id="success-rate" class="text-3xl font-bold text-gray-800">0%</p>
             </div>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card flex flex-col h-[320px]">
+            <div class="card flex flex-col h-[300px]">
                 <h2 class="text-lg font-bold mb-2 text-gray-700">Hits by Category</h2>
-                <div class="flex-1 relative w-full h-full pb-2">
+                <div class="flex-1 relative w-full h-full">
                     <canvas id="categoryChart"></canvas>
                 </div>
             </div>
-            <div class="card flex flex-col h-[320px]">
+            <div class="card flex flex-col h-[300px]">
                 <h2 class="text-lg font-bold mb-2 text-gray-700">Top Access Client IPs</h2>
-                <div class="flex-1 flex items-center justify-center relative w-full h-full pb-2">
+                <div class="flex-1 flex items-center justify-center relative w-full h-full">
                     <!-- 원 그래프가 절대 이 크기를 넘지 못하도록 고정 박스 생성 및 캔버스 자체 크기 제한 -->
-                    <div style="position: relative; width: 100%; max-width: 250px; height: 250px; display: flex; justify-content: center; align-items: center;">
-                        <canvas id="clientChart" style="max-height: 250px !important;"></canvas>
+                    <div style="position: relative; width: 100%; max-width: 210px; height: 210px; display: flex; justify-content: center; align-items: center;">
+                        <canvas id="clientChart" style="max-height: 210px !important;"></canvas>
                     </div>
                 </div>
             </div>
@@ -124,7 +124,8 @@
             
             try {
                 updateLabel.classList.add('refreshing'); 
-                const response = await fetch(apiUrl);
+                // 캐시 방지를 위해 타임스탬프 추가
+                const response = await fetch(`${apiUrl}?t=${new Date().getTime()}`);
                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                 const data = await response.json();
                 const notices = data.notices || [];
@@ -163,7 +164,7 @@
                     type: 'bar',
                     data: {
                         labels: Object.keys(categoryMapping),
-                        datasets: [{ label: 'Hits', data: categoryValues, backgroundColor: '#6366f1', borderRadius: 6 }]
+                        datasets: [{ label: 'Hits', data: categoryValues, backgroundColor: '#10b981', borderRadius: 6 }]
                     },
                     options: { 
                         responsive: true, 
@@ -172,7 +173,7 @@
                         plugins: { legend: { display: false } },
                         scales: { 
                             y: { beginAtZero: true, grid: { color: '#f3f4f6' }, ticks: { font: { size: 11 } } }, 
-                            x: { grid: { display: false }, ticks: { font: { size: 11 } } } 
+                            x: { grid: { display: false }, ticks: { font: { size: 11 }, padding: 0 } } 
                         }
                     }
                 });
@@ -189,16 +190,16 @@
                     type: 'doughnut',
                     data: {
                         labels: clientLabels,
-                        datasets: [{ data: clientValues, backgroundColor: ['#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe', '#e0e7ff'], borderWidth: 0 }]
+                        datasets: [{ data: clientValues, backgroundColor: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'], borderWidth: 0 }]
                     },
                     options: { 
                         responsive: true, 
-                        maintainAspectRatio: true, // 고정 박스 안에서는 비율 유지
+                        maintainAspectRatio: true, 
                         cutout: '70%',
                         plugins: { 
                             legend: { 
                                 position: 'bottom', 
-                                labels: { boxWidth: 10, font: { size: 11 }, padding: 10 } 
+                                labels: { boxWidth: 10, font: { size: 11 }, padding: 8 } 
                             } 
                         }
                     }
@@ -233,14 +234,14 @@
                                 return `<div class="flex justify-between items-center text-[11px] py-2 px-3 border-b border-gray-100 last:border-0 hover:bg-white transition group">
                                     <div class="flex items-center gap-2 overflow-hidden">
                                         <span class="text-gray-400 font-mono w-5 flex-shrink-0">${idx + 1}.</span>
-                                        <span class="font-medium text-gray-700 truncate group-hover:text-indigo-600" title="${parts.slice(1).join('=').trim()}">${parts.slice(1).join('=').trim()}</span>
+                                        <span class="font-medium text-gray-700 truncate group-hover:text-emerald-600" title="${parts.slice(1).join('=').trim()}">${parts.slice(1).join('=').trim()}</span>
                                     </div>
-                                    <span class="bg-indigo-50 text-indigo-600 font-bold px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">${parts[0].trim()}</span>
+                                    <span class="bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">${parts[0].trim()}</span>
                                 </div>`;
                             }).join('')
                             : `<div class="flex flex-col items-center justify-center h-full text-gray-400 py-10"><p class="text-xs italic">No query data yet</p></div>`;
                         section.innerHTML = `
-                            <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center"><h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider">${title.replace(' Top 100', '')}</h3><span class="text-[10px] font-bold text-indigo-400">Hits</span></div>
+                            <div class="p-3 bg-white border-b border-gray-100 flex justify-between items-center"><h3 class="text-xs font-bold text-gray-600 uppercase tracking-wider">${title.replace(' Top 100', '')}</h3><span class="text-[10px] font-bold text-emerald-400">Hits</span></div>
                             <div class="flex-1 overflow-y-auto custom-scrollbar bg-white/50">${itemsHtml}</div>`;
                         top100Container.appendChild(section);
                     }

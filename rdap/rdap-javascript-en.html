@@ -1,292 +1,128 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html><head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>onnamu RDAP Lookup - Domain & Resource Query</title>
-
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDAP Web Client - onnamu RDAP Service</title>
     <meta name="description" content="onnamu RDAP Lookup Service">
     <meta name="author" content="onnamu">
 
-    <link href="./client/css/style.css" rel="stylesheet">
+    <link rel="stylesheet" href="./client/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./client/css/rdap-v3.css">
     <script src="./client/js/jquery.min.js"></script>
     <script src="./client/js/bootstrap.min.js"></script>
-	<script src="./client/js/rdap-client-view.js?v=20260425_v1"></script>    
-
-	<link rel="stylesheet" href="./client/css/bootstrap.min.css" media="screen">
-	<link rel="stylesheet" href="./client/css/rdap-custom.css" media="screen">
-	<script language="javascript" src="./client/js/script.js"></script>
-	
-<script type="text/javaScript" language="javascript" defer="defer">
-function commonClick(objectItemId)
-{
-	const btnElement = document.getElementById(objectItemId);
-	const original = btnElement.innerText;
-	if(original.indexOf('▲') != -1){
-		btnElement.innerText = original.replaceAll('▲','▼'); 
-	}else if(original.indexOf('▼') != -1){
-		btnElement.innerText = original.replaceAll('▼','▲');
-	}
-}
-
-function fn_setInputValueFocus() {
-	const inputFoCus = document.getElementById('object');
-	const value = inputFoCus.value;
-
-	inputFoCus.focus();
-	inputFoCus.value = '';
-	inputFoCus.value = value;	
-}
-
-function inputQuery(inputQuery, ObjectNm)
-{
-	var form1 = document.listForm;
-	form1.object.value = inputQuery;
-
-	var selObject = document.querySelector("select[name=type]").options;
-	for(var i=0; i<selObject.length; i++) {
-		if (selObject[i].text == ObjectNm) selObject[i].selected = true;
-	}
-	
-	fn_setInputValueFocus();
-}
-
-function fn_goToLanguagePage(lang) {
-	if(lang == '2') location.href = "rdap-javascript-en.html";
-	else location.href = "rdap-javascript-ko.html";
-}
-</script>
-
-<style>
-    /* onnamu Theme Style */
-    .navbar-inverse {
-        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        min-height: 60px;
-    }
-    .navbar-inverse .container {
-        display: flex !important;
-        align-items: center;
-        justify-content: space-between !important;
-        min-height: 60px;
-    }
-    .navbar-inverse .container::before,
-    .navbar-inverse .container::after {
-        display: none !important;
-        content: none !important;
-    }
-    .navbar-header {
-        float: none !important;
-    }
-    .navbar-collapse {
-        display: flex !important;
-        align-items: center;
-        padding: 0;
-        margin: 0;
-        border: none;
-        float: none !important;
-    }
-    .navbar-inverse .navbar-brand {
-        color: white !important;
-        font-weight: bold;
-        font-size: 22px;
-        padding: 15px 0; /* 좌측 패딩 제거하여 본문과 줄 맞춤 */
-        margin: 0;
-        display: block;
-    }
-    .navbar-right {
-        margin: 0 !important;
-    }
-    .navbar-right li a {
-        padding-right: 0 !important; /* 우측 패딩 제거하여 본문과 줄 맞춤 */
-    }
-    .navbar-inverse .nav {
-        margin: 0;
-    }
-    .navbar-inverse .nav > li > a {
-        color: rgba(255,255,255,0.8) !important;
-        font-weight: 500;
-        padding: 10px 15px;
-    }
-    .navbar-inverse .nav > li > a:hover {
-        color: white !important;
-        background: rgba(255,255,255,0.1);
-    }
-    .page-header {
-        border-bottom: 2px solid #764ba2;
-        margin-top: 30px;
-    }
-    .blog-title {
-        color: #333;
-        font-weight: 700;
-    }
-    .panel-primary {
-        border-color: #764ba2;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-    }
-    .panel-primary > .panel-heading {
-        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
-        border-color: #764ba2;
-        font-weight: bold;
-        padding: 15px;
-    }
-    .btn-onnamu {
-        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        font-weight: bold;
-        padding: 8px 25px;
-        border-radius: 8px;
-        transition: all 0.3s;
-    }
-    .btn-onnamu:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
-        color: white;
-    }
-    .footer {
-        background: #fdfdfd;
-        color: #666;
-        padding: 40px 0;
-        border-top: 1px solid #eee;
-        margin-top: 50px;
-    }
-    .listtd a {
-        color: #764ba2;
-        text-decoration: none;
-        font-weight: 500;
-    }
-    .listtd a:hover {
-        text-decoration: underline;
-    }
-</style>
+    <script src="./client/js/rdap-client-view.js?v=20260425_v1"></script>    
+    <script src="./client/js/script.js"></script>
 </head>
-
 <body style="padding-top: 70px;">
+    <!-- Navbar -->
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="https://onnamu.kr">🌲 onnamu RDAP</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="rdap-javascript-ko.html">한국어 (KOR)</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
 
-    <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="https://onnamu.kr">🌐 onnamu RDAP</a>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h2 class="blog-title"><b>RDAP</b> Web Client</h2>
+            <p class="text-muted">Integrated Internet Resource Query based on onnamu private server</p>
         </div>
-        <div class="collapse navbar-collapse">
-	          <ul class="nav navbar-nav navbar-right">
-	            <li><a href="javascript:fn_goToLanguagePage('1');">한국어 (KOR)</a></li>
-	          </ul>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs">
+            <li><a href="rdap-about-en.html">About Service</a></li>
+            <li class="active"><a href="#">Web Client</a></li>
+        </ul>
+
+        <!-- Main Search Card -->
+        <div class="panel panel-default" style="margin-bottom: 40px;">
+            <div class="panel-body" style="padding: 40px;">
+                <div class="text-center" style="margin-bottom: 30px;">
+                    <h4 style="font-weight: 700; color: var(--primary-green);">How can I help you?</h4>
+                    <p class="text-muted">Enter a domain, IP address, or AS number to check detailed information.</p>
+                </div>
+
+                <form onsubmit="doQuery();return false" name="listForm" method="post" class="form-inline">
+                    <div class="well-search" style="box-shadow: none; border: 2px solid #eef2f0; padding: 25px; margin-bottom: 30px;">
+                        <div class="form-group" style="margin:0;">
+                            <select class="form-control form-control-custom" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)" style="width: auto; min-width: 140px;">
+                                <option value="domain" selected>Domain</option>
+                                <option value="nameserver">Nameserver</option>
+                                <option value="tld">TLD</option>
+                                <option value="ip">IP/CIDR</option>
+                                <option value="autnum">AS Number</option>
+                                <option value="entity">Entity</option>
+                                <option value="registrar">Registrar</option>
+                                <option value="url">URL</option>
+                                <option value="json">JSON</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin:0; flex-grow: 1; max-width: 500px;">
+                            <input class="form-control form-control-custom" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Enter name or address" autocomplete="off" style="width: 100%;">
+                        </div>
+                        <button id="button" type="button" class="btn btn-onnamu" onclick="doQuery()">Search</button>
+                    </div>
+                    <input type="hidden" id="lang" value="2">
+                </form>
+
+                <!-- Quick Example Tags -->
+                <div class="text-center">
+                    <p style="font-weight: 700; color: #888; margin-bottom: 15px; font-size: 13px; text-transform: uppercase; letter-spacing: 1px;">Query Examples</p>
+                    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;">
+                        <a href="javascript:inputQuery('google.com','Domain');" class="tag-example">Domain: google.com</a>
+                        <a href="javascript:inputQuery('8.8.8.8','IP/CIDR');" class="tag-example">IP: 8.8.8.8</a>
+                        <a href="javascript:inputQuery('15169','AS Number');" class="tag-example">ASN: 15169</a>
+                        <a href="javascript:inputQuery('ns1.google.com','Nameserver');" class="tag-example">NS: ns1.google.com</a>
+                        <a href="javascript:inputQuery('IPADM11-ARIN','Entity');" class="tag-example">Entity: ARIN</a>
+                    </div>
+                </div>
+            </div>
         </div>
-      </div>
+
+        <!-- Result Area -->
+        <div id="output-div" style="min-height: 200px;">
+            <div class="text-center text-muted" style="padding: 50px 0; opacity: 0.5;">
+                <div style="font-size: 48px; margin-bottom: 20px;">🔍</div>
+                <p>Query results will be displayed here.</p>
+            </div>
+        </div>
     </div>
-    
-    <div class="container">
-	    <div class="row">
-			<div class="col-md-12">
-				<div class="page-header">
-					<h2 class="blog-title"><b>RDAP</b> Web Client</h2>
-					<p class="text-muted">Internet Resource Query Service based on onnamu.kr private server</p>
-				</div>
-			</div>
-	    </div>
-	</div>
-	
-    <div class="container">
-		<div class="row" style="margin-bottom: 30px;">
-			<div class="col-md-12">
-				<ul class="nav nav-tabs">
-					<li><a href="rdap-about-en.html">About RDAP</a></li>
-					<li class="active"><a href="#">RDAP Web Client</a></li>
-				</ul>
-			</div>
-		</div>
 
-		<div class="row">
-			<div class="col-md-12">
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p style="font-size: 20px; margin-bottom: 10px;">🌲 <b>onnamu RDAP Service</b></p>
+            <p style="font-size: 13px; opacity: 0.7;">This service complies with IETF standard RDAP protocol,<br>providing transparent access to global internet resource data.</p>
+            <div style="margin-top: 25px;">
+                <a href="https://onnamu.kr">Home</a> | 
+                <a href="https://gallery.onnamu.kr">Gallery</a> | 
+                <a href="rdap-about-en.html">About RDAP</a>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.5;">© 2026 onnamu Project</p>
+        </div>
+    </footer>
 
-			<form onsubmit="doQuery();return false" name="listForm" method="post" class="form-inline" role="search">
-				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">Service Information</h3></div>
-					<div class="panel-body">
-						<p>• <b>RDAP</b> (Registration Data Access Protocol) is the next-generation protocol replacing traditional Whois.</p>
-						<p>• This service operates an <b>Autonomous RDAP Bootstrap Server (bootstrap.rdap.kr)</b> that synchronizes IANA data in real-time.</p>
-						<p>• Click the examples below or enter an object name directly to start your query.</p>
-					</div>
-				</div>
-				<div class="panel panel-primary">
-    				<div class="panel-body">
-						<div class="panel panel-default">
-							<div class="panel-heading"><label>Query Examples (JavaScript)</label></div>
-							<div class="panel-body">
-								<table class="table" style="margin-bottom: 0;">
-									<tbody id="stock_tbody">
-										<tr>
-											<td align="left" class="listtd" scope="row" width="25%">Domain Name</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('google.com','Domain');">google.com</a> , <a href="javascript:inputQuery('apple.com','Domain');">apple.com</a> , <a href="javascript:inputQuery('daum.net','Domain');">daum.net</a></td>
-										</tr>
-										<tr>
-											<td align="left" class="listtd">Nameserver</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('ns1.google.com','Nameserver');">ns1.google.com</a> , <a href="javascript:inputQuery('a.iana-servers.net','Nameserver');">a.iana-servers.net</a></td>
-										</tr>
-										<tr>
-											<td align="left" class="listtd">IP Address</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('8.8.8.8','IP/CIDR');">8.8.8.8</a> , <a href="javascript:inputQuery('211.231.99.17','IP/CIDR');">211.231.99.17</a></td>
-										</tr>
-										<tr>
-											<td align="left" class="listtd">AS Number (Autnum)</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('15169','AS Number');">15169</a> , <a href="javascript:inputQuery('9700','AS Number');">9700</a></td>
-										</tr>
-										<tr>
-											<td align="left" class="listtd">Entity</td>
-											<td align="left" class="listtd">: <a href="javascript:inputQuery('NF100-FRNIC','Entity');">NF100-FRNIC</a> , <a href="javascript:inputQuery('NH55R-NORID','Entity');">NH55R-NORID</a> , <a href="javascript:inputQuery('IPADM11-ARIN','Entity');">IPADM11-ARIN</a></td>
-										</tr>
-									</tbody>
-								</table>
-							</div>
-						</div>
-						<div class="well" style="background: #f9f9f9; border-radius: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 15px;">
-							<div class="form-group">
-							  <label for="type">Select Object :</label>
-							  <select class="form-control" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)" style="border-radius: 6px;">
-								<option value="domain" selected="">Domain</option>
-								<option value="nameserver">Nameserver</option>
-								<option value="tld">TLD</option>
-								<option value="ip">IP/CIDR</option>
-								<option value="autnum">AS Number</option>
-								<option value="entity">Entity</option>
-								<option value="registrar">Registrar</option>
-								<option value="url">URL</option>
-								<option value="json">JSON</option>
-							  </select>
-							</div>
-							<div class="form-group">
-								<label for="object">Input :</label>
-								<input class="form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Enter name or address" style="width: 300px; border-radius: 6px;" autocomplete="off">
-							</div>
-							<button id="button" type="button" class="btn btn-onnamu" onclick="doQuery()">Search</button>
-							<input type="hidden" id="lang" value="2">
-						</div>
-					</div>
-		  		</div>
-			</form>
-			
-			<!-- Response 영역 -->
-			<div id="output-div"></div>
-
-	<div class="footer">
-		<div class="container">
-			<div class="text-center">
-				<p style="font-size: 18px;">🌐 <b>onnamu RDAP Service</b></p>
-				<p style="font-size: 13px; color: #888;">This service complies with the IETF standard RDAP protocol and is provided utilizing the configuration of rdap.org.</p>
-				<p style="font-size: 12px; color: #aaa; margin-top: 10px;">
-                    <a href="https://onnamu.kr" style="color: #764ba2;">Home</a> | 
-                    <a href="https://gallery.onnamu.kr" style="color: #764ba2;">Gallery</a> | 
-                    © 2026 onnamu Project
-                </p>
-			</div>
-		</div>
-	</div>
-	
-	<script>
-		checkParams();
-	</script>
-
-</body></html>
+    <script>
+        function inputQuery(val, typeText) {
+            document.getElementById('object').value = val;
+            var sel = document.getElementById('type');
+            for(var i=0; i<sel.options.length; i++) {
+                if (sel.options[i].text == typeText) {
+                    sel.selectedIndex = i;
+                    break;
+                }
+            }
+            doQuery();
+        }
+        checkParams();
+    </script>
+</body>
+</html>

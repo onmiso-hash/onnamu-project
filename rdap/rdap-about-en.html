@@ -1,237 +1,192 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-<html><head>
-<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>About RDAP - onnamu RDAP Service</title>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About RDAP - onnamu RDAP Service</title>
     <meta name="description" content="onnamu RDAP Service Information">
     <meta name="author" content="onnamu">
-    <link href="./client/css/style.css" rel="stylesheet">
+    
+    <link rel="stylesheet" href="./client/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./client/css/rdap-v3.css">
     <script src="./client/js/jquery.min.js"></script>
     <script src="./client/js/bootstrap.min.js"></script>
-	<link rel="stylesheet" href="./client/css/bootstrap.min.css" media="screen">
-	<link rel="stylesheet" href="./client/css/rdap-custom.css" media="screen">
-<style>
-    .navbar-inverse {
-        background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        border: none;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        min-height: 60px;
-    }
-    .navbar-inverse .container {
-        display: flex !important;
-        align-items: center;
-        justify-content: space-between !important;
-        min-height: 60px;
-    }
-    .navbar-inverse .container::before,
-    .navbar-inverse .container::after {
-        display: none !important;
-        content: none !important;
-    }
-    .navbar-header {
-        float: none !important;
-    }
-    .navbar-collapse {
-        display: flex !important;
-        align-items: center;
-        padding: 0;
-        margin: 0;
-        border: none;
-        float: none !important;
-    }
-    .navbar-inverse .navbar-brand {
-        color: white !important;
-        font-weight: bold;
-        font-size: 22px;
-        padding: 15px 0;
-        margin: 0;
-        display: block;
-    }
-    .navbar-right {
-        margin: 0 !important;
-    }
-    .navbar-right li a {
-        padding-right: 0 !important;
-    }
-    .navbar-inverse .nav {
-        margin: 0;
-    }
-    .navbar-inverse .nav > li > a {
-        color: rgba(255,255,255,0.8) !important;
-        font-weight: 500;
-        padding: 10px 15px;
-    }
-    .navbar-inverse .nav > li > a:hover {
-        color: white !important;
-        background: rgba(255,255,255,0.1);
-    }
-    .page-header { border-bottom: 2px solid #764ba2; margin-top: 30px; }
-    .panel-primary { border-color: #764ba2; border-radius: 12px; overflow: hidden; }
-    .panel-primary > .panel-heading { background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important; border-color: #764ba2; font-weight: bold; }
-    .footer { background: #fdfdfd; color: #666; padding: 40px 0; border-top: 1px solid #eee; margin-top: 50px; }
-    code { background-color: #f8f9fa; color: #d63384; padding: 2px 4px; border-radius: 4px; }
-    pre { background-color: #2d2d2d; color: #ccc; padding: 15px; border-radius: 8px; border: none; }
-    .method-tag { background: #764ba2; color: white; padding: 2px 8px; border-radius: 4px; font-weight: bold; margin-right: 5px; font-size: 0.9em; }
-</style>
 </head>
 <body style="padding-top: 70px;">
-    <div class="navbar navbar-fixed-top navbar-inverse" role="navigation">
-      <div class="container">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="https://onnamu.kr">🌐 onnamu RDAP</a>
+    <!-- Navbar -->
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="https://onnamu.kr">🌲 onnamu RDAP</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="rdap-about-ko.html">한국어 (KOR)</a></li>
+                </ul>
+            </div>
         </div>
-        <div class="collapse navbar-collapse">
-	          <ul class="nav navbar-nav navbar-right">
-	            <li><a href="rdap-about-ko.html">한국어 (KOR)</a></li>
-	          </ul>
-        </div>
-      </div>
-    </div>
-    
+    </nav>
+
     <div class="container">
-	    <div class="row">
-			<div class="col-md-12">
-				<div class="page-header">
-					<h2 class="blog-title"><b>About RDAP</b> Service</h2>
-					<p class="text-muted">Introduction to RDAP Standards and API Guide</p>
-				</div>
-			</div>
-	    </div>
-
-        <div class="row" style="margin-bottom: 30px;">
-			<div class="col-md-12">
-				<ul class="nav nav-tabs">
-					<li class="active"><a href="#">About RDAP</a></li>
-					<li><a href="rdap-javascript-en.html">RDAP Web Client</a></li>
-				</ul>
-			</div>
+        <!-- Header -->
+        <div class="page-header">
+            <h2 class="blog-title"><b>About</b> RDAP Service</h2>
+            <p class="text-muted">Introduction to RDAP Standards and API Guide</p>
         </div>
 
-		<div class="row">
-			<div class="col-md-12">
-				<div class="well" style="background: #f9f9f9; border-radius: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 15px; margin-bottom: 30px;">
-					<div class="form-group" style="margin-bottom: 0;">
-					  <label for="type">Select Object :</label>
-					  <select class="form-control" id="type" name="type" style="border-radius: 6px; display: inline-block; width: auto;">
-						<option value="domain" selected="">Domain</option>
-						<option value="nameserver">Nameserver</option>
-						<option value="tld">TLD</option>
-						<option value="ip">IP/CIDR</option>
-						<option value="autnum">AS Number</option>
-						<option value="entity">Entity</option>
-						<option value="registrar">Registrar</option>
-					  </select>
-					</div>
-					<div class="form-group" style="margin-bottom: 0;">
-						<label for="object">Input :</label>
-						<input class="form-control" id="object" type="search" name="object" onkeyup="guessType(this.value)" placeholder="Enter name or address" style="width: 300px; border-radius: 6px; display: inline-block;" autocomplete="off">
-					</div>
-					<button type="button" class="btn btn-onnamu" onclick="redirectToClient()">Search</button>
-				</div>
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs">
+            <li class="active"><a href="#">About Service</a></li>
+            <li><a href="rdap-javascript-en.html">Web Client</a></li>
+        </ul>
 
-				<script>
-					function guessType(object) {
-						var partterns = [
-							[/^\d+$/, "autnum"],
-							[/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/?(\d*)$/, "ip"],
-							[/^[0-9a-f:]{2,}\/?(\d*)$/, "ip"],
-							[/^[a-zA-Z0-9]{1}[a-zA-Z0-9\\-]{0,}[a-zA-Z0-9]{1}$/, "entity"],
-							[/^https?:/, "url"],
-							[/^{/, "json"],
-							[ /^(([ㄱ-힣a-zA-Z0-9][ㄱ-힣a-zA-Z0-9\-]{0,61}){0,1}[ㄱ-힣a-zA-Z0-9]{1}(\.){1}){1,2}([ㄱ-힣a-zA-Z0-9][ㄱ-힣a-zA-Z0-9\-]{0,61}){0,1}[ㄱ-힣a-zA-Z0-9]{1}(\.)?$/,"domain"],
-							[ /^(([ㄱ-힣a-zA-Z0-9][ㄱ-힣a-zA-Z0-9\-]{0,61}){0,1}[ㄱ-힣a-zA-Z0-9]{1}(\.){1}){3,}([ㄱ-힣a-zA-Z0-9][ㄱ-힣a-zA-Z0-9\-]{0,61}){0,1}[ㄱ-힣a-zA-Z0-9]{1}(\.)?$/,"nameserver"],
-						];
-						for(var i = 0; i < partterns.length; i++) {
-							if(partterns[i][0].test(object)) {
-								setType(partterns[i][1]);
-								break;
-							}
-						}
-					}
-					
-					function setType(type) {
-						var select = document.getElementById('type');
-						for(var i = 0; i < select.options.length; i++) if(select.options.item(i).value == type) {
-							select.selectedIndex = i;
-							break;
-						}
-					}
+        <!-- Quick Search Section -->
+        <div class="well-search">
+            <div class="form-group" style="margin:0;">
+                <select class="form-control form-control-custom" id="type" name="type" style="width: auto; min-width: 140px;">
+                    <option value="domain" selected>Domain</option>
+                    <option value="nameserver">Nameserver</option>
+                    <option value="tld">TLD</option>
+                    <option value="ip">IP/CIDR</option>
+                    <option value="autnum">AS Number</option>
+                    <option value="entity">Entity</option>
+                    <option value="registrar">Registrar</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0; flex-grow: 1; max-width: 500px;">
+                <input class="form-control form-control-custom" id="object" type="search" placeholder="Enter name or address (e.g., google.com, 8.8.8.8)" onkeyup="guessType(this.value)" autocomplete="off" style="width: 100%;">
+            </div>
+            <button type="button" class="btn btn-onnamu" onclick="redirectToClient()">Search</button>
+        </div>
 
-					function redirectToClient() {
-						var type = document.getElementById('type').value;
-						var object = document.getElementById('object').value;
-						if(!object) { alert('Please enter an object to query.'); return; }
-						location.href = 'rdap-javascript-en.html?type=' + encodeURIComponent(type) + '&object=' + encodeURIComponent(object);
-					}
-					// Support Enter key
-					document.getElementById('object').addEventListener('keypress', function(e) {
-						if (e.key === 'Enter') redirectToClient();
-					});
-				</script>
+        <!-- Content Panels -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">What is RDAP?</h3>
+                        <p><b>RDAP (Registration Data Access Protocol)</b> is a next-generation protocol for querying internet resource registration data (RFC 7480~7484), designed by IETF to replace the aging Whois protocol.</p>
+                        <div class="row" style="margin-top: 30px;">
+                            <div class="col-sm-4">
+                                <div style="text-align: center; padding: 20px;">
+                                    <div style="font-size: 40px; margin-bottom: 15px;">🚀</div>
+                                    <h4 style="font-weight: 700;">RESTful API</h4>
+                                    <p class="text-muted">Uses standard HTTP methods, making it highly intuitive for developers.</p>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div style="text-align: center; padding: 20px;">
+                                    <div style="font-size: 40px; margin-bottom: 15px;">📦</div>
+                                    <h4 style="font-weight: 700;">JSON Data</h4>
+                                    <p class="text-muted">Provides structured JSON format for easy parsing and data processing.</p>
+                                </div>
+                            </div>
+                            <div class="col-sm-4">
+                                <div style="text-align: center; padding: 20px;">
+                                    <div style="font-size: 40px; margin-bottom: 15px;">🔗</div>
+                                    <h4 style="font-weight: 700;">Bootstrap Hub</h4>
+                                    <p class="text-muted">Serves as an integrated redirect hub to authoritative RDAP servers worldwide.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">What is RDAP?</h3></div>
-					<div class="panel-body">
-						<p>• <b>RDAP (Registration Data Access Protocol)</b> is a next-generation protocol for querying internet resource registration data (RFC 7480~7484), designed by IETF to replace the aging Whois protocol.</p>
-						<p>• <b>HTTP-based RESTful API:</b> All data is provided in JSON format, making it highly developer-friendly.</p>
-						<p>• <b>Bootstrap Server:</b> This service operates its own RDAP Bootstrap Server (<code>bootstrap.rdap.kr</code>), serving as a hub that redirects queries to the authoritative RDAP servers worldwide.</p>
-					</div>
-				</div>
-
-				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">API Usage Guide</h3></div>
-					<div class="panel-body">
-                        <p>✦ Our APIs can be called using standard RESTful methods. Based on <code>https://bootstrap.rdap.kr/</code>, use the following endpoints:</p>
+                <div class="panel panel-primary">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">📡 API Usage Guide</h3>
+                    </div>
+                    <div class="panel-body">
+                        <p style="font-size: 16px; margin-bottom: 25px;">Query global internet resource information via <code>https://bootstrap.rdap.kr/</code>.</p>
                         
-                        <p><b>Bootstrap Source JSON Files</b></p>
-                        <p>Retrieve the latest raw data synchronized from IANA.</p>
-                        <ul>
-                            <li>Domain: <code><a href="https://bootstrap.rdap.kr/dns.json" target="_blank">https://bootstrap.rdap.kr/dns.json</a></code></li>
-                            <li>IPv4 Address: <code><a href="https://bootstrap.rdap.kr/ipv4.json" target="_blank">https://bootstrap.rdap.kr/ipv4.json</a></code></li>
-                            <li>IPv6 Address: <code><a href="https://bootstrap.rdap.kr/ipv6.json" target="_blank">https://bootstrap.rdap.kr/ipv6.json</a></code></li>
-                            <li>AS Number (Autnum): <code><a href="https://bootstrap.rdap.kr/asn.json" target="_blank">https://bootstrap.rdap.kr/asn.json</a></code></li>
-                            <li>Object Tags: <code><a href="https://bootstrap.rdap.kr/object-tags.json" target="_blank">https://bootstrap.rdap.kr/object-tags.json</a></code></li>
-                        </ul>
-
-                        <hr>
+                        <h4 style="font-weight: 700; margin-bottom: 15px;">Real-time Redirect Service</h4>
+                        <div style="background: #f9fbf9; border-radius: 12px; padding: 20px; border-left: 4px solid var(--secondary-green);">
+                            <ul style="list-style: none; padding-left: 0; margin-bottom: 0;">
+                                <li style="margin-bottom: 15px;">
+                                    <span class="method-tag">GET</span> <code>/domain/{name}</code> 
+                                    <small class="text-muted" style="display: block; margin-top: 5px;">e.g., <a href="https://bootstrap.rdap.kr/domain/google.com" target="_blank">https://bootstrap.rdap.kr/domain/google.com</a></small>
+                                </li>
+                                <li style="margin-bottom: 15px;">
+                                    <span class="method-tag">GET</span> <code>/ip/{address}</code>
+                                    <small class="text-muted" style="display: block; margin-top: 5px;">e.g., <a href="https://bootstrap.rdap.kr/ip/8.8.8.8" target="_blank">https://bootstrap.rdap.kr/ip/8.8.8.8</a></small>
+                                </li>
+                                <li style="margin-bottom: 15px;">
+                                    <span class="method-tag">GET</span> <code>/autnum/{number}</code>
+                                    <small class="text-muted" style="display: block; margin-top: 5px;">e.g., <a href="https://bootstrap.rdap.kr/autnum/15169" target="_blank">https://bootstrap.rdap.kr/autnum/15169</a></small>
+                                </li>
+                                <li>
+                                    <span class="method-tag">GET</span> <code>/entity/{handle}</code>
+                                    <small class="text-muted" style="display: block; margin-top: 5px;">e.g., <a href="https://bootstrap.rdap.kr/entity/IPADM11-ARIN" target="_blank">https://bootstrap.rdap.kr/entity/IPADM11-ARIN</a></small>
+                                </li>
+                            </ul>
+                        </div>
                         
-                        <p><b>Real-time Redirect Service (Core Feature)</b></p>
-                        <p>The server analyzes the input and redirects you to the authoritative RDAP server.</p>
-                        <ul>
-                            <li><b>Domain Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/domain/google.com" target="_blank">https://bootstrap.rdap.kr/domain/google.com</a></code><br>
-                                <small class="text-muted">→ Redirects to: https://rdap.verisign.com/com/v1/domain/google.com</small>
-                            </li>
-                            <li style="margin-top:10px;"><b>IP Address Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/ip/8.8.8.8" target="_blank">https://bootstrap.rdap.kr/ip/8.8.8.8</a></code><br>
-                                <small class="text-muted">→ Redirects to: https://rdap.arin.net/registry/ip/8.8.8.8 (based on range analysis)</small>
-                            </li>
-                            <li style="margin-top:10px;"><b>AS Number Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/autnum/15169" target="_blank">https://bootstrap.rdap.kr/autnum/15169</a></code><br>
-                                <small class="text-muted">→ Redirects to the managing AS registry server</small>
-                            </li>
-                            <li style="margin-top:10px;"><b>Entity (Contact/Org) Query:</b> <span class="method-tag">GET</span> <code><a href="https://bootstrap.rdap.kr/entity/IPADM11-ARIN" target="_blank">https://bootstrap.rdap.kr/entity/IPADM11-ARIN</a></code><br>
-                                <small class="text-muted">→ Analyzes the ARIN tag and redirects to the American Registry for Internet Numbers (ARIN) server</small>
-                            </li>
-                        </ul>
-					</div>
-				</div>
+                        <h4 style="font-weight: 700; margin-top: 30px; margin-bottom: 15px;">Bootstrap Raw Data (Raw JSON)</h4>
+                        <p class="text-muted">Raw data synchronized from IANA for each category.</p>
+                        <div>
+                            <a href="https://bootstrap.rdap.kr/dns.json" class="tag-example" target="_blank">DNS (Domain)</a>
+                            <a href="https://bootstrap.rdap.kr/ipv4.json" class="tag-example" target="_blank">IPv4</a>
+                            <a href="https://bootstrap.rdap.kr/ipv6.json" class="tag-example" target="_blank">IPv6</a>
+                            <a href="https://bootstrap.rdap.kr/asn.json" class="tag-example" target="_blank">ASN</a>
+                            <a href="https://bootstrap.rdap.kr/object-tags.json" class="tag-example" target="_blank">Object Tags</a>
+                        </div>
+                    </div>
+                </div>
 
-				<div class="panel panel-primary">
-					<div class="panel-heading"><h3 class="panel-title">How to Test (cURL Examples)</h3></div>
-					<div class="panel-body">
-                        <p>You can quickly test via Terminal (CLI) or browser address bar.</p>
-                        <pre># 1. To check the redirect URL (-v option)
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <h4 style="font-weight: 700; margin-top: 0; margin-bottom: 20px;">CLI Testing (cURL)</h4>
+                        <pre># Check redirect flow
 curl -v https://bootstrap.rdap.kr/domain/nic.car
 
-# 2. To follow the redirect and get the final result (-L option)
+# Get final result data directly
 curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>
-					</div>
-				</div>
-			</div>
-		</div>
-	</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-	<div class="footer">
-		<div class="container text-center">
-			<p style="font-size: 18px;">🌐 <b>onnamu RDAP Service</b></p>
-			<p style="font-size: 12px; color: #aaa;">© 2026 onnamu Project | <a href="https://onnamu.kr" style="color: #764ba2;">Home</a></p>
-		</div>
-	</div>
-</body></html>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p style="font-size: 20px; margin-bottom: 10px;">🌲 <b>onnamu RDAP Service</b></p>
+            <p style="font-size: 14px; opacity: 0.7;">© 2026 onnamu Project. All rights reserved.</p>
+            <div style="margin-top: 20px;">
+                <a href="https://onnamu.kr">Home</a> | 
+                <a href="rdap-javascript-en.html">Web Client</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function guessType(object) {
+            var patterns = [
+                [/^\d+$/, "autnum"],
+                [/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\/?(\d*)$/, "ip"],
+                [/^[0-9a-f:]{2,}\/?(\d*)$/, "ip"],
+                [/^[a-zA-Z0-9]{1}[a-zA-Z0-9\\-]{0,}[a-zA-Z0-9]{1}$/, "entity"],
+                [ /^(([a-zA-Z0-9][a-zA-Z0-9\-]{0,61}){0,1}[a-zA-Z0-9]{1}(\.){1}){1,2}([a-zA-Z0-9][a-zA-Z0-9\-]{0,61}){0,1}[a-zA-Z0-9]{1}(\.)?$/,"domain"],
+                [ /^(([a-zA-Z0-9][a-zA-Z0-9\-]{0,61}){0,1}[a-zA-Z0-9]{1}(\.){1}){3,}([a-zA-Z0-9][a-zA-Z0-9\-]{0,61}){0,1}[a-zA-Z0-9]{1}(\.)?$/,"nameserver"],
+            ];
+            for(var i = 0; i < patterns.length; i++) {
+                if(patterns[i][0].test(object)) {
+                    document.getElementById('type').value = patterns[i][1];
+                    break;
+                }
+            }
+        }
+
+        function redirectToClient() {
+            var type = document.getElementById('type').value;
+            var object = document.getElementById('object').value;
+            if(!object) { alert('Please enter an object to query.'); return; }
+            location.href = 'rdap-javascript-en.html?type=' + encodeURIComponent(type) + '&object=' + encodeURIComponent(object);
+        }
+
+        document.getElementById('object').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') redirectToClient();
+        });
+    </script>
+</body>
+</html>
