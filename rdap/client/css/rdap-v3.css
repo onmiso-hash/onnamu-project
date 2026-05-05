@@ -244,3 +244,13 @@ code {
     padding: 2px 6px;
     border-radius: 4px;
 }
+
+/* UI Interactivity */
+.clickable {
+    cursor: pointer;
+    user-select: none; /* 잦은 클릭 시 텍스트 선택 방지 */
+}
+
+.clickable:hover {
+    opacity: 0.9;
+}
