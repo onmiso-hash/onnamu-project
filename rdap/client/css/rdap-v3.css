@@ -54,15 +54,15 @@ body {
 /* Page Header */
 .page-header {
     border-bottom: none;
-    margin: 40px 0 30px;
+    margin: 20px 0 15px;
     text-align: center;
 }
 
 .blog-title {
-    font-size: 36px;
+    font-size: 32px;
     font-weight: 800;
     color: var(--text-dark);
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .blog-title b {
@@ -72,7 +72,7 @@ body {
 /* Tabs */
 .nav-tabs {
     border-bottom: 2px solid #e0e6e3;
-    margin-bottom: 40px;
+    margin-bottom: 25px;
     justify-content: center;
     display: flex;
 }
@@ -116,13 +116,13 @@ body {
 }
 
 .panel-title {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     letter-spacing: -0.2px;
 }
 
 .panel-body {
-    padding: 30px;
+    padding: 20px 25px;
 }
 
 /* Search Section */
@@ -130,14 +130,14 @@ body {
     background: var(--white);
     border: 1px solid #edf2ef;
     border-radius: 20px;
-    padding: 40px;
+    padding: 25px 30px;
     box-shadow: var(--card-shadow);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 20px;
-    margin-bottom: 50px;
+    gap: 15px;
+    margin-bottom: 30px;
 }
 
 .form-control-custom {

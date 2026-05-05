@@ -43,15 +43,15 @@
         </ul>
 
         <!-- Main Search Card -->
-        <div class="panel panel-default" style="margin-bottom: 40px;">
-            <div class="panel-body" style="padding: 40px;">
-                <div class="text-center" style="margin-bottom: 30px;">
+        <div class="panel panel-default" style="margin-bottom: 30px;">
+            <div class="panel-body" style="padding: 25px 40px;">
+                <div class="text-center" style="margin-bottom: 15px;">
                     <h4 style="font-weight: 700; color: var(--primary-green);">무엇을 도와드릴까요?</h4>
-                    <p class="text-muted">도메인, IP 주소, AS 번호 등을 입력하여 상세 정보를 확인하세요.</p>
+                    <p class="text-muted" style="font-size: 13px;">도메인, IP 주소, AS 번호 등을 입력하여 상세 정보를 확인하세요.</p>
                 </div>
 
                 <form onsubmit="doQuery();return false" name="listForm" method="post" class="form-inline">
-                    <div class="well-search" style="box-shadow: none; border: 2px solid #eef2f0; padding: 25px; margin-bottom: 30px;">
+                    <div class="well-search" style="box-shadow: none; border: 2px solid #eef2f0; padding: 20px; margin-bottom: 20px;">
                         <div class="form-group" style="margin:0;">
                             <select class="form-control form-control-custom" id="type" name="type" onchange="updatePlaceHolder(this.options[this.selectedIndex].value)" style="width: auto; min-width: 140px;">
                                 <option value="domain" selected>Domain</option>
