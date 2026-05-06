@@ -10,3 +10,9 @@ temp_*.png
 captures/
 latest.png
 gemini_latest.png
+
+# Local scripts and backups
+save_cap.ps1
+*.js_utf8.js
+rdap/bootstrap_server/data/
+
