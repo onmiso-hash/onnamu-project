@@ -179,7 +179,7 @@ body {
 .tag-example {
     display: inline-block;
     padding: 6px 16px;
-    background: #f1f8f4;
+    background: #e2e8e5; /* 기존 #f1f8f4에서 더 진한 회색으로 변경 */
     color: var(--primary-green);
     border-radius: 50px;
     font-size: 14px;
@@ -195,7 +195,7 @@ body {
 }
 
 .method-tag {
-    background: #e8f5e9;
+    background: #dceddc; /* 기존 #e8f5e9에서 약간 진하게 */
     color: #2e7d32;
     padding: 4px 10px;
     border-radius: 6px;
@@ -239,7 +239,7 @@ pre {
 }
 
 code {
-    background: #f1f8f4;
+    background: #e2e8e5; /* 기존 #f1f8f4에서 변경 */
     color: var(--primary-green);
     padding: 2px 6px;
     border-radius: 4px;
@@ -253,4 +253,15 @@ code {
 
 .clickable:hover {
     opacity: 0.9;
+}
+
+/* RDAP Result Sub-panels */
+.panel-default > .panel-heading {
+    background-color: #eef2f0 !important; /* 더 진한 회색조 배경 */
+    border-bottom: 1px solid #e0e6e3;
+    transition: var(--transition);
+}
+
+.panel-default > .panel-heading.clickable:hover {
+    background-color: #e2e8e5 !important;
 }
