@@ -84,7 +84,7 @@ HTML_TEMPLATE = """
         .fc-daygrid-day { cursor: pointer; }
         .fc-daygrid-day:hover { background: rgba(192, 132, 252, 0.1) !important; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); z-index: 1000; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 650px; z-index: 1001; max-height: 80vh; display: flex; flex-direction: column; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 650px; z-index: 1001; max-height: 80vh; flex-direction: column; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
         .modal-header { padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 20px; overflow-y: auto; }
         
@@ -219,7 +219,7 @@ HTML_TEMPLATE = """
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
-    <div class="modal" id="news-modal">
+    <div class="modal" id="news-modal" style="display: none;">
         <div class="modal-header"><h3 id="modal-date">뉴스 요약</h3><button style="background:none; border:none; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
         <div class="modal-body" id="modal-content"></div>
     </div>
