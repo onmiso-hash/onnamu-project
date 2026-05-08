@@ -6,11 +6,9 @@ import os
 app = Flask(__name__)
 
 # --- 데이터베이스 경로 설정 (영구 저장을 위해 data 폴더 지정) ---
-# 도커 볼륨 설정과 일치해야 합니다. (예: C:\onmis\portal\data:/app/data)
 DB_PATH = 'data/news.db'
 
 def init_db():
-    # data 폴더가 없으면 생성
     if not os.path.exists('data'):
         os.makedirs('data')
         
@@ -23,7 +21,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 (오빠의 원본 v3.5 기반 + v4.0 UI 최적화) ---
+# --- 통합 HTML 템플릿 ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -79,45 +77,46 @@ HTML_TEMPLATE = """
         .dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block; }
         .demo-badge { font-size: 0.65rem; border: 1px solid rgba(255, 255, 255, 0.4); padding: 2px 8px; border-radius: 4px; color: #7f8c8d; }
 
-        /* --- 달력 및 뉴스 모달 v4.0 최적화 스타일 --- */
+        /* --- 달력 및 뉴스 모달 최적화 스타일 --- */
         #calendar { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(12px); border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.3); margin-bottom: 30px; font-size: 0.85rem; }
         .fc-daygrid-day { cursor: pointer; }
         .fc-daygrid-day:hover { background: rgba(192, 132, 252, 0.1) !important; }
+        
+        /* 추가: 이벤트 배지 텍스트를 가운데 정렬하고 여백 주기 */
+        .fc-event { cursor: pointer; border: none; border-radius: 4px; padding: 2px 4px; text-align: center; }
+
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); z-index: 1000; }
         .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 650px; z-index: 1001; max-height: 80vh; flex-direction: column; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
         .modal-header { padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 20px; overflow-y: auto; }
         
         /* 뉴스 간격 조절 */
-        .news-item-box { margin-bottom: 15px; } /* 뉴스 항목 간격 축소 */
+        .news-item-box { margin-bottom: 15px; } 
         .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7; color: #2c3e50; }
         
-        /* v4.0 핵심 수정: 화살표와 링크 한 줄 정렬 */
         .news-source-container { 
-            display: flex; /* 가로 정렬 */
-            align-items: center; /* 세로 중앙 정렬 */
+            display: flex; 
+            align-items: center; 
             margin-top: 10px; 
             margin-bottom: 5px; 
         }
         .news-source-arrow { 
-            width: 14px; /* 화살표 크기 조절 */
+            width: 14px; 
             height: 14px; 
-            margin-right: 8px; /* 화살표와 텍스트 사이 간격 */
+            margin-right: 8px; 
         }
         .news-content-text a { 
             color: #3b82f6; 
             text-decoration: none; 
             font-weight: 600; 
             font-size: 0.85rem;
-            /* display: block; - v4.0에서 제거: 한 줄 정렬을 위해 */
         }
         
-        /* 구분선 스타일 및 간격 조절 */
         .news-divider { 
             border: 0; 
             height: 1px; 
             background: linear-gradient(to right, transparent, rgba(0,0,0,0.2), transparent); 
-            margin: 10px 0; /* 구분선 위아래 간격 축소 */
+            margin: 10px 0; 
         }
         
         footer { margin-top: 60px; font-size: 0.8rem; color: #7f8c8d; text-align: center; }
@@ -215,7 +214,7 @@ HTML_TEMPLATE = """
                 <div class="service-icon" style="background:rgba(255,255,255,0.05)">🚀</div><div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div><span class="demo-badge">Draft</span>
             </a>
         </div>
-        <footer>Managed by onmiso | onnamu.kr hub v3.5</footer>
+        <footer>Managed by onmiso | onnamu.kr hub v4.1</footer>
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
@@ -241,9 +240,23 @@ HTML_TEMPLATE = """
 
         document.addEventListener('DOMContentLoaded', function() {
             var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-                initialView: 'dayGridMonth', locale: 'ko',
+                initialView: 'dayGridMonth', 
+                locale: 'ko',
                 headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
-                dateClick: function(info) { fetchNews(info.dateStr); }
+                
+                // ✨ 이 부분이 핵심! 뉴스가 있는 날짜를 가져와서 달력에 표시해 줌
+                events: '/api/news/events', 
+                
+                dateClick: function(info) { 
+                    fetchNews(info.dateStr); 
+                },
+                
+                // ✨ 배지(이벤트)를 클릭했을 때도 똑같이 뉴스가 뜨도록 설정
+                eventClick: function(info) {
+                    info.jsEvent.preventDefault();
+                    let clickedDate = info.event.startStr.split('T')[0];
+                    fetchNews(clickedDate);
+                }
             });
             calendar.render();
         });
@@ -253,7 +266,6 @@ HTML_TEMPLATE = """
                 let content = document.getElementById('modal-content');
                 document.getElementById('modal-date').innerText = date + " 뉴스 요약";
                 if(data.length > 0) {
-                    // v4.0 수정: 화살표와 원문 보기를 컨테이너(div)로 묶어 한 줄 정렬
                     content.innerHTML = data.map(n => `
                         <div class="news-item-box">
                             <div class="news-content-text">${n.content}</div>
@@ -305,6 +317,20 @@ def get_news():
     c.execute("SELECT category, title, content FROM news_archive WHERE published_date = ?", (date,))
     rows = c.fetchall(); conn.close()
     return jsonify([{"category": r[0], "title": r[1], "content": r[2]} for r in rows])
+
+# ✨ 새롭게 추가된 API: 뉴스가 있는 날짜 목록만 가져와서 캘린더에 던져줌!
+@app.route('/api/news/events')
+def get_news_events():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    # DISTINCT를 써서 같은 날짜에 뉴스가 여러 개 있어도 배지는 한 개만 뜨게 했어
+    c.execute("SELECT DISTINCT published_date FROM news_archive")
+    rows = c.fetchall()
+    conn.close()
+    
+    # FullCalendar 양식에 맞춰서 색상과 제목을 입혀서 보내기
+    events = [{"date": r[0], "title": "📰 뉴스", "color": "#c084fc"} for r in rows]
+    return jsonify(events)
 
 if __name__ == '__main__':
     init_db(); app.run(host='0.0.0.0', port=5001)
