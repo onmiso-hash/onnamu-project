@@ -21,7 +21,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 ---
+# --- 통합 HTML 템플릿 (FullCalendar 제거 및 Vanilla JS 히트맵/날짜 스트립 구현) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -29,103 +29,117 @@ HTML_TEMPLATE = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>onnamu.kr | Home Hub</title>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js'></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
             font-family: 'Segoe UI', -apple-system, sans-serif; 
-            background: linear-gradient(135deg, #d4e1f5 0%, #f7e6e3 100%);
-            color: #2c3e50; min-height: 100vh; padding: 40px 20px; line-height: 1.6;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9; min-height: 100vh; padding: 40px 20px; line-height: 1.6;
         }
         .container { max-width: 900px; margin: 0 auto; }
-        .topbar { 
-            background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px);
-            border-radius: 16px; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 30px; border: 1px solid rgba(255, 255, 255, 0.3); box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        
+        /* Glassmorphism Common Style */
+        .glass-card { 
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);
+            border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .topbar-title { font-size: 1.2rem; font-weight: 700; color: #2c3e50; }
-        .topbar-meta { font-size: 0.8rem; color: #7f8c8d; }
+
+        .topbar { 
+            display: flex; justify-content: space-between; align-items: center; 
+            margin-bottom: 30px; padding: 16px 24px;
+        }
+        .topbar-title { font-size: 1.2rem; font-weight: 700; color: #f1f5f9; }
+        .topbar-meta { font-size: 0.8rem; color: #94a3b8; }
+
         .section-label { 
-            font-size: 0.7rem; font-weight: 700; color: #666; 
+            font-size: 0.7rem; font-weight: 700; color: #94a3b8; 
             text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px; 
         }
+
+        /* Stats Grid */
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
-        .glass-card { 
-            background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(12px);
-            border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.3);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
         .stat-card { display: flex; flex-direction: column; justify-content: space-between; }
-        .stat-label { font-size: 0.75rem; color: #7f8c8d; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        .stat-value { font-size: 1.8rem; font-weight: 700; color: #2c3e50; font-variant-numeric: tabular-nums; }
-        .progress-mini { height: 4px; background: rgba(0,0,0,0.05); margin-top: 15px; border-radius: 10px; overflow: hidden; }
-        .progress-inner { height: 100%; width: 0%; background: #c084fc; transition: width 1s ease; }
+        .stat-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: #f1f5f9; font-variant-numeric: tabular-nums; }
+        .progress-mini { height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; border-radius: 10px; overflow: hidden; }
+        .progress-inner { height: 100%; width: 0%; background: #a855f7; transition: width 1s ease; }
+
+        /* Heatmap Styles */
+        .heatmap-wrapper { padding: 15px; margin-bottom: 20px; overflow: hidden; }
+        .heatmap-container { 
+            display: grid; 
+            grid-template-rows: repeat(7, 1fr); 
+            grid-auto-flow: column; 
+            gap: 4px; 
+            overflow-x: auto; 
+            padding-bottom: 5px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.1) transparent;
+        }
+        .heatmap-container::-webkit-scrollbar { height: 4px; }
+        .heatmap-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         
+        .heatmap-cell { 
+            width: 11px; height: 11px; background: rgba(255, 255, 255, 0.05); 
+            border-radius: 2px; cursor: pointer; transition: background 0.2s;
+        }
+        .heatmap-cell:hover { transform: scale(1.2); z-index: 10; background: rgba(255, 255, 255, 0.2); }
+        .heatmap-cell.has-data { background: #a855f7; box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
+
+        /* Date Strip Styles */
+        .date-strip-wrapper { padding: 15px; margin-bottom: 30px; }
+        .date-strip-container { 
+            display: flex; gap: 12px; overflow-x: auto; padding: 10px 0;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .date-strip-container::-webkit-scrollbar { display: none; }
+        
+        .date-item { 
+            min-width: 55px; display: flex; flex-direction: column; align-items: center; 
+            gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; 
+            transition: all 0.2s; border: 1px solid transparent;
+        }
+        .date-item:hover { background: rgba(255,255,255,0.08); }
+        .date-item.today { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .date-label { font-size: 0.65rem; color: #94a3b8; font-weight: 600; }
+        .date-value { font-size: 1.1rem; font-weight: 700; color: #f1f5f9; }
+        .news-dot { width: 4px; height: 4px; background: #a855f7; border-radius: 50%; opacity: 0; }
+        .news-dot.active { opacity: 1; box-shadow: 0 0 5px #a855f7; }
+
+        /* Services Grid */
         .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
         .service-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
-        .service-link:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-3px); border-color: #c084fc; }
+        .service-link:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-3px); border-color: #a855f7; }
         .service-icon { 
-            width: 48px; height: 48px; border-radius: 12px; background: rgba(192, 132, 252, 0.15);
+            width: 48px; height: 48px; border-radius: 12px; background: rgba(168, 85, 247, 0.1);
             display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;
         }
-        .service-info h3 { font-size: 0.95rem; font-weight: 600; color: #2c3e50; }
-        .service-info p { font-size: 0.75rem; color: #7f8c8d; margin-top: 1px; }
+        .service-info h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+        .service-info p { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
         .status-badge { 
             display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; 
-            padding: 3px 10px; border-radius: 99px; margin-top: 10px; background: rgba(34, 197, 94, 0.1); color: #16a34a; border: 1px solid rgba(34, 197, 94, 0.2);
+            padding: 3px 10px; border-radius: 99px; margin-top: 10px; background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.1);
         }
-        .dot { width: 6px; height: 6px; background: #22c55e; border-radius: 50%; display: inline-block; }
-        .demo-badge { font-size: 0.65rem; border: 1px solid rgba(255, 255, 255, 0.4); padding: 2px 8px; border-radius: 4px; color: #7f8c8d; }
+        .status-dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; display: inline-block; }
+        .demo-badge { font-size: 0.65rem; border: 1px solid rgba(255, 255, 255, 0.1); padding: 2px 8px; border-radius: 4px; color: #94a3b8; }
 
-        /* --- 달력 및 뉴스 모달 최적화 스타일 --- */
-        #calendar { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(12px); border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.3); margin-bottom: 30px; font-size: 0.85rem; }
-        .fc-daygrid-day { cursor: pointer; }
-        .fc-daygrid-day:hover { background: rgba(192, 132, 252, 0.1) !important; }
+        /* Modal Styles */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); z-index: 1000; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 650px; z-index: 1001; max-height: 80vh; flex-direction: column; background: #1e293b; border-radius: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); color: #f1f5f9; }
+        .modal-header { padding: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 24px; overflow-y: auto; }
+        .news-item-box { margin-bottom: 20px; } 
+        .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
+        .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
-        /* 추가: 이벤트 배지 텍스트를 가운데 정렬하고 여백 주기 */
-        .fc-event { cursor: pointer; border: none; border-radius: 4px; padding: 2px 4px; text-align: center; }
-
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); z-index: 1000; }
-        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: 650px; z-index: 1001; max-height: 80vh; flex-direction: column; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
-        .modal-header { padding: 20px; border-bottom: 1px solid rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
-        .modal-body { padding: 20px; overflow-y: auto; }
-        
-        /* 뉴스 간격 조절 */
-        .news-item-box { margin-bottom: 15px; } 
-        .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.7; color: #2c3e50; }
-        
-        .news-source-container { 
-            display: flex; 
-            align-items: center; 
-            margin-top: 10px; 
-            margin-bottom: 5px; 
-        }
-        .news-source-arrow { 
-            width: 14px; 
-            height: 14px; 
-            margin-right: 8px; 
-        }
-        .news-content-text a { 
-            color: #3b82f6; 
-            text-decoration: none; 
-            font-weight: 600; 
-            font-size: 0.85rem;
-        }
-        
-        .news-divider { 
-            border: 0; 
-            height: 1px; 
-            background: linear-gradient(to right, transparent, rgba(0,0,0,0.2), transparent); 
-            margin: 10px 0; 
-        }
-        
-        footer { margin-top: 60px; font-size: 0.8rem; color: #7f8c8d; text-align: center; }
+        footer { margin-top: 60px; font-size: 0.8rem; color: #64748b; text-align: center; }
         @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="topbar">
+        <div class="topbar glass-card">
             <span class="topbar-title">onnamu.kr hub</span>
             <span class="topbar-meta" id="update-time">Syncing...</span>
         </div>
@@ -146,12 +160,19 @@ HTML_TEMPLATE = """
                 <div class="stat-label">DISK (C:)</div>
                 <div class="stat-value" id="disk">-</div>
                 <div class="progress-mini"><div class="progress-inner" id="disk-bar" style="background: #f59e0b;"></div></div>
-                <p id="disk-sub" style="font-size: 0.7rem; color: #7f8c8d; margin-top: 8px;"></p>
+                <p id="disk-sub" style="font-size: 0.7rem; color: #64748b; margin-top: 8px;"></p>
             </div>
         </div>
 
-        <div class="section-label">Daily News Archive</div>
-        <div id='calendar'></div>
+        <div class="section-label">News Archive Heatmap</div>
+        <div class="glass-card heatmap-wrapper">
+            <div id="heatmap" class="heatmap-container"></div>
+        </div>
+
+        <div class="section-label">Recent Timeline</div>
+        <div class="glass-card date-strip-wrapper">
+            <div id="date-strip" class="date-strip-container"></div>
+        </div>
 
         <div class="section-label">Operational Services</div>
         <div class="services-grid">
@@ -160,7 +181,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>n8n Automation</h3>
                     <p>Workflow & Bot Manager</p>
-                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
                 </div>
             </a>
             <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">
@@ -168,7 +189,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>Media Gallery</h3>
                     <p>Personal Archive (Flask)</p>
-                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
                 </div>
             </a>
             <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
@@ -176,7 +197,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>onnamu RDAP</h3>
                     <p>Internet Resource Query</p>
-                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
                 </div>
             </a>
             <a href="https://bootstrap.rdap.kr/dashboard" target="_blank" class="glass-card service-link">
@@ -184,7 +205,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>RDAP Dashboard</h3>
                     <p>Real-time Stats & Monitoring</p>
-                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
                 </div>
             </a>
             <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
@@ -192,7 +213,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>Jaeseung Bot</h3>
                     <p>Telegram Monitoring System</p>
-                    <div class="status-badge"><div class="dot"></div>Online</div>
+                    <div class="status-badge"><div class="status-dot"></div>Online</div>
                 </div>
             </a>
             <a href="http://stream.onnamu.kr:50002/movies" target="_blank" class="glass-card service-link">
@@ -200,7 +221,7 @@ HTML_TEMPLATE = """
                 <div class="service-info">
                     <h3>Movie Theater</h3>
                     <p>Large Media Streaming</p>
-                    <div class="status-badge"><div class="dot"></div>Operational</div>
+                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
                 </div>
             </a>
         </div>
@@ -208,23 +229,24 @@ HTML_TEMPLATE = """
         <div class="section-label" style="margin-top:20px;">Project Demos</div>
         <div class="services-grid">
             <a href="/v1" target="_blank" class="glass-card service-link">
-                <div class="service-icon" style="background:rgba(255,255,255,0.05)">🏢</div><div class="service-info"><h3>Company Renewal v1</h3><p>Initial Concept Draft</p></div><span class="demo-badge">Draft</span>
+                <div class="service-icon" style="background:rgba(255,255,255,0.03)">🏢</div><div class="service-info"><h3>Company Renewal v1</h3><p>Initial Concept Draft</p></div><span class="demo-badge">Draft</span>
             </a>
             <a href="/v2" target="_blank" class="glass-card service-link">
-                <div class="service-icon" style="background:rgba(255,255,255,0.05)">🚀</div><div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div><span class="demo-badge">Draft</span>
+                <div class="service-icon" style="background:rgba(255,255,255,0.03)">🚀</div><div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div><span class="demo-badge">Draft</span>
             </a>
         </div>
-        <footer>Managed by onmiso | onnamu.kr hub v4.1</footer>
+        <footer>Managed by onmiso | onnamu.kr hub v5.0</footer>
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
-    <div class="modal" id="news-modal" style="display: none;">
-        <div class="modal-header"><h3 id="modal-date">뉴스 요약</h3><button style="background:none; border:none; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
+    <div class="modal" id="news-modal">
+        <div class="modal-header"><h3 id="modal-date">뉴스 요약</h3><button style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
         <div class="modal-body" id="modal-content"></div>
     </div>
 
     <script>
-        function update() {
+        // System stats update
+        function updateStats() {
             fetch('/stats').then(r => r.json()).then(d => {
                 document.getElementById('cpu').innerText = d.cpu + '%';
                 document.getElementById('ram').innerText = d.ram + '%';
@@ -236,30 +258,84 @@ HTML_TEMPLATE = """
                 document.getElementById('update-time').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
             }).catch(() => {});
         }
-        setInterval(update, 10000); update();
+        setInterval(updateStats, 10000); 
+        updateStats();
 
-        document.addEventListener('DOMContentLoaded', function() {
-            var calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
-                initialView: 'dayGridMonth', 
-                locale: 'ko',
-                headerToolbar: { left: 'prev,next today', center: 'title', right: '' },
+        // Helper to format date to YYYY-MM-DD local
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        async function initArchiveUI() {
+            try {
+                const res = await fetch('/api/news/events');
+                const events = await res.json();
+                const newsDates = new Set(events.map(e => e.date));
                 
-                // ✨ 이 부분이 핵심! 뉴스가 있는 날짜를 가져와서 달력에 표시해 줌
-                events: '/api/news/events', 
+                renderHeatmap(newsDates);
+                renderDateStrip(newsDates);
+            } catch (e) {
+                console.error("Failed to load news events", e);
+            }
+        }
+
+        function renderHeatmap(newsDates) {
+            const container = document.getElementById('heatmap');
+            const today = new Date();
+            // Start from 6 months ago, aligned to Sunday
+            const start = new Date();
+            start.setMonth(today.getMonth() - 6);
+            start.setDate(start.getDate() - start.getDay());
+
+            const fragment = document.createDocumentFragment();
+            for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+                const dateStr = formatDate(d);
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell' + (newsDates.has(dateStr) ? ' has-data' : '');
+                cell.title = dateStr;
+                cell.onclick = () => fetchNews(dateStr);
+                fragment.appendChild(cell);
+            }
+            container.appendChild(fragment);
+        }
+
+        function renderDateStrip(newsDates) {
+            const container = document.getElementById('date-strip');
+            const today = new Date();
+            const todayStr = formatDate(today);
+            
+            const start = new Date();
+            start.setDate(today.getDate() - 14);
+            const end = new Date();
+            end.setDate(today.getDate() + 14);
+
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const dateStr = formatDate(d);
+                const isToday = dateStr === todayStr;
                 
-                dateClick: function(info) { 
-                    fetchNews(info.dateStr); 
-                },
+                const item = document.createElement('div');
+                item.className = 'date-item' + (isToday ? ' today' : '');
+                item.onclick = () => fetchNews(dateStr);
                 
-                // ✨ 배지(이벤트)를 클릭했을 때도 똑같이 뉴스가 뜨도록 설정
-                eventClick: function(info) {
-                    info.jsEvent.preventDefault();
-                    let clickedDate = info.event.startStr.split('T')[0];
-                    fetchNews(clickedDate);
+                item.innerHTML = `
+                    <span class="date-label">${days[d.getDay()]}</span>
+                    <span class="date-value">${d.getDate()}</span>
+                    <div class="news-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>
+                `;
+                container.appendChild(item);
+                
+                if (isToday) {
+                    setTimeout(() => {
+                        item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                    }, 500);
                 }
-            });
-            calendar.render();
-        });
+            }
+        }
 
         function fetchNews(date) {
             fetch('/api/news/get?date=' + date).then(r => r.json()).then(data => {
@@ -272,12 +348,20 @@ HTML_TEMPLATE = """
                             <hr class="news-divider">
                         </div>
                     `).join('');
-                } else { content.innerHTML = "<p style='text-align:center; padding:20px; color:#999;'>해당 날짜에 저장된 뉴스가 없습니다.</p>"; }
+                } else { 
+                    content.innerHTML = "<p style='text-align:center; padding:40px; color:#64748b;'>해당 날짜에 저장된 뉴스가 없습니다.</p>"; 
+                }
                 document.getElementById('news-modal').style.display = 'flex';
                 document.getElementById('overlay').style.display = 'block';
             });
         }
-        function closeModal() { document.getElementById('news-modal').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
+
+        function closeModal() { 
+            document.getElementById('news-modal').style.display = 'none'; 
+            document.getElementById('overlay').style.display = 'none'; 
+        }
+
+        document.addEventListener('DOMContentLoaded', initArchiveUI);
     </script>
 </body>
 </html>
@@ -296,7 +380,9 @@ def renewal_v2(): return render_template('renewal_v2.html')
 def stats():
     cpu = psutil.cpu_percent(interval=None); ram = psutil.virtual_memory().percent
     try:
-        disk = psutil.disk_usage('/host_c'); disk_percent = disk.percent
+        # Docker 컨테이너 내부에서 호스트의 마운트된 경로 확인 (필요시 조정)
+        disk_path = '/host_c' if os.path.exists('/host_c') else '/'
+        disk = psutil.disk_usage(disk_path); disk_percent = disk.percent
         disk_detail = f"{disk.used/(1024**3):.1f} GB / {disk.total/(1024**3):.1f} GB"
     except Exception: disk_percent = 0; disk_detail = "Error"
     return jsonify(cpu=cpu, ram=ram, disk_percent=disk_percent, disk_detail=disk_detail)
@@ -318,19 +404,14 @@ def get_news():
     rows = c.fetchall(); conn.close()
     return jsonify([{"category": r[0], "title": r[1], "content": r[2]} for r in rows])
 
-# ✨ 새롭게 추가된 API: 뉴스가 있는 날짜 목록만 가져와서 캘린더에 던져줌!
 @app.route('/api/news/events')
 def get_news_events():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    # DISTINCT를 써서 같은 날짜에 뉴스가 여러 개 있어도 배지는 한 개만 뜨게 했어
     c.execute("SELECT DISTINCT published_date FROM news_archive")
     rows = c.fetchall()
     conn.close()
-    
-    # FullCalendar 양식에 맞춰서 색상과 제목을 입혀서 보내기
-    events = [{"date": r[0], "title": "📰 뉴스", "color": "#c084fc"} for r in rows]
-    return jsonify(events)
+    return jsonify([{"date": r[0]} for r in rows])
 
 if __name__ == '__main__':
     init_db(); app.run(host='0.0.0.0', port=5001)
