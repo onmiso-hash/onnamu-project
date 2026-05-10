@@ -109,9 +109,9 @@ HTML_TEMPLATE = """
         .modal-header { padding: 24px; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
         .modal-body { padding: 24px; overflow-y: auto; }
         .news-item-box { margin-bottom: 20px; } 
-        .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
-        .news-source-container { display: flex; align-items: center; margin-top: 15px; }
-        .news-source-arrow { width: 14px; height: 14px; margin-right: 8px; }
+        .news-content-text { font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
+        .news-title { font-weight: 700; color: #f1f5f9; margin-top: 15px; margin-bottom: 8px; font-size: 1rem; display: block; }
+        .news-bullet { padding-left: 1.5rem; text-indent: -1.2rem; margin-bottom: 6px; display: block; color: #cbd5e1; }
         .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; }
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
@@ -302,12 +302,20 @@ HTML_TEMPLATE = """
                 let content = document.getElementById('modal-content');
                 document.getElementById('modal-date').innerText = date + " 뉴스 요약";
                 if(data.length > 0) {
-                    content.innerHTML = data.map(n => `
-                        <div class="news-item-box">
-                            <div class="news-content-text">${n.content}</div>
-                            <hr class="news-divider">
-                        </div>
-                    `).join('');
+                    content.innerHTML = data.map(n => {
+                        const formatted = n.content.split('\\n').map(line => {
+                            line = line.trim();
+                            if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
+                            if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
+                            return `<span>${line}</span>`;
+                        }).join('');
+                        return `
+                            <div class="news-item-box">
+                                <div class="news-content-text">${formatted}</div>
+                                <hr class="news-divider">
+                            </div>
+                        `;
+                    }).join('');
                 } else { content.innerHTML = "<p style='text-align:center; padding:40px; color:#64748b;'>저장된 뉴스가 없습니다.</p>"; }
                 document.getElementById('news-modal').style.display = 'flex';
                 document.getElementById('overlay').style.display = 'block';
