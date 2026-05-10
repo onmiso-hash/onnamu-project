@@ -21,7 +21,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 (탐색 버튼 및 스크롤 개선 버전) ---
+# --- 통합 HTML 템플릿 (히트맵 + 날짜 스트립 최적화 버전) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -56,27 +56,13 @@ HTML_TEMPLATE = """
         .label-btn { background: none; border: none; color: #a855f7; font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
         .label-btn:hover { background: rgba(168, 85, 247, 0.1); }
 
+        /* System Stats */
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
         .stat-card { display: flex; flex-direction: column; justify-content: space-between; }
         .stat-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
         .stat-value { font-size: 1.8rem; font-weight: 700; color: #f1f5f9; font-variant-numeric: tabular-nums; }
         .progress-mini { height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; border-radius: 10px; overflow: hidden; }
         .progress-inner { height: 100%; width: 0%; background: #a855f7; transition: width 1s ease; }
-
-        /* Navigation Control Wrapper */
-        .nav-wrapper { position: relative; width: 100%; }
-        .nav-controls { 
-            position: absolute; top: 50%; transform: translateY(-50%); 
-            width: 100%; display: flex; justify-content: space-between; 
-            pointer-events: none; z-index: 5; padding: 0 5px;
-        }
-        .nav-btn { 
-            width: 32px; height: 32px; border-radius: 50%; background: rgba(30, 41, 59, 0.8); 
-            border: 1px solid rgba(255, 255, 255, 0.1); color: #f1f5f9; display: flex; 
-            align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;
-            backdrop-filter: blur(4px); transition: all 0.2s;
-        }
-        .nav-btn:hover { background: #a855f7; border-color: #a855f7; }
 
         /* Heatmap Styles */
         .heatmap-container { 
@@ -91,16 +77,14 @@ HTML_TEMPLATE = """
         .heatmap-cell.has-data { background: #a855f7; box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
 
         /* Date Strip Styles */
-        .date-strip-container { 
-            display: flex; gap: 12px; overflow-x: auto; padding: 10px 0;
-            scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth;
-        }
+        .date-strip-wrapper { position: relative; }
+        .nav-controls { position: absolute; top: 50%; transform: translateY(-50%); width: 100%; display: flex; justify-content: space-between; pointer-events: none; z-index: 5; padding: 0 5px; }
+        .nav-btn { width: 32px; height: 32px; border-radius: 50%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); color: #f1f5f9; display: flex; align-items: center; justify-content: center; cursor: pointer; pointer-events: auto; backdrop-filter: blur(4px); transition: all 0.2s; }
+        .nav-btn:hover { background: #a855f7; border-color: #a855f7; }
+
+        .date-strip-container { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth; }
         .date-strip-container::-webkit-scrollbar { display: none; }
-        .date-item { 
-            min-width: 55px; display: flex; flex-direction: column; align-items: center; 
-            gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; 
-            transition: all 0.2s; border: 1px solid transparent;
-        }
+        .date-item { min-width: 55px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; transition: all 0.2s; border: 1px solid transparent; }
         .date-item:hover { background: rgba(255,255,255,0.08); }
         .date-item.today { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); }
         .date-label { font-size: 0.65rem; color: #94a3b8; font-weight: 600; }
@@ -112,16 +96,10 @@ HTML_TEMPLATE = """
         .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
         .service-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
         .service-link:hover { background: rgba(255, 255, 255, 0.1); transform: translateY(-3px); border-color: #a855f7; }
-        .service-icon { 
-            width: 48px; height: 48px; border-radius: 12px; background: rgba(168, 85, 247, 0.1);
-            display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0;
-        }
+        .service-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(168, 85, 247, 0.1); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
         .service-info h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
         .service-info p { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
-        .status-badge { 
-            display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; 
-            padding: 3px 10px; border-radius: 99px; margin-top: 10px; background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.1);
-        }
+        .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.7rem; padding: 3px 10px; border-radius: 99px; margin-top: 10px; background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.1); }
         .status-dot { width: 6px; height: 6px; background: #4ade80; border-radius: 50%; display: inline-block; }
         .demo-badge { font-size: 0.65rem; border: 1px solid rgba(255, 255, 255, 0.1); padding: 2px 8px; border-radius: 4px; color: #94a3b8; }
 
@@ -132,6 +110,9 @@ HTML_TEMPLATE = """
         .modal-body { padding: 24px; overflow-y: auto; }
         .news-item-box { margin-bottom: 20px; } 
         .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
+        .news-source-container { display: flex; align-items: center; margin-top: 15px; }
+        .news-source-arrow { width: 14px; height: 14px; margin-right: 8px; }
+        .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; display: block; margin-top: 5px; }
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
         footer { margin-top: 60px; font-size: 0.8rem; color: #64748b; text-align: center; }
@@ -169,24 +150,20 @@ HTML_TEMPLATE = """
             News Archive Heatmap
             <button class="label-btn" onclick="scrollHeatmap('end')">Most Recent</button>
         </div>
-        <div class="nav-wrapper">
-            <div class="glass-card heatmap-wrapper">
-                <div id="heatmap" class="heatmap-container"></div>
-            </div>
+        <div class="glass-card heatmap-wrapper">
+            <div id="heatmap" class="heatmap-container"></div>
         </div>
 
         <div class="section-label">
             Recent Timeline
             <button class="label-btn" onclick="gotoToday()">Today</button>
         </div>
-        <div class="nav-wrapper">
+        <div class="date-strip-wrapper">
             <div class="nav-controls">
                 <button class="nav-btn" onclick="scrollDateStrip(-200)">&lt;</button>
                 <button class="nav-btn" onclick="scrollDateStrip(200)">&gt;</button>
             </div>
-            <div class="glass-card date-strip-wrapper">
-                <div id="date-strip" class="date-strip-container"></div>
-            </div>
+            <div class="glass-card date-strip-container" id="date-strip"></div>
         </div>
 
         <div class="section-label">Operational Services</div>
@@ -272,7 +249,7 @@ HTML_TEMPLATE = """
             const today = new Date();
             const start = new Date();
             start.setMonth(today.getMonth() - 6);
-            start.setDate(start.getDate() - start.getDay());
+            start.setDate(start.getDate() - start.getDay()); // 시작 요일 맞춤
 
             const fragment = document.createDocumentFragment();
             for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
@@ -284,6 +261,7 @@ HTML_TEMPLATE = """
                 fragment.appendChild(cell);
             }
             container.appendChild(fragment);
+            // 마지막(최근) 위치로 자동 스크롤
             setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 300);
         }
 
@@ -302,7 +280,11 @@ HTML_TEMPLATE = """
                 item.className = 'date-item' + (isToday ? ' today' : '');
                 item.id = isToday ? 'date-today' : '';
                 item.onclick = () => fetchNews(dateStr);
-                item.innerHTML = `<span class="date-label">${days[d.getDay()]}</span><span class="date-value">${d.getDate()}</span><div class="news-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>`;
+                item.innerHTML = `
+                    <span class="date-label">${days[d.getDay()]}</span>
+                    <span class="date-value">${d.getDate()}</span>
+                    <div class="news-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>
+                `;
                 container.appendChild(item);
             }
             setTimeout(gotoToday, 500);
