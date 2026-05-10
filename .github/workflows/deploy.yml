@@ -19,14 +19,14 @@ jobs:
           script: |
             powershell -Command "cd C:\Users\onmis\project; git fetch origin main; git reset --hard origin/main; cd gallery; docker compose up -d --build; cd ../portal; docker compose up -d --build; cd ../rdap; docker compose up -d --build bootstrap-server; docker compose up -d --build my-rdap; git log -1"
 
-      # ✨ 지수가 추가한 작업 이력 자동 전송 단계
+      # ✨ 카테고리와 타이틀을 한글로 수정한 버전이에요
       - name: Send Work Log to Portal
         run: |
           curl -X POST "https://onnamu.kr/api/work/save" \
           -H "Content-Type: application/json" \
           -d '{
-            "category": "GitHub Push",
-            "title": "Update: ${{ github.event.repository.name }}",
+            "category": "깃허브 푸시",
+            "title": "업데이트: ${{ github.event.repository.name }}",
             "content": "${{ github.event.head_commit.message }}",
             "date": "'"$(date +'%Y-%m-%d')"'"
           }'
