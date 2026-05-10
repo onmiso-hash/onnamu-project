@@ -123,7 +123,7 @@ HTML_TEMPLATE = """
         <div class="section-label">Server Work Heatmap</div>
         <div class="glass-card"><div id="heatmap" class="heatmap-container"></div></div>
 
-        <div class="section-label">Work Timeline <button class="label-btn" onclick="gotoToday()">Today</button></div>
+        <div class="section-label">Daily News Timeline <button class="label-btn" onclick="gotoToday()">Today</button></div>
         <div class="glass-card date-strip-container" id="date-strip"></div>
 
         <div class="section-label">Operational Services</div>
