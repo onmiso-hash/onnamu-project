@@ -65,9 +65,15 @@ HTML_TEMPLATE = """
         .heatmap-cell { width: 12px; height: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; cursor: pointer; }
         .heatmap-cell.has-data { background: #a855f7; box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
 
-        .date-strip-container { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
-        .date-item { min-width: 55px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; }
+        .date-strip-container { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; scroll-behavior: smooth; }
+        .date-item { min-width: 55px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; transition: all 0.2s; }
+        .date-item:hover { background: rgba(255,255,255,0.08); }
         .date-item.today { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.3); }
+        .month-item { 
+            min-width: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(168, 85, 247, 0.08); border: 1px dashed rgba(168, 85, 247, 0.3); border-radius: 14px;
+            font-weight: 800; color: #a855f7; font-size: 0.85rem;
+        }
         .work-dot { width: 4px; height: 4px; background: #a855f7; border-radius: 50%; opacity: 0; }
         .work-dot.active { opacity: 1; box-shadow: 0 0 5px #a855f7; }
 
@@ -123,7 +129,15 @@ HTML_TEMPLATE = """
         <div class="section-label">Server Work Heatmap</div>
         <div class="glass-card"><div id="heatmap" class="heatmap-container"></div></div>
 
-        <div class="section-label">Daily News Timeline <button class="label-btn" onclick="gotoToday()">Today</button></div>
+        <div class="section-label">
+            Daily News Timeline
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="label-btn" onclick="changeMonth(-1)">&lt;</button>
+                <span id="current-month-display" style="color:#f1f5f9; font-weight:700; min-width:80px; text-align:center;">-</span>
+                <button class="label-btn" onclick="changeMonth(1)">&gt;</button>
+                <button class="label-btn" onclick="gotoToday()" style="margin-left:10px;">Today</button>
+            </div>
+        </div>
         <div class="glass-card date-strip-container" id="date-strip"></div>
 
         <div class="section-label">Operational Services</div>
@@ -198,6 +212,9 @@ HTML_TEMPLATE = """
             return `${y}-${m}-${d}`;
         }
 
+        let currentTargetDate = new Date();
+        let cachedNewsDates = new Set();
+
         async function initArchiveUI() {
             try {
                 const resWork = await fetch('/api/work/events');
@@ -206,10 +223,10 @@ HTML_TEMPLATE = """
                 
                 const resNews = await fetch('/api/news/events');
                 const newsEvents = await resNews.json();
-                const newsDates = new Set(newsEvents.map(e => e.date));
+                cachedNewsDates = new Set(newsEvents.map(e => e.date));
 
                 renderHeatmap(workDates);
-                renderDateStrip(newsDates);
+                renderDateStrip(currentTargetDate);
             } catch (e) { console.error(e); }
         }
 
@@ -228,34 +245,72 @@ HTML_TEMPLATE = """
             setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 300);
         }
 
-        function renderDateStrip(newsDates) {
+        function renderDateStrip(targetDate) {
             const container = document.getElementById('date-strip');
+            container.innerHTML = '';
+            
             const today = new Date();
             const todayStr = formatDate(today);
-            const start = new Date(); start.setDate(today.getDate() - 30);
-            const end = new Date(); end.setDate(today.getDate() + 14);
+            
+            // 헤더 월 표시 업데이트
+            document.getElementById('current-month-display').innerText = `${targetDate.getFullYear()}.${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+
+            // 타겟 월의 시작일과 종료일 계산 (전후 1주일씩 추가 노출)
+            const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+            start.setDate(start.getDate() - 7);
+            const end = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+            end.setDate(end.getDate() + 7);
+
             const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            let lastMonth = -1;
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const currentMonth = d.getMonth();
+                
+                // 월이 바뀌는 지점에 월 레이블 삽입
+                if (lastMonth !== -1 && lastMonth !== currentMonth) {
+                    const monthLabel = document.createElement('div');
+                    monthLabel.className = 'month-item';
+                    monthLabel.innerText = `${currentMonth + 1}월`;
+                    container.appendChild(monthLabel);
+                }
+                lastMonth = currentMonth;
+
                 const dateStr = formatDate(d);
                 const isToday = dateStr === todayStr;
                 const item = document.createElement('div');
                 item.className = 'date-item' + (isToday ? ' today' : '');
                 if(isToday) item.id = 'date-today';
+                
+                // 타겟 월에 속하지 않는 날짜는 반투명 처리 (선택사항)
+                if (d.getMonth() !== targetDate.getMonth()) {
+                    item.style.opacity = '0.4';
+                }
+
                 item.onclick = () => fetchNews(dateStr);
                 item.innerHTML = `
                     <span style="font-size:0.65rem; color:#94a3b8; font-weight:600;">${days[d.getDay()]}</span>
                     <span style="font-size:1.1rem; font-weight:700;">${d.getDate()}</span>
-                    <div class="work-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>
+                    <div class="work-dot ${cachedNewsDates.has(dateStr) ? 'active' : ''}"></div>
                 `;
                 container.appendChild(item);
             }
-            setTimeout(gotoToday, 500);
+            
+            // 오늘이 포함된 월이라면 오늘로 스크롤, 아니면 월 초입으로 스크롤
+            setTimeout(() => {
+                const scrollTarget = document.getElementById('date-today') || container.querySelector('.month-item') || container.firstChild;
+                if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }, 300);
+        }
+
+        function changeMonth(offset) {
+            currentTargetDate.setMonth(currentTargetDate.getMonth() + offset);
+            renderDateStrip(currentTargetDate);
         }
 
         function gotoToday() {
-            const todayItem = document.getElementById('date-today');
-            if (todayItem) todayItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            currentTargetDate = new Date();
+            renderDateStrip(currentTargetDate);
         }
 
         function fetchNews(date) {
