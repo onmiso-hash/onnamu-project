@@ -110,8 +110,9 @@ HTML_TEMPLATE = """
         .modal-body { padding: 24px; overflow-y: auto; }
         .news-item-box { margin-bottom: 20px; } 
         .news-content-text { font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
+        .news-category { font-size: 1.15rem; font-weight: 800; color: #a855f7; margin-top: 25px; margin-bottom: 12px; display: block; border-left: 4px solid #a855f7; padding-left: 12px; }
         .news-title { font-weight: 700; color: #f1f5f9; margin-top: 15px; margin-bottom: 8px; font-size: 1rem; display: block; }
-        .news-bullet { padding-left: 1.5rem; text-indent: -1.2rem; margin-bottom: 6px; display: block; color: #cbd5e1; }
+        .news-bullet { padding-left: 2rem; text-indent: -1.4rem; margin-bottom: 6px; display: block; color: #cbd5e1; }
         .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; }
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
@@ -303,11 +304,23 @@ HTML_TEMPLATE = """
                 document.getElementById('modal-date').innerText = date + " 뉴스 요약";
                 if(data.length > 0) {
                     content.innerHTML = data.map(n => {
-                        const formatted = n.content.split('\\n').map(line => {
+                        // 특정 패턴 앞에 강제 줄바꿈 삽입 및 전처리
+                        let rawContent = n.content.replace(/📰 오늘의 주요 뉴스/g, '\\n📰 오늘의 주요 뉴스');
+                        rawContent = rawContent.replace(/🤖 AI·IT 뉴스/g, '\\n🤖 AI·IT 뉴스');
+                        
+                        const lines = rawContent.split('\\n');
+                        const formatted = lines.map(line => {
                             line = line.trim();
+                            if (!line) return '';
+                            // 카테고리 레벨 (🤖, 📰 시작하거나 특정 키워드 포함)
+                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
+                                return `<span class="news-category">${line}</span>`;
+                            }
+                            // 제목 레벨 (🔹 시작)
                             if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
+                            // 불렛 레벨 (•, - 시작)
                             if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
-                            return `<span>${line}</span>`;
+                            return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
                         }).join('');
                         return `
                             <div class="news-item-box">
