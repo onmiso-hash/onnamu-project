@@ -112,7 +112,7 @@ HTML_TEMPLATE = """
         .news-content-text { white-space: pre-wrap; font-size: 0.95rem; line-height: 1.8; color: #cbd5e1; }
         .news-source-container { display: flex; align-items: center; margin-top: 15px; }
         .news-source-arrow { width: 14px; height: 14px; margin-right: 8px; }
-        .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; display: block; margin-top: 5px; }
+        .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; }
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
         footer { margin-top: 60px; font-size: 0.8rem; color: #64748b; text-align: center; }
