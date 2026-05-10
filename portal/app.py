@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 
-# --- 데이터베이스 경로 설정 ---
+# --- 데이터베이스 경로 설정 (영구 저장을 위해 data 폴더 지정) ---
 DB_PATH = 'data/news.db'
 
 def init_db():
@@ -13,10 +13,12 @@ def init_db():
         os.makedirs('data')
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+    # 작업 이력 테이블
     c.execute('''CREATE TABLE IF NOT EXISTS work_history
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   category TEXT, title TEXT, content TEXT, 
                   work_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    # 뉴스 아카이브 테이블 (기존 데이터 보존용)
     c.execute('''CREATE TABLE IF NOT EXISTS news_archive
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   category TEXT, title TEXT, content TEXT, 
@@ -24,14 +26,14 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 (UI 최적화 버전) ---
+# --- 통합 HTML 템플릿 (모든 서비스 링크 복구 완료) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>onnamu.kr | Hub</title>
+    <title>onnamu.kr | Home Hub</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { 
@@ -45,6 +47,7 @@ HTML_TEMPLATE = """
             border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0,0,0,0.2); 
         }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; }
         .section-label { 
             font-size: 0.7rem; font-weight: 700; color: #94a3b8; 
             text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
@@ -77,17 +80,22 @@ HTML_TEMPLATE = """
         .news-category { font-size: 1.15rem; font-weight: 800; color: #a855f7; margin-top: 25px; margin-bottom: 12px; display: block; border-left: 4px solid #a855f7; padding-left: 12px; }
         .news-title { font-weight: 700; color: #f1f5f9; margin-top: 15px; margin-bottom: 8px; font-size: 1rem; display: block; }
         .news-bullet { padding-left: 2rem; text-indent: -1.4rem; margin-bottom: 6px; display: block; color: #cbd5e1; }
-        .news-content-text a { color: #a855f7; text-decoration: none; font-weight: 600; display: block; margin-top: 5px; }
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
         .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
-        .service-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; padding: 20px; border-radius: 20px; }
+        .service-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
+        .service-icon { width: 48px; height: 48px; border-radius: 12px; background: rgba(168, 85, 247, 0.1); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+        .service-info h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+        .service-info p { font-size: 0.75rem; color: #94a3b8; margin-top: 1px; }
+        .demo-badge { font-size: 0.65rem; border: 1px solid rgba(255, 255, 255, 0.1); padding: 2px 8px; border-radius: 4px; color: #94a3b8; }
+        
         footer { margin-top: 60px; font-size: 0.8rem; color: #64748b; text-align: center; }
+        @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="topbar glass-card" style="display:flex; justify-content: space-between; margin-bottom: 30px;">
+        <div class="topbar glass-card">
             <span style="font-weight:700;">onnamu.kr hub</span>
             <span id="update-time" style="font-size:0.8rem; color:#94a3b8;">Syncing...</span>
         </div>
@@ -118,18 +126,53 @@ HTML_TEMPLATE = """
         <div class="section-label">Work Timeline <button class="label-btn" onclick="gotoToday()">Today</button></div>
         <div class="glass-card date-strip-container" id="date-strip"></div>
 
-        <div class="section-label">Services</div>
+        <div class="section-label">Operational Services</div>
         <div class="services-grid">
-            <a href="https://n8n.onnamu.kr" target="_blank" class="glass-card service-link">⚙️ <div><h3>n8n Automation</h3><p>Workflow Manager</p></div></a>
-            <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">🖼️ <div><h3>Media Gallery</h3><p>Personal Archive</p></div></a>
-            <a href="https://rdap.kr" target="_blank" class="glass-card service-link">🌐 <div><h3>onnamu RDAP</h3><p>Internet Query</p></div></a>
+            <a href="https://n8n.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">⚙️</div>
+                <div class="service-info"><h3>n8n Automation</h3><p>Workflow & Bot Manager</p></div>
+            </a>
+            <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🖼️</div>
+                <div class="service-info"><h3>Media Gallery</h3><p>Personal Archive (Flask)</p></div>
+            </a>
+            <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🌐</div>
+                <div class="service-info"><h3>onnamu RDAP</h3><p>Internet Resource Query</p></div>
+            </a>
+            <a href="https://bootstrap.rdap.kr/dashboard" target="_blank" class="glass-card service-link">
+                <div class="service-icon">📊</div>
+                <div class="service-info"><h3>RDAP Dashboard</h3><p>Real-time Stats & Monitoring</p></div>
+            </a>
+            <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🤖</div>
+                <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p></div>
+            </a>
+            <a href="http://stream.onnamu.kr:50002/movies" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🎬</div>
+                <div class="service-info"><h3>Movie Theater</h3><p>Large Media Streaming</p></div>
+            </a>
         </div>
-        <footer>Managed by onmiso | onnamu.kr hub v6.1</footer>
+
+        <div class="section-label" style="margin-top:20px;">Project Demos</div>
+        <div class="services-grid">
+            <a href="/v1" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:rgba(255,255,255,0.03)">🏢</div>
+                <div class="service-info"><h3>Company Renewal v1</h3><p>Initial Concept Draft</p></div>
+                <span class="demo-badge">Draft</span>
+            </a>
+            <a href="/v2" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:rgba(255,255,255,0.03)">🚀</div>
+                <div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div>
+                <span class="demo-badge">Draft</span>
+            </a>
+        </div>
+        <footer>Managed by onmiso | onnamu.kr hub v6.2</footer>
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
     <div class="modal" id="news-modal">
-        <div class="modal-header"><h3 id="modal-date">뉴스 요약</h3><button style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
+        <div class="modal-header"><h3 id="modal-date">작업 상세</h3><button style="background:none; border:none; color:#94a3b8; font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
         <div class="modal-body" id="modal-content"></div>
     </div>
 
@@ -157,12 +200,10 @@ HTML_TEMPLATE = """
 
         async function initArchiveUI() {
             try {
-                // 히트맵/스트립은 작업 이력(work)을 기준 [cite: 1662]
                 const resWork = await fetch('/api/work/events');
                 const workEvents = await resWork.json();
                 const workDates = new Set(workEvents.map(e => e.date));
                 
-                // 뉴스 데이터 존재 여부도 확인 (날짜 스트립 점 표기용) [cite: 1744]
                 const resNews = await fetch('/api/news/events');
                 const newsEvents = await resNews.json();
                 const newsDates = new Set(newsEvents.map(e => e.date));
@@ -217,7 +258,6 @@ HTML_TEMPLATE = """
             if (todayItem) todayItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
 
-        // ✨ 오빠의 요청사항 반영: 특정 문구 일반 텍스트 처리 로직 추가
         function fetchNews(date) {
             fetch('/api/news/get?date=' + date).then(r => r.json()).then(data => {
                 let content = document.getElementById('modal-content');
@@ -228,12 +268,9 @@ HTML_TEMPLATE = """
                         const formatted = lines.map(line => {
                             line = line.trim();
                             if (!line) return '';
-                            
-                            // 🚀 오빠의 요청: "요약해 드립니다" 포함 문장은 카테고리 강조 없이 일반 문자로 출력
                             if (line.includes('요약해 드립니다')) {
                                 return `<span style="display:block; margin-bottom:10px; color:#cbd5e1;">${line}</span>`;
                             }
-
                             if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
                                 return `<span class="news-category">${line}</span>`;
                             }
@@ -275,6 +312,12 @@ HTML_TEMPLATE = """
 
 @app.route('/')
 def index(): return render_template_string(HTML_TEMPLATE)
+
+@app.route('/v1')
+def renewal_v1(): return render_template('renewal_v1.html')
+
+@app.route('/v2')
+def renewal_v2(): return render_template('renewal_v2.html')
 
 @app.route('/stats')
 def stats():
