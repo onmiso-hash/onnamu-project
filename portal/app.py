@@ -5,7 +5,7 @@ import os
 
 app = Flask(__name__)
 
-# --- 데이터베이스 경로 설정 (영구 저장을 위해 data 폴더 지정) ---
+# --- 데이터베이스 경로 설정 ---
 DB_PATH = 'data/news.db'
 
 def init_db():
@@ -21,7 +21,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 (FullCalendar 제거 및 Vanilla JS 히트맵/날짜 스트립 구현) ---
+# --- 통합 HTML 템플릿 (탐색 버튼 및 스크롤 개선 버전) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -38,26 +38,24 @@ HTML_TEMPLATE = """
         }
         .container { max-width: 900px; margin: 0 auto; }
         
-        /* Glassmorphism Common Style */
         .glass-card { 
             background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(12px);
             border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0,0,0,0.2); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .topbar { 
-            display: flex; justify-content: space-between; align-items: center; 
-            margin-bottom: 30px; padding: 16px 24px;
-        }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; }
         .topbar-title { font-size: 1.2rem; font-weight: 700; color: #f1f5f9; }
         .topbar-meta { font-size: 0.8rem; color: #94a3b8; }
 
         .section-label { 
             font-size: 0.7rem; font-weight: 700; color: #94a3b8; 
-            text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px; 
+            text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
+            display: flex; justify-content: space-between; align-items: center;
         }
+        .label-btn { background: none; border: none; color: #a855f7; font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; }
+        .label-btn:hover { background: rgba(168, 85, 247, 0.1); }
 
-        /* Stats Grid */
         .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
         .stat-card { display: flex; flex-direction: column; justify-content: space-between; }
         .stat-label { font-size: 0.75rem; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
@@ -65,36 +63,39 @@ HTML_TEMPLATE = """
         .progress-mini { height: 4px; background: rgba(255,255,255,0.05); margin-top: 15px; border-radius: 10px; overflow: hidden; }
         .progress-inner { height: 100%; width: 0%; background: #a855f7; transition: width 1s ease; }
 
+        /* Navigation Control Wrapper */
+        .nav-wrapper { position: relative; width: 100%; }
+        .nav-controls { 
+            position: absolute; top: 50%; transform: translateY(-50%); 
+            width: 100%; display: flex; justify-content: space-between; 
+            pointer-events: none; z-index: 5; padding: 0 5px;
+        }
+        .nav-btn { 
+            width: 32px; height: 32px; border-radius: 50%; background: rgba(30, 41, 59, 0.8); 
+            border: 1px solid rgba(255, 255, 255, 0.1); color: #f1f5f9; display: flex; 
+            align-items: center; justify-content: center; cursor: pointer; pointer-events: auto;
+            backdrop-filter: blur(4px); transition: all 0.2s;
+        }
+        .nav-btn:hover { background: #a855f7; border-color: #a855f7; }
+
         /* Heatmap Styles */
-        .heatmap-wrapper { padding: 15px; margin-bottom: 20px; overflow: hidden; }
         .heatmap-container { 
-            display: grid; 
-            grid-template-rows: repeat(7, 1fr); 
-            grid-auto-flow: column; 
-            gap: 4px; 
-            overflow-x: auto; 
-            padding-bottom: 5px;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255,255,255,0.1) transparent;
+            display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; 
+            gap: 4px; overflow-x: auto; padding-bottom: 8px;
+            scrollbar-width: thin; scrollbar-color: rgba(168, 85, 247, 0.3) transparent;
         }
-        .heatmap-container::-webkit-scrollbar { height: 4px; }
-        .heatmap-container::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-        
-        .heatmap-cell { 
-            width: 11px; height: 11px; background: rgba(255, 255, 255, 0.05); 
-            border-radius: 2px; cursor: pointer; transition: background 0.2s;
-        }
+        .heatmap-container::-webkit-scrollbar { height: 6px; }
+        .heatmap-container::-webkit-scrollbar-thumb { background: rgba(168, 85, 247, 0.3); border-radius: 4px; }
+        .heatmap-cell { width: 12px; height: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 2px; cursor: pointer; transition: background 0.2s; }
         .heatmap-cell:hover { transform: scale(1.2); z-index: 10; background: rgba(255, 255, 255, 0.2); }
         .heatmap-cell.has-data { background: #a855f7; box-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
 
         /* Date Strip Styles */
-        .date-strip-wrapper { padding: 15px; margin-bottom: 30px; }
         .date-strip-container { 
             display: flex; gap: 12px; overflow-x: auto; padding: 10px 0;
-            scrollbar-width: none; -ms-overflow-style: none;
+            scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth;
         }
         .date-strip-container::-webkit-scrollbar { display: none; }
-        
         .date-item { 
             min-width: 55px; display: flex; flex-direction: column; align-items: center; 
             gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: 14px; 
@@ -134,7 +135,7 @@ HTML_TEMPLATE = """
         .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent); margin: 15px 0; }
         
         footer { margin-top: 60px; font-size: 0.8rem; color: #64748b; text-align: center; }
-        @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } .nav-controls { display: none; } }
     </style>
 </head>
 <body>
@@ -164,65 +165,55 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
-        <div class="section-label">News Archive Heatmap</div>
-        <div class="glass-card heatmap-wrapper">
-            <div id="heatmap" class="heatmap-container"></div>
+        <div class="section-label">
+            News Archive Heatmap
+            <button class="label-btn" onclick="scrollHeatmap('end')">Most Recent</button>
+        </div>
+        <div class="nav-wrapper">
+            <div class="glass-card heatmap-wrapper">
+                <div id="heatmap" class="heatmap-container"></div>
+            </div>
         </div>
 
-        <div class="section-label">Recent Timeline</div>
-        <div class="glass-card date-strip-wrapper">
-            <div id="date-strip" class="date-strip-container"></div>
+        <div class="section-label">
+            Recent Timeline
+            <button class="label-btn" onclick="gotoToday()">Today</button>
+        </div>
+        <div class="nav-wrapper">
+            <div class="nav-controls">
+                <button class="nav-btn" onclick="scrollDateStrip(-200)">&lt;</button>
+                <button class="nav-btn" onclick="scrollDateStrip(200)">&gt;</button>
+            </div>
+            <div class="glass-card date-strip-wrapper">
+                <div id="date-strip" class="date-strip-container"></div>
+            </div>
         </div>
 
         <div class="section-label">Operational Services</div>
         <div class="services-grid">
             <a href="https://n8n.onnamu.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">⚙️</div>
-                <div class="service-info">
-                    <h3>n8n Automation</h3>
-                    <p>Workflow & Bot Manager</p>
-                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
-                </div>
+                <div class="service-info"><h3>n8n Automation</h3><p>Workflow & Bot Manager</p><div class="status-badge"><div class="status-dot"></div>Operational</div></div>
             </a>
             <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🖼️</div>
-                <div class="service-info">
-                    <h3>Media Gallery</h3>
-                    <p>Personal Archive (Flask)</p>
-                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
-                </div>
+                <div class="service-info"><h3>Media Gallery</h3><p>Personal Archive (Flask)</p><div class="status-badge"><div class="status-dot"></div>Operational</div></div>
             </a>
             <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🌐</div>
-                <div class="service-info">
-                    <h3>onnamu RDAP</h3>
-                    <p>Internet Resource Query</p>
-                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
-                </div>
+                <div class="service-info"><h3>onnamu RDAP</h3><p>Internet Resource Query</p><div class="status-badge"><div class="status-dot"></div>Operational</div></div>
             </a>
             <a href="https://bootstrap.rdap.kr/dashboard" target="_blank" class="glass-card service-link">
                 <div class="service-icon">📊</div>
-                <div class="service-info">
-                    <h3>RDAP Dashboard</h3>
-                    <p>Real-time Stats & Monitoring</p>
-                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
-                </div>
+                <div class="service-info"><h3>RDAP Dashboard</h3><p>Real-time Stats & Monitoring</p><div class="status-badge"><div class="status-dot"></div>Operational</div></div>
             </a>
             <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🤖</div>
-                <div class="service-info">
-                    <h3>Jaeseung Bot</h3>
-                    <p>Telegram Monitoring System</p>
-                    <div class="status-badge"><div class="status-dot"></div>Online</div>
-                </div>
+                <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p><div class="status-badge"><div class="status-dot"></div>Online</div></div>
             </a>
             <a href="http://stream.onnamu.kr:50002/movies" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🎬</div>
-                <div class="service-info">
-                    <h3>Movie Theater</h3>
-                    <p>Large Media Streaming</p>
-                    <div class="status-badge"><div class="status-dot"></div>Operational</div>
-                </div>
+                <div class="service-info"><h3>Movie Theater</h3><p>Large Media Streaming</p><div class="status-badge"><div class="status-dot"></div>Operational</div></div>
             </a>
         </div>
 
@@ -235,7 +226,7 @@ HTML_TEMPLATE = """
                 <div class="service-icon" style="background:rgba(255,255,255,0.03)">🚀</div><div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div><span class="demo-badge">Draft</span>
             </a>
         </div>
-        <footer>Managed by onmiso | onnamu.kr hub v5.0</footer>
+        <footer>Managed by onmiso | onnamu.kr hub v5.1</footer>
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
@@ -245,7 +236,6 @@ HTML_TEMPLATE = """
     </div>
 
     <script>
-        // System stats update
         function updateStats() {
             fetch('/stats').then(r => r.json()).then(d => {
                 document.getElementById('cpu').innerText = d.cpu + '%';
@@ -258,10 +248,8 @@ HTML_TEMPLATE = """
                 document.getElementById('update-time').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
             }).catch(() => {});
         }
-        setInterval(updateStats, 10000); 
-        updateStats();
+        setInterval(updateStats, 10000); updateStats();
 
-        // Helper to format date to YYYY-MM-DD local
         function formatDate(date) {
             const y = date.getFullYear();
             const m = String(date.getMonth() + 1).padStart(2, '0');
@@ -274,18 +262,14 @@ HTML_TEMPLATE = """
                 const res = await fetch('/api/news/events');
                 const events = await res.json();
                 const newsDates = new Set(events.map(e => e.date));
-                
                 renderHeatmap(newsDates);
                 renderDateStrip(newsDates);
-            } catch (e) {
-                console.error("Failed to load news events", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         function renderHeatmap(newsDates) {
             const container = document.getElementById('heatmap');
             const today = new Date();
-            // Start from 6 months ago, aligned to Sunday
             const start = new Date();
             start.setMonth(today.getMonth() - 6);
             start.setDate(start.getDate() - start.getDay());
@@ -300,41 +284,35 @@ HTML_TEMPLATE = """
                 fragment.appendChild(cell);
             }
             container.appendChild(fragment);
+            setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 300);
         }
 
         function renderDateStrip(newsDates) {
             const container = document.getElementById('date-strip');
             const today = new Date();
             const todayStr = formatDate(today);
-            
-            const start = new Date();
-            start.setDate(today.getDate() - 14);
-            const end = new Date();
-            end.setDate(today.getDate() + 14);
-
+            const start = new Date(); start.setDate(today.getDate() - 30);
+            const end = new Date(); end.setDate(today.getDate() + 14);
             const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
             for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                 const dateStr = formatDate(d);
                 const isToday = dateStr === todayStr;
-                
                 const item = document.createElement('div');
                 item.className = 'date-item' + (isToday ? ' today' : '');
+                item.id = isToday ? 'date-today' : '';
                 item.onclick = () => fetchNews(dateStr);
-                
-                item.innerHTML = `
-                    <span class="date-label">${days[d.getDay()]}</span>
-                    <span class="date-value">${d.getDate()}</span>
-                    <div class="news-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>
-                `;
+                item.innerHTML = `<span class="date-label">${days[d.getDay()]}</span><span class="date-value">${d.getDate()}</span><div class="news-dot ${newsDates.has(dateStr) ? 'active' : ''}"></div>`;
                 container.appendChild(item);
-                
-                if (isToday) {
-                    setTimeout(() => {
-                        item.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-                    }, 500);
-                }
             }
+            setTimeout(gotoToday, 500);
+        }
+
+        function scrollDateStrip(offset) { document.getElementById('date-strip').scrollLeft += offset; }
+        function scrollHeatmap(pos) { const c = document.getElementById('heatmap'); if(pos==='end') c.scrollLeft = c.scrollWidth; }
+        function gotoToday() {
+            const todayItem = document.getElementById('date-today');
+            if (todayItem) todayItem.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         }
 
         function fetchNews(date) {
@@ -348,19 +326,12 @@ HTML_TEMPLATE = """
                             <hr class="news-divider">
                         </div>
                     `).join('');
-                } else { 
-                    content.innerHTML = "<p style='text-align:center; padding:40px; color:#64748b;'>해당 날짜에 저장된 뉴스가 없습니다.</p>"; 
-                }
+                } else { content.innerHTML = "<p style='text-align:center; padding:40px; color:#64748b;'>저장된 뉴스가 없습니다.</p>"; }
                 document.getElementById('news-modal').style.display = 'flex';
                 document.getElementById('overlay').style.display = 'block';
             });
         }
-
-        function closeModal() { 
-            document.getElementById('news-modal').style.display = 'none'; 
-            document.getElementById('overlay').style.display = 'none'; 
-        }
-
+        function closeModal() { document.getElementById('news-modal').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
         document.addEventListener('DOMContentLoaded', initArchiveUI);
     </script>
 </body>
@@ -380,7 +351,6 @@ def renewal_v2(): return render_template('renewal_v2.html')
 def stats():
     cpu = psutil.cpu_percent(interval=None); ram = psutil.virtual_memory().percent
     try:
-        # Docker 컨테이너 내부에서 호스트의 마운트된 경로 확인 (필요시 조정)
         disk_path = '/host_c' if os.path.exists('/host_c') else '/'
         disk = psutil.disk_usage(disk_path); disk_percent = disk.percent
         disk_detail = f"{disk.used/(1024**3):.1f} GB / {disk.total/(1024**3):.1f} GB"
@@ -406,11 +376,9 @@ def get_news():
 
 @app.route('/api/news/events')
 def get_news_events():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
     c.execute("SELECT DISTINCT published_date FROM news_archive")
-    rows = c.fetchall()
-    conn.close()
+    rows = c.fetchall(); conn.close()
     return jsonify([{"date": r[0]} for r in rows])
 
 if __name__ == '__main__':
