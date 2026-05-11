@@ -320,25 +320,32 @@ HTML_TEMPLATE = """
                 if(data.length > 0) {
                     content.innerHTML = data.map(n => {
                         const lines = n.content.split('\\n');
-                        let isIntro = true;
+                        let isIntroMode = true;
                         const formatted = lines.map((line) => {
                             line = line.trim();
                             if (!line) return '';
                             
-                            // '📰 오늘의 주요 뉴스' 문구를 만나면 도입 브리핑 모드 종료
-                            if (line.includes('오늘의 주요 뉴스')) isIntro = false;
+                            // 1. 마커 체크: '📰 오늘의 주요 뉴스' 라인을 만나면 즉시 도입부 종료
+                            if (line.includes('📰 오늘의 주요 뉴스')) {
+                                isIntroMode = false;
+                                return `<span class="news-category">${line}</span>`;
+                            }
 
-                            // 도입 브리핑 스타일링
-                            if (isIntro) {
+                            // 2. 도입부(브리핑) 스타일링: 마커가 나오기 전까지의 모든 라인
+                            if (isIntroMode) {
                                 return `<span style="display:block; margin-bottom:10px; color:#cbd5e1; font-size: 0.85rem; font-weight: normal;">${line}</span>`;
                             }
                             
-                            // 실제 뉴스 영역 스타일링
-                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
-                                return `<span style="display: block; margin-top: 25px; margin-bottom: 12px; border-left: 4px solid #a855f7; padding-left: 12px; font-size: 1.15rem; font-weight: 800; color: #a855f7;">${line}</span>`;
+                            // 3. 뉴스 본문 스타일링: 마커 이후의 모든 라인 (CSS 클래스 복구)
+                            if (line.startsWith('🤖') || line.startsWith('📰')) {
+                                return `<span class="news-category">${line}</span>`;
                             }
-                            if (line.startsWith('🔹')) return `<span style="display: block; margin-top: 15px; margin-bottom: 8px; font-weight: 700; color: #f1f5f9; font-size: 1rem;">${line}</span>`;
-                            if (line.startsWith('•') || line.startsWith('-')) return `<span style="display: block; padding-left: 2rem; text-indent: -1.4rem; margin-bottom: 6px; color: #cbd5e1;">${line}</span>`;
+                            if (line.startsWith('🔹')) {
+                                return `<span class="news-title">${line}</span>`;
+                            }
+                            if (line.startsWith('•') || line.startsWith('-')) {
+                                return `<span class="news-bullet">${line}</span>`;
+                            }
                             return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
                         }).join('');
                         return `<div class="news-item-box"><div class="news-content-text">${formatted}</div><hr class="news-divider"></div>`;
