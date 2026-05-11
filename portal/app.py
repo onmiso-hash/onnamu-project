@@ -320,15 +320,24 @@ HTML_TEMPLATE = """
                 if(data.length > 0) {
                     content.innerHTML = data.map(n => {
                         const lines = n.content.split('\\n');
+                        let headerFound = false;
                         const formatted = lines.map(line => {
                             line = line.trim();
                             if (!line) return '';
-                            if (line.includes('요약해 드립니다')) {
-                                return `<span style="display:block; margin-bottom:10px; color:#cbd5e1;">${line}</span>`;
+                            
+                            // 헤더(보라색 타이틀) 패턴 확인
+                            const isHeader = line.startsWith('🤖') || line.startsWith('📰') || (line.startsWith('[') && line.includes('뉴스'));
+                            
+                            // 첫 헤더가 나오기 전의 문장은 도입부로 간주 (흰색 작은 글씨)
+                            if (!headerFound && !isHeader) {
+                                return `<span style="display:block; margin-bottom:10px; font-size:0.85rem; color:#cbd5e1;">${line}</span>`;
                             }
-                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
+                            
+                            if (isHeader) {
+                                headerFound = true;
                                 return `<span class="news-category">${line}</span>`;
                             }
+                            
                             if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
                             if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
                             return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
