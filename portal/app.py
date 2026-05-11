@@ -325,20 +325,20 @@ HTML_TEMPLATE = """
                             line = line.trim();
                             if (!line) return '';
                             
-                            // 오직 '📰 오늘의 주요 뉴스' 문구가 포함된 줄을 만나면 도입 브리핑 종료
-                            if (line.includes('📰 오늘의 주요 뉴스')) isIntro = false;
+                            // '📰 오늘의 주요 뉴스' 문구를 만나면 도입 브리핑 모드 종료
+                            if (line.includes('오늘의 주요 뉴스')) isIntro = false;
 
-                            // 도입 브리핑(isIntro === true)은 작고 하얀색 일반 텍스트로 처리
+                            // 도입 브리핑 스타일링
                             if (isIntro) {
                                 return `<span style="display:block; margin-bottom:10px; color:#cbd5e1; font-size: 0.85rem; font-weight: normal;">${line}</span>`;
                             }
                             
                             // 실제 뉴스 영역 스타일링
-                            if (line.startsWith('🤖') || line.startsWith('📰')) {
-                                return `<span class="news-category">${line}</span>`;
+                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
+                                return `<span style="display: block; margin-top: 25px; margin-bottom: 12px; border-left: 4px solid #a855f7; padding-left: 12px; font-size: 1.15rem; font-weight: 800; color: #a855f7;">${line}</span>`;
                             }
-                            if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
-                            if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
+                            if (line.startsWith('🔹')) return `<span style="display: block; margin-top: 15px; margin-bottom: 8px; font-weight: 700; color: #f1f5f9; font-size: 1rem;">${line}</span>`;
+                            if (line.startsWith('•') || line.startsWith('-')) return `<span style="display: block; padding-left: 2rem; text-indent: -1.4rem; margin-bottom: 6px; color: #cbd5e1;">${line}</span>`;
                             return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
                         }).join('');
                         return `<div class="news-item-box"><div class="news-content-text">${formatted}</div><hr class="news-divider"></div>`;
