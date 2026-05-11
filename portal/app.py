@@ -325,16 +325,16 @@ HTML_TEMPLATE = """
                             line = line.trim();
                             if (!line) return '';
                             
-                            // 카테고리 헤더(뉴스 시작점) 여부 판단
-                            const isCategory = line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스');
-                            if (isCategory) isIntro = false;
+                            // '오늘의 주요 뉴스' 문구가 포함된 줄을 만나면 도입 브리핑 종료
+                            if (line.includes('오늘의 주요 뉴스')) isIntro = false;
 
-                            // 뉴스 시작 전 브리핑 문구는 작고 하얀색 일반 텍스트로 처리
+                            // 뉴스 본문 시작 전(isIntro === true) 브리핑 문구는 작고 하얀색 일반 텍스트로 처리
                             if (isIntro) {
                                 return `<span style="display:block; margin-bottom:10px; color:#cbd5e1; font-size: 0.85rem; font-weight: normal;">${line}</span>`;
                             }
                             
-                            if (isCategory) {
+                            // 실제 뉴스 영역 스타일링 (이미 isIntro가 false인 상태)
+                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
                                 return `<span class="news-category">${line}</span>`;
                             }
                             if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
