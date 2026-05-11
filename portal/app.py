@@ -320,33 +320,17 @@ HTML_TEMPLATE = """
                 if(data.length > 0) {
                     content.innerHTML = data.map(n => {
                         const lines = n.content.split('\\n');
-                        let isIntroMode = true;
-                        const formatted = lines.map((line) => {
+                        const formatted = lines.map(line => {
                             line = line.trim();
                             if (!line) return '';
-                            
-                            // 1. 완벽한 마커 체크: 이모지(📰, 🗞️ 등)에 상관없이 문장 맨 앞(인덱스 5 이하)에 '오늘의 주요 뉴스'가 오면 헤더로 인식
-                            const isMainHeader = line.includes('오늘의 주요 뉴스') && line.indexOf('오늘의 주요 뉴스') <= 5;
-                            
-                            if (isMainHeader) {
-                                isIntroMode = false; // 메인 뉴스 시작, 도입부 종료
+                            if (line.includes('요약해 드립니다')) {
+                                return `<span style="display:block; margin-bottom:10px; color:#cbd5e1;">${line}</span>`;
                             }
-
-                            // 2. 도입부(브리핑) 스타일링: 마커가 나오기 전까지의 모든 라인
-                            if (isIntroMode) {
-                                return `<span style="display:block; margin-bottom:10px; color:#cbd5e1; font-size: 0.85rem; font-weight: normal;">${line}</span>`;
-                            }
-                            
-                            // 3. 뉴스 본문 스타일링 (CSS 클래스 완벽 적용)
-                            if (isMainHeader || line.startsWith('🤖') || line.startsWith('📰') || line.startsWith('🗞')) {
+                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
                                 return `<span class="news-category">${line}</span>`;
                             }
-                            if (line.startsWith('🔹')) {
-                                return `<span class="news-title">${line}</span>`;
-                            }
-                            if (line.startsWith('•') || line.startsWith('-')) {
-                                return `<span class="news-bullet">${line}</span>`;
-                            }
+                            if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
+                            if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
                             return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
                         }).join('');
                         return `<div class="news-item-box"><div class="news-content-text">${formatted}</div><hr class="news-divider"></div>`;
