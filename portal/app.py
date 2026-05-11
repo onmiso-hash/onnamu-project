@@ -320,13 +320,21 @@ HTML_TEMPLATE = """
                 if(data.length > 0) {
                     content.innerHTML = data.map(n => {
                         const lines = n.content.split('\\n');
-                        const formatted = lines.map(line => {
+                        let isIntro = true;
+                        const formatted = lines.map((line) => {
                             line = line.trim();
                             if (!line) return '';
-                            if (line.includes('요약해 드립니다')) {
-                                return `<span style="display:block; margin-bottom:10px; color:#cbd5e1;">${line}</span>`;
+                            
+                            // 카테고리 헤더(뉴스 시작점) 여부 판단
+                            const isCategory = line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스');
+                            if (isCategory) isIntro = false;
+
+                            // 뉴스 시작 전 브리핑 문구는 작고 하얀색 일반 텍스트로 처리
+                            if (isIntro) {
+                                return `<span style="display:block; margin-bottom:10px; color:#cbd5e1; font-size: 0.85rem; font-weight: normal;">${line}</span>`;
                             }
-                            if (line.startsWith('🤖') || line.startsWith('📰') || line.includes('오늘의 주요 뉴스')) {
+                            
+                            if (isCategory) {
                                 return `<span class="news-category">${line}</span>`;
                             }
                             if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
