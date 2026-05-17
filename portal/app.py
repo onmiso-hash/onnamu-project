@@ -147,8 +147,8 @@ HTML_TEMPLATE = """
                 <div class="service-info"><h3>n8n Automation</h3><p>Workflow & Bot Manager</p></div>
             </a>
             <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">
-                <div class="service-icon">🖼️</div>
-                <div class="service-info"><h3>Media Gallery</h3><p>Personal Archive (Flask)</p></div>
+                <div class="service-icon">🏠</div>
+                <div class="service-info"><h3>Media Home</h3><p>Unified Media Service</p></div>
             </a>
             <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🌐</div>
@@ -161,10 +161,6 @@ HTML_TEMPLATE = """
             <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🤖</div>
                 <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p></div>
-            </a>
-            <a href="http://stream.onnamu.kr:50002/movies" target="_blank" class="glass-card service-link">
-                <div class="service-icon">🎬</div>
-                <div class="service-info"><h3>Movie Theater</h3><p>Large Media Streaming</p></div>
             </a>
         </div>
 

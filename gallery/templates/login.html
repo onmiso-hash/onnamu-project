@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔐 로그인 - onnamu Gallery</title>
+    <title>🔐 로그인 - Media Home</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Portal 메인 디자인 CSS 이식 및 로그인 맞춤화 */
+        /* Portal 메인 디자인 (Dark Glassmorphism) 적용 */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Noto Sans KR', sans-serif;
-            background-color: #f4f7f6;
-            background-image: linear-gradient(120deg, #e0c3fc 0%, #8ec5fc 100%);
+            font-family: 'Segoe UI', 'Noto Sans KR', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -19,16 +19,15 @@
             padding: 20px;
         }
         .login-card {
-            /* Soft Glassmorphism 효과 */
-            background: rgba(255, 255, 255, 0.65);
+            background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
             border-radius: 24px;
             padding: 50px 40px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
             width: 100%;
-            max-width: 400px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            max-width: 420px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
             text-align: center;
             animation: fadeInDown 0.6s ease-out;
         }
@@ -36,9 +35,18 @@
             from { opacity: 0; transform: translateY(-20px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .logo { font-size: 60px; margin-bottom: 20px; display: inline-block; }
-        h1 { font-size: 26px; color: #333; margin-bottom: 10px; font-weight: 700; }
-        .subtitle { color: #666; margin-bottom: 40px; font-size: 15px; }
+        .logo { 
+            font-size: 50px; 
+            margin-bottom: 24px; 
+            display: inline-flex;
+            width: 80px; height: 80px;
+            background: rgba(168, 85, 247, 0.1);
+            border-radius: 20px;
+            align-items: center; justify-content: center;
+            box-shadow: 0 8px 16px rgba(168, 85, 247, 0.2);
+        }
+        h1 { font-size: 28px; color: #fff; margin-bottom: 12px; font-weight: 700; letter-spacing: -0.5px; }
+        .subtitle { color: #94a3b8; margin-bottom: 40px; font-size: 15px; }
         
         /* 알림 스타일 */
         .flash {
@@ -49,80 +57,86 @@
             text-align: center;
             border: 1px solid transparent;
         }
-        .flash.error { background-color: rgba(255, 235, 238, 0.8); color: #c62828; border-color: rgba(239, 154, 154, 0.5); }
-        .flash.success { background-color: rgba(232, 245, 233, 0.8); color: #2e7d32; border-color: rgba(165, 214, 167, 0.5); }
+        .flash.error { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.2); }
+        .flash.success { background-color: rgba(34, 197, 94, 0.15); color: #4ade80; border-color: rgba(34, 197, 94, 0.2); }
         
         /* 입력 필드 스타일 */
-        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group { margin-bottom: 24px; text-align: left; }
         .input-group label {
             display: block;
-            margin-bottom: 8px;
-            color: #555;
-            font-weight: 500;
-            font-size: 14px;
+            margin-bottom: 10px;
+            color: #94a3b8;
+            font-weight: 600;
+            font-size: 13px;
             margin-left: 4px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
         .input-group input {
             width: 100%;
-            padding: 15px 18px;
-            border: 1px solid rgba(0, 0, 0, 0.1);
-            background-color: rgba(255, 255, 255, 0.5);
+            padding: 16px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.03);
             border-radius: 14px;
-            font-size: 15px;
-            font-family: 'Noto Sans KR', sans-serif;
+            font-size: 16px;
+            color: #fff;
+            font-family: inherit;
             transition: all 0.3s ease;
         }
         .input-group input:focus {
             outline: none;
-            background-color: #fff;
-            border-color: #8ec5fc;
-            box-shadow: 0 0 0 4px rgba(142, 197, 252, 0.15);
+            background-color: rgba(255, 255, 255, 0.07);
+            border-color: #a855f7;
+            box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.2);
         }
+        .input-group input::placeholder { color: #475569; }
         
         /* 버튼 스타일 */
         .btn-login {
             width: 100%;
-            padding: 16px;
-            background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 18px;
+            background: linear-gradient(135deg, #a855f7 0%, #7e22ce 100%);
             color: white;
             border: none;
             border-radius: 14px;
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.3s ease;
             margin-top: 10px;
-            font-family: 'Noto Sans KR', sans-serif;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            font-family: inherit;
+            box-shadow: 0 8px 20px rgba(168, 85, 247, 0.3);
         }
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 12px 28px rgba(168, 85, 247, 0.4);
+            filter: brightness(1.1);
         }
 
         .btn-home {
             display: inline-block;
-            margin-top: 20px;
-            color: #888;
+            margin-top: 30px;
+            color: #64748b;
             text-decoration: none;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.3s ease;
-            padding: 5px 10px;
+            padding: 8px 16px;
+            border-radius: 10px;
         }
         .btn-home:hover {
-            color: #764ba2;
-            transform: translateY(-1px);
+            color: #a855f7;
+            background: rgba(168, 85, 247, 0.1);
         }
         
-        .footer { text-align: center; margin-top: 40px; color: #888; font-size: 13px; }
+        .footer { text-align: center; margin-top: 40px; color: #475569; font-size: 13px; font-weight: 500; }
     </style>
 </head>
 <body>
     <div class="login-card">
-        <div class="logo">🖼️</div>
-        <h1>onnamu Gallery</h1>
-        <div class="subtitle">개인 미디어 아카이브 로그인</div>
+        <div class="logo">🏠</div>
+        <h1>Media Home</h1>
+        <div class="subtitle">통합 미디어 서비스 로그인</div>
         
         {% if error %}
         <div class="flash error">{{ error }}</div>
@@ -138,12 +152,12 @@
         
         <form method="POST">
             <div class="input-group">
-                <label for="username">👤 아이디</label>
+                <label for="username">👤 Username</label>
                 <input type="text" id="username" name="username" placeholder="아이디를 입력하세요" required autofocus autocomplete="username">
             </div>
             
             <div class="input-group">
-                <label for="password">🔒 비밀번호</label>
+                <label for="password">🔒 Password</label>
                 <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
             </div>
             
@@ -152,7 +166,7 @@
 
         <a href="https://onnamu.kr" class="btn-home">🏠 메인 페이지로 돌아가기</a>
         
-        <div class="footer">🏠 onnamu.kr v3.0</div>
+        <div class="footer">onnamu.kr v3.0</div>
     </div>
 </body>
 </html>
