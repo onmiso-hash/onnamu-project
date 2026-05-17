@@ -326,7 +326,7 @@ HTML_TEMPLATE = """
                             if (!line) return '';
                             
                             // 헤더(보라색 타이틀) 패턴 확인
-                            const isHeader = line.startsWith('🤖') || line.startsWith('📰') || (line.startsWith('[') && line.includes('뉴스'));
+                            const isHeader = line.startsWith('🤖') || line.startsWith('📰');
                             
                             // 첫 헤더가 나오기 전의 문장은 도입부로 간주 (흰색 작은 글씨)
                             if (!headerFound && !isHeader) {
