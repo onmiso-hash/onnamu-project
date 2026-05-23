@@ -604,7 +604,7 @@ window.onpopstate = function(e) {
 		for(var i = 0; i < rdapConformance.length; i++) {
 			var itemSpan = document.createElement('span');
 			itemSpan.appendChild(document.createTextNode('• ' + rdapConformance[i]));
-			itemSpan.appendChild(document.createElement('br'));
+			if(i < rdapConformance.length - 1) itemSpan.appendChild(document.createElement('br'));
 			div.appendChild(itemSpan);
 		}
 		addProperty(dl, 'Conformance', div);
@@ -650,7 +650,7 @@ window.onpopstate = function(e) {
 				}else if(status[i] == 'server transfer prohibited') {
 					link.title = '이 상태 코드는 도메인이 현재 등록 기관에서 다른 등록 기관으로 이전되는 것을 방지합니다. 이는 일반적으로 법적 또는 기타 분쟁, 사용자의 요청에 따라 또는 상환 기간 상태(redemptionPeriod)가 있을 때 제정되는 드문 상태입니다.';
 				}else if(status[i] == 'server update prohibited') {
-					link.title = '이 상태 코드는 도메인이 업데이트되지 않도록 잠급니다. 이는 일반적으로 법적 분쟁, 사용자의 요청에 따라 또는 상환 기간 상태(redemptionPeriod)가 있는 경우에 제정되는 드문 상태 입니다.';
+					link.title = '이 상태 코드는 도메인을 업데이트하지 않도록 잠급니다. 이는 일반적으로 법적 분쟁, 사용자의 요청에 따라 또는 상환 기간 상태(redemptionPeriod)가 있는 경우에 제정되는 드문 상태 입니다.';
 				}else if(status[i] == 'client delete prohibited') {
 					link.title = '이 상태 코드는 도메인의 레지스트리에 도메인 삭제 요청을 거부하도록 지시 합니다.';
 				}else if(status[i] == 'client renew prohibited') {
@@ -707,7 +707,7 @@ window.onpopstate = function(e) {
 			} else {
 				itemSpan.appendChild(link);
 			}
-			itemSpan.appendChild(document.createElement('br'));
+			if(i < status.length - 1) itemSpan.appendChild(document.createElement('br'));
 			statusDiv.appendChild(itemSpan);
 		}
 		
@@ -829,7 +829,7 @@ window.onpopstate = function(e) {
 			itemSpan.appendChild(link);
 			
 			if(links[i].rel) itemSpan.appendChild(document.createTextNode(' (' + links[i].rel + ')'));
-			itemSpan.appendChild(document.createElement('br'));
+			if(i < links.length - 1) itemSpan.appendChild(document.createElement('br'));
 			linksDiv.appendChild(itemSpan);
 		}
 		
@@ -851,7 +851,7 @@ window.onpopstate = function(e) {
 			if( cidrs[i].length ) cidr_addr = cidr_addr + '/' + cidrs[i].length;
 			
 			itemSpan.appendChild(document.createTextNode(cidr_addr));
-			itemSpan.appendChild(document.createElement('br'));
+			if(i < cidrs.length - 1) itemSpan.appendChild(document.createElement('br'));
 			cidrsDiv.appendChild(itemSpan);
 		}
 		
@@ -1110,7 +1110,16 @@ window.onpopstate = function(e) {
 			for(var i=0; i<object.publicIds.length; i++) addProperty(dl, object.publicIds[i].type, object.publicIds[i].identifier);
 		}
 		
-		if(object.roles) addProperty(dl, 'Roles', createList(object.roles));
+		if(object.roles) {
+			var rolesDiv = document.createElement('div');
+			for(var i=0; i<object.roles.length; i++) {
+				var itemSpan = document.createElement('span');
+				itemSpan.appendChild(document.createTextNode('• ' + object.roles[i]));
+				if(i < object.roles.length - 1) itemSpan.appendChild(document.createElement('br'));
+				rolesDiv.appendChild(itemSpan);
+			}
+			addProperty(dl, 'Roles', rolesDiv);
+		}
 		
 		if(object.hasOwnProperty("jscard")) {
 			addPropertyBlock(dl, 'Contact Information', processJSCard(object.jscard));
@@ -1210,10 +1219,10 @@ window.onpopstate = function(e) {
 		for(const i in address.addr) {
 			v = address.addr[i];
 			if('street' == i) {
-				var addr = document.createElement('span');
-				for(var j = 0; i < v.length; j++) {
-					if(j > 1) addr.appendChild(document.createElement('br'));
-					addr.appendChild(document.createElement(v[j]));
+				var addr = document.createElement('div');
+				for(var j = 0; j < v.length; j++) {
+					if(j > 0) addr.appendChild(document.createElement('br'));
+					addr.appendChild(document.createTextNode(v[j]));
 				}
 				addProperty(tbody, 'Street', addr);
 			}else if('locality' == i) addProperty(tbody, 'City', v);
@@ -1236,10 +1245,10 @@ window.onpopstate = function(e) {
 		for(i in address) {
 			v = address[i];
 			if('street' == i) {
-				var addr = document.createElement('span');
-				for(var j = 0; i < v.length; j++) {
-					if(j > 1) addr.appendChild(document.createElement('br'));
-					addr.appendChild(document.createElement(v[j]));
+				var addr = document.createElement('div');
+				for(var j = 0; j < v.length; j++) {
+					if(j > 0) addr.appendChild(document.createElement('br'));
+					addr.appendChild(document.createTextNode(v[j]));
 				}
 				addProperty(tbody, 'Street', addr);
 			}else if('locality' == i) addProperty(tbody, 'City', v);
@@ -1301,12 +1310,15 @@ window.onpopstate = function(e) {
 					
 				}else if(value) {
 					var div = document.createElement('div');
-					
+					var lines = [];
 					for(var j=0; j<value.length; j++) {
 						if(value[j] && value[j].length > 0) {
-							div.appendChild(document.createTextNode(value[j]));
-							div.appendChild(document.createElement('br'));
+							lines.push(value[j]);
 						}
+					}
+					for(var j=0; j<lines.length; j++) {
+						div.appendChild(document.createTextNode(lines[j]));
+						if(j < lines.length - 1) div.appendChild(document.createElement('br'));
 					}
 					
 					value = div;
