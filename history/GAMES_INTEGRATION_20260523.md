@@ -7,7 +7,7 @@
 
 ### 1. Games Microservice (`/games`)
 - **기술 스택**: Python (Flask), HTML5 Canvas, CSS (Glassmorphism UI)
-- **컨테이너화**: Docker 및 Docker Compose 적용 (포트 5004)
+- **컨테이너화**: Docker 및 Docker Compose 적용 (포트 5005)
 - **제공 게임**:
   - **Snake**: 고전 스네이크 게임 (Canvas)
   - **2048**: 숫자 합치기 퍼즐 (Grid/JS)
