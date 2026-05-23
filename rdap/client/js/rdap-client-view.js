@@ -1535,7 +1535,7 @@ window.onpopstate = function(e) {
 			else if (word == 'Organization') word = '조직';
 			else if (word == 'Phone') word = '전화번호';
 			else if (word == 'Fax') word = '팩스번호';
-			else if (word == 'Address') word = '주소';
+			else if (word == 'Address') word = '주소(Address)';
 			else if (word == 'Email') word = '전자우편';
 			else if (word == 'kind') word = '구분';
 			else if (word == 'lang') word = '언어';
