@@ -267,8 +267,8 @@
                 if (tab === 'images') {
                     previewHtml = `<img src="/thumbnail/${path}">`;
                 } else {
-                    // 비디오는 0.5초 지점 미리보기
-                    previewHtml = `<video src="/media/${path}#t=0.5" muted autoplay loop></video>`;
+                    // 비디오/영화는 0.5초부터 5.5초까지 딱 5초만 반복 재생 (부하 방지)
+                    previewHtml = `<video src="/media/${path}#t=0.5,5.5" muted autoplay loop></video>`;
                 }
                 
                 popover.innerHTML = `${previewHtml}<div class="preview-name">${name}</div>`;
