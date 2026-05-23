@@ -91,10 +91,12 @@
         
         .folder-select {
             padding: 8px 14px; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px;
-            font-size: 13px; cursor: pointer; background: rgba(255, 255, 255, 0.05);
+            font-size: 13px; cursor: pointer; background: rgba(15, 23, 42, 0.8);
             color: #fff; outline: none; font-family: inherit; transition: all 0.2s;
+            appearance: none; -webkit-appearance: none;
         }
-        .folder-select:focus { border-color: #a855f7; background: rgba(255, 255, 255, 0.1); }
+        .folder-select:focus { border-color: #a855f7; background: rgba(30, 41, 59, 1); }
+        .folder-select option { background: #1e293b; color: #fff; }
         
         /* 액션 버튼들 */
         .actions { display: flex; gap: 8px; justify-content: flex-end; }
@@ -176,6 +178,51 @@
     <a href="/" class="back-link">← 갤러리로 돌아가기</a>
 
     <script>
+        // 프리뷰 요소 생성
+        const popover = document.createElement('div');
+        popover.className = 'preview-popover';
+        document.body.appendChild(popover);
+
+        function updatePosition(e) {
+            const margin = 20;
+            let x = e.clientX + margin;
+            let y = e.clientY + margin;
+            
+            // 화면 밖으로 나가지 않도록 조정
+            if (x + 320 > window.innerWidth) x = e.clientX - 340;
+            if (y + 240 > window.innerHeight) y = e.clientY - 260;
+            
+            popover.style.left = x + 'px';
+            popover.style.top = y + 'px';
+        }
+
+        document.querySelectorAll('.file-name').forEach(el => {
+            el.addEventListener('mouseenter', e => {
+                const path = el.getAttribute('data-path');
+                const tab = el.getAttribute('data-tab');
+                const name = el.innerText;
+                
+                let previewHtml = '';
+                if (tab === 'images') {
+                    previewHtml = `<img src="/thumbnail/${path}">`;
+                } else {
+                    // 비디오는 0.5초 지점 미리보기
+                    previewHtml = `<video src="/media/${path}#t=0.5" muted autoplay loop></video>`;
+                }
+                
+                popover.innerHTML = `${previewHtml}<div class="preview-name">${name}</div>`;
+                popover.style.display = 'block';
+                updatePosition(e);
+            });
+            
+            el.addEventListener('mousemove', updatePosition);
+            
+            el.addEventListener('mouseleave', () => {
+                popover.style.display = 'none';
+                popover.innerHTML = '';
+            });
+        });
+
         function deleteFile(folder, tab, filename) {
             if (!confirm(`'${filename}' 파일을 정말 삭제하시겠습니까?`)) return;
             
