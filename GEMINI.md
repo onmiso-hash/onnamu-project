@@ -44,6 +44,7 @@
 - **AI 협업**: Gemini CLI와 협업 시, 이 파일을 최우선 지침으로 삼습니다.
 
 ## 📅 주요 히스토리
+- 2026-05-23: Games 마이크로서비스 추가 및 포털 연동 (Snake, 2048, Pong, Flappy Clone). 상세 내용은 `history/GAMES_INTEGRATION_20260523.md` 참조.
 - 2026-05-17: 미디어 서비스 통합 및 디자인 개편 (Media Gallery + Movie Theater -> Media Home). 상세 내용은 `history/MEDIA_MERGE_20260517.md` 참조.
 - 2026-05-17: 포털 뉴스 헤더 인식 로직 단순화 (이모지 기반). 상세 내용은 `history/PORTAL_NEWS_LOGIC_20260517.md` 참조.
 - 2026-05-11: 프로젝트 통합 가이드 `GEMINI.md` 생성 및 히스토리 관리 체계 수립.
@@ -54,3 +55,4 @@
 - **중요 마일스톤**: `GEMINI.md`의 '주요 히스토리' 섹션에 한 줄 요약 기록.
 - **상세 작업 내역**: `history/` 폴더 내에 별도 `.md` 파일을 생성하여 기록 (예: `history/TASK_NAME_YYYYMMDD.md`).
 - **기억 참조**: 과거 작업의 구체적인 맥락이 필요할 때 `history/` 폴더의 문서를 우선적으로 참조함.
+

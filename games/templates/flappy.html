@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Flappy Clone</title>
+    <style>
+        body { background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; overflow: hidden; }
+        canvas { border: 2px solid #38bdf8; background: #1e293b; }
+        .info { margin-bottom: 20px; text-align: center; }
+        .score { font-size: 24px; color: #38bdf8; }
+        .back { margin-top: 20px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <h1>Flappy Clone</h1>
+        <div class="score">Score: <span id="scoreVal">0</span></div>
+    </div>
+    <canvas id="flappy" width="400" height="500"></canvas>
+    <a href="/" class="back">← Back to Lobby</a>
+
+    <script>
+        const canvas = document.getElementById('flappy');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('scoreVal');
+
+        let score = 0;
+        let gameActive = true;
+
+        const bird = { x: 50, y: 150, width: 30, height: 30, gravity: 0.6, lift: -10, velocity: 0 };
+        const pipes = [];
+        const pipeWidth = 50;
+        const pipeGap = 150;
+        let frameCount = 0;
+
+        function drawBird() {
+            ctx.fillStyle = '#facc15';
+            ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+        }
+
+        function updateBird() {
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+            if (bird.y + bird.height > canvas.height) {
+                bird.y = canvas.height - bird.height;
+                bird.velocity = 0;
+                gameOver();
+            }
+            if (bird.y < 0) {
+                bird.y = 0;
+                bird.velocity = 0;
+            }
+        }
+
+        function createPipe() {
+            const minHeight = 50;
+            const maxHeight = canvas.height - pipeGap - minHeight;
+            const height = Math.floor(Math.random() * (maxHeight - minHeight + 1)) + minHeight;
+            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - pipeGap });
+        }
+
+        function drawPipes() {
+            ctx.fillStyle = '#22c55e';
+            pipes.forEach(pipe => {
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.top);
+                ctx.fillRect(pipe.x, canvas.height - pipe.bottom, pipeWidth, pipe.bottom);
+            });
+        }
+
+        function updatePipes() {
+            pipes.forEach(pipe => {
+                pipe.x -= 3;
+                if (
+                    bird.x < pipe.x + pipeWidth &&
+                    bird.x + bird.width > pipe.x &&
+                    (bird.y < pipe.top || bird.y + bird.height > canvas.height - pipe.bottom)
+                ) {
+                    gameOver();
+                }
+                if (pipe.x + pipeWidth < 0) {
+                    pipes.shift();
+                    score++;
+                    scoreElement.innerText = score;
+                }
+            });
+            if (frameCount % 90 === 0) createPipe();
+        }
+
+        function gameOver() {
+            gameActive = false;
+            alert("Game Over! Score: " + score);
+            location.reload();
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawBird();
+            updateBird();
+            drawPipes();
+            updatePipes();
+
+            frameCount++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', e => {
+            if (e.code === 'Space' || e.key === 'ArrowUp') {
+                bird.velocity = bird.lift;
+            }
+        });
+
+        canvas.addEventListener('mousedown', () => {
+            bird.velocity = bird.lift;
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>

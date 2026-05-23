@@ -1,0 +1,7 @@
+services:
+  games:
+    build: .
+    container_name: games-service
+    ports:
+      - "5004:5000"
+    restart: always

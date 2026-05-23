@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Games Hub</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text: #f8fafc;
+            --sub: #94a3b8;
+            --accent: #38bdf8;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+        body {
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at top right, #1e293b, transparent),
+                              radial-gradient(circle at bottom left, #0f172a, transparent);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+        h1 { font-size: 2.5rem; margin-bottom: 10px; font-weight: 800; letter-spacing: -0.025em; }
+        p.subtitle { color: var(--sub); margin-bottom: 40px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 1000px;
+        }
+        .card {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 32px;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--accent);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .icon { font-size: 3rem; }
+        .card h3 { font-size: 1.25rem; font-weight: 700; }
+        .card p { font-size: 0.875rem; color: var(--sub); line-height: 1.5; }
+        .btn-back {
+            margin-top: 60px;
+            color: var(--sub);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+        .btn-back:hover { color: var(--text); }
+    </style>
+</head>
+<body>
+    <h1>Games Hub</h1>
+    <p class="subtitle">심심할 때 즐기는 가벼운 웹 게임들</p>
+
+    <div class="grid">
+        <a href="/snake" class="card">
+            <div class="icon">🐍</div>
+            <h3>Snake</h3>
+            <p>고전 스네이크 게임. 사과를 먹고 최대한 길게 자라나보세요.</p>
+        </a>
+        <a href="/2048" class="card">
+            <div class="icon">🔢</div>
+            <h3>2048</h3>
+            <p>숫자 블록을 합쳐 2048을 만들어보세요. 전략적인 이동이 필요합니다.</p>
+        </a>
+        <a href="/pong" class="card">
+            <div class="icon">🏓</div>
+            <h3>Pong</h3>
+            <p>클래식 탁구 게임. AI와 대결하여 승리하세요.</p>
+        </a>
+        <a href="/flappy" class="card">
+            <div class="icon">🐦</div>
+            <h3>Flappy Clone</h3>
+            <p>장애물을 피해 멀리 날아가보세요. 타이밍이 중요합니다.</p>
+        </a>
+    </div>
+
+    <a href="/" class="btn-back">← Back to Portal</a>
+</body>
+</html>

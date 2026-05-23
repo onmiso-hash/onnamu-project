@@ -150,6 +150,10 @@ HTML_TEMPLATE = """
                 <div class="service-icon">🏠</div>
                 <div class="service-info"><h3>Media Home</h3><p>Unified Media Service</p></div>
             </a>
+            <a href="https://games.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🎮</div>
+                <div class="service-info"><h3>Games Hub</h3><p>Lightweight Web Games</p></div>
+            </a>
             <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">🌐</div>
                 <div class="service-info"><h3>onnamu RDAP</h3><p>Internet Resource Query</p></div>
