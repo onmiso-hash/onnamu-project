@@ -149,7 +149,7 @@
                     {% if tab == 'videos' or tab == 'movies' %}🎬{% else %}🖼️{% endif %}
                 </div>
                 <div class="file-info">
-                    <div class="file-name" title="{{ f.name }}">{{ f.name }}</div>
+                    <div class="file-name" title="{{ f.name }}" data-path="{{ f.path }}" data-tab="{{ tab }}">{{ f.name }}</div>
                     <div class="file-path">{{ f.path }}</div>
                 </div>
                 <div>
@@ -241,6 +241,43 @@
             if (!confirm(`'${filename}' 파일을 정말 삭제하시겠습니까?`)) return;
             
             fetch('/api/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ folder, tab, filename })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('삭제되었습니다.');
+                    location.reload();
+                } else {
+                    alert('삭제 실패: ' + (data.error || data.message));
+                }
+            });
+        }
+
+        function moveFile(oldFolder, tab, filename, newFolder) {
+            if (!newFolder) return;
+            if (!confirm(`'${filename}' 파일을 ${newFolder} 폴더로 이동하시겠습니까?`)) return;
+
+            fetch('/api/move', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ old_folder: oldFolder, new_folder: newFolder, tab, filename })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert('이동되었습니다.');
+                    location.reload();
+                } else {
+                    alert('이동 실패: ' + (data.error || data.message));
+                }
+            });
+        }
+    </script>
+</body>
+</html>elete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folder, tab, filename })
