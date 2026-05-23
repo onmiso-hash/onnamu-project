@@ -81,7 +81,49 @@
         
         .file-icon { font-size: 26px; text-align: center; opacity: 0.9; }
         .file-info { overflow: hidden; }
-        .file-name { font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 15px; }
+        
+        /* 프리뷰 팝업 스타일 */
+        .preview-popover {
+            position: fixed;
+            z-index: 1000;
+            pointer-events: none;
+            display: none;
+            width: 320px;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            animation: fadeIn 0.2s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95) translateY(10px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .preview-popover img, .preview-popover video {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            display: block;
+        }
+        .preview-name {
+            padding: 10px 15px;
+            font-size: 12px;
+            color: #fff;
+            background: rgba(0,0,0,0.5);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .file-name { 
+            font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; 
+            text-overflow: ellipsis; font-size: 15px; cursor: help;
+            border-bottom: 1px dashed rgba(255,255,255,0.1); display: inline-block; max-width: 100%;
+        }
+        .file-name:hover { color: #a855f7; border-color: #a855f7; }
         .file-path { font-size: 12px; color: #64748b; margin-top: 5px; }
         
         .folder-badge { display: inline-block; padding: 5px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -142,6 +184,11 @@
     </div>
 
     <div class="file-list">
+        <div class="page-header" style="padding: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="font-size: 14px; color: #94a3b8;">
+                총 <strong>{{ total }}</strong>개 항목 ({{ page }} / {{ total_pages }} 페이지)
+            </div>
+        </div>
         {% if files %}
             {% for f in files %}
             <div class="file-item">
@@ -241,43 +288,6 @@
             if (!confirm(`'${filename}' 파일을 정말 삭제하시겠습니까?`)) return;
             
             fetch('/api/delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ folder, tab, filename })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('삭제되었습니다.');
-                    location.reload();
-                } else {
-                    alert('삭제 실패: ' + (data.error || data.message));
-                }
-            });
-        }
-
-        function moveFile(oldFolder, tab, filename, newFolder) {
-            if (!newFolder) return;
-            if (!confirm(`'${filename}' 파일을 ${newFolder} 폴더로 이동하시겠습니까?`)) return;
-
-            fetch('/api/move', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ old_folder: oldFolder, new_folder: newFolder, tab, filename })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    alert('이동되었습니다.');
-                    location.reload();
-                } else {
-                    alert('이동 실패: ' + (data.error || data.message));
-                }
-            });
-        }
-    </script>
-</body>
-</html>elete', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ folder, tab, filename })
