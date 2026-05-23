@@ -189,6 +189,12 @@
             }
         }
 
+        window.addEventListener('keydown', e => {
+            if (!gameActive && e.key === 'Enter') {
+                startGame();
+            }
+        });
+
         // Initial render
         render();
     </script>

@@ -167,6 +167,10 @@
         }
 
         window.addEventListener('keydown', e => {
+            if (!gameActive && e.key === 'Enter') {
+                startGame();
+                return;
+            }
             if (!gameActive) return;
             if (e.key === 'ArrowLeft') move('left');
             if (e.key === 'ArrowRight') move('right');

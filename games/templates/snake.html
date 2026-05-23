@@ -144,6 +144,13 @@
         }
 
         window.addEventListener('keydown', e => {
+            if (!gameActive && e.key === 'Enter') {
+                startGame();
+                return;
+            }
+            
+            if (!gameActive) return;
+
             switch(e.key) {
                 case 'ArrowUp': if (dy !== 1) { dx = 0; dy = -1; } break;
                 case 'ArrowDown': if (dy !== -1) { dx = 0; dy = 1; } break;
@@ -153,3 +160,6 @@
         });
 
         drawGame(); // Initial draw
+    </script>
+</body>
+</html>
