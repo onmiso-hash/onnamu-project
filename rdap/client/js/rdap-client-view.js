@@ -1180,7 +1180,7 @@ window.onpopstate = function(e) {
 			if(jscard.localizations.ko.hasOwnProperty("name")) addProperty(local_tbody, 'Name', jscard.localizations.ko.name.full);
 			if(jscard.localizations.ko.hasOwnProperty("organizations")) addProperty(local_tbody, 'Organization', jscard.localizations.ko.organizations.org.name);
 			if(jscard.localizations.ko.hasOwnProperty("emails")) addProperty(local_tbody, 'Email', jscard.localizations.ko.emails.email.address);
-			if(jscard.localizations.ko.hasOwnProperty("addresses")) addPropertyBlock(local_tbody, 'Address', processJSCardAddress1(jscard.localizations.ko.addresses));
+			if(jscard.localizations.ko.hasOwnProperty("addresses")) addProperty(local_tbody, 'Address', processJSCardAddress1(jscard.localizations.ko.addresses));
 			
 			addPropertyBlock(tbody, 'Localizations', local_table);
 		}
@@ -1602,4 +1602,6 @@ window.onpopstate = function(e) {
 				div.innerHTML = ''; 
 			}
 		}
+	}
+	}
 	}
