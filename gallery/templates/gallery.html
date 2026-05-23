@@ -171,7 +171,9 @@
             .header-right { width: 100%; justify-content: center; flex-wrap: wrap; gap: 8px; }
             .tile { aspect-ratio: 16/10; }
             .tile .label { padding: 8px 10px; font-size: 11px; }
-            #lightbox .nav-btn { background: rgba(0,0,0,0.5); }
+            #lightbox .nav-btn { width: 50px; height: 80px; font-size: 30px; background: rgba(0,0,0,0.3); }
+            #lightbox .prev-btn { left: 10px; }
+            #lightbox .next-btn { right: 10px; }
         }
     </style>
 </head>
@@ -417,15 +419,6 @@
                 video.play().catch(e => { }); 
             });
             video.addEventListener('mouseleave', () => {
-                video.pause();
-                video.currentTime = 0.5;
-            });
-        });
-    });
-</script>
-
-</body>
-</html>ideo.addEventListener('mouseleave', () => {
                 video.pause();
                 video.currentTime = 0.5;
             });
