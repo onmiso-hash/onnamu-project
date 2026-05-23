@@ -22,5 +22,9 @@ def pong():
 def flappy():
     return render_template('flappy.html')
 
+@app.route('/shooter')
+def shooter():
+    return render_template('shooter.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
