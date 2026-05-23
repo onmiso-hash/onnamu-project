@@ -163,7 +163,7 @@
             <div class="folder-select">
                 <label for="folder">저장할 프로젝트 폴더</label>
                 <select name="folder" id="folder" required>
-                    {% for folder in folders %}
+                    {% for folder in available_folders %}
                     <option value="{{ folder }}">{{ folder }}</option>
                     {% endfor %}
                 </select>
