@@ -58,9 +58,12 @@
         let gameInterval = null;
         const WIN_SCORE = 5;
 
+        let isPaused = false;
+
         function startGame() {
             resetGame();
             gameActive = true;
+            isPaused = false;
             startOverlay.style.display = 'none';
             if (gameInterval) clearInterval(gameInterval);
             gameInterval = setInterval(game, 1000 / 60);
@@ -107,6 +110,12 @@
             user.y = e.clientY - rect.top - user.height / 2;
         });
 
+        canvas.addEventListener('mousedown', () => {
+            if (gameActive && isPaused) {
+                isPaused = false;
+            }
+        });
+
         function collision(b, p) {
             return b.x + b.radius > p.x && b.x - b.radius < p.x + p.width && b.y + b.radius > p.y && b.y - b.radius < p.y + p.height;
         }
@@ -114,11 +123,15 @@
         function resetBall() {
             ball.x = canvas.width / 2;
             ball.y = canvas.height / 2;
-            ball.dx = -ball.dx;
+            ball.dx = (Math.random() > 0.5 ? 1 : -1) * 5;
+            ball.dy = (Math.random() - 0.5) * 10;
             ball.speed = 5;
+            isPaused = true;
         }
 
         function update() {
+            if (isPaused) return;
+
             ball.x += ball.dx;
             ball.y += ball.dy;
 
@@ -164,11 +177,16 @@
                 startOverlay.style.display = 'flex';
             }, 10);
         }
-
         function game() {
             if (!gameActive) return;
             update();
             render();
+            if (isPaused) {
+                ctx.fillStyle = "white";
+                ctx.font = "24px sans-serif";
+                ctx.textAlign = "center";
+                ctx.fillText("Click to Continue", canvas.width / 2, canvas.height / 2 + 40);
+            }
         }
 
         // Initial render

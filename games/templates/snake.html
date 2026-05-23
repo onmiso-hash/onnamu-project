@@ -71,25 +71,47 @@
         }
 
         function drawGame() {
-            update();
-            if (checkGameOver()) {
-                gameActive = false;
-                clearInterval(gameInterval);
-                setTimeout(() => {
-                    alert("Game Over! Score: " + score);
-                    startOverlay.style.display = 'flex';
-                }, 10);
-                return;
+            if (gameActive) {
+                update();
+                if (checkGameOver()) {
+                    gameActive = false;
+                    clearInterval(gameInterval);
+                    setTimeout(() => {
+                        alert("Game Over! Score: " + score);
+                        startOverlay.style.display = 'flex';
+                    }, 10);
+                    return;
+                }
             }
             clearCanvas();
             drawFood();
             drawSnake();
         }
 
-        // ... rest of the helper functions ...
+        function update() {
+            if (dx === 0 && dy === 0) return;
+            
+            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
+            snake.unshift(head);
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreElement.innerText = score;
+                generateFood();
+            } else {
+                snake.pop();
+            }
+        }
 
-        drawGame(); // Initial draw
-
+        function checkGameOver() {
+            if (dx === 0 && dy === 0) return false;
+            
+            const head = snake[0];
+            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) return true;
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) return true;
+            }
+            return false;
+        }
         function clearCanvas() {
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -130,7 +152,4 @@
             }
         });
 
-        drawGame();
-    </script>
-</body>
-</html>
+        drawGame(); // Initial draw
