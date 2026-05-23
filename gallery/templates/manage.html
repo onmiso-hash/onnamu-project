@@ -134,9 +134,9 @@
     </div>
 
     <div class="tabs">
-        <div class="tab {{ 'active' if tab == 'videos' else '' }}" onclick="location.href='?tab=videos'">📹 동영상</div>
-        <div class="tab {{ 'active' if tab == 'images' else '' }}" onclick="location.href='?tab=images'">🖼️ 이미지</div>
-        <div class="tab {{ 'active' if tab == 'movies' else '' }}" onclick="location.href='?tab=movies'">🎬 영화관</div>
+        <a href="?tab=videos" class="tab {{ 'active' if tab == 'videos' else '' }}" style="text-decoration: none;">📹 동영상</a>
+        <a href="?tab=images" class="tab {{ 'active' if tab == 'images' else '' }}" style="text-decoration: none;">🖼️ 이미지</a>
+        <a href="?tab=movies" class="tab {{ 'active' if tab == 'movies' else '' }}" style="text-decoration: none;">🎬 영화관</a>
     </div>
 
     <div class="file-list">
@@ -186,11 +186,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'success') {
+                if (data.success) {
                     alert('삭제되었습니다.');
                     location.reload();
                 } else {
-                    alert('삭제 실패: ' + data.message);
+                    alert('삭제 실패: ' + (data.error || data.message));
                 }
             });
         }
@@ -206,11 +206,11 @@
             })
             .then(res => res.json())
             .then(data => {
-                if (data.status === 'success') {
+                if (data.success) {
                     alert('이동되었습니다.');
                     location.reload();
                 } else {
-                    alert('이동 실패: ' + data.message);
+                    alert('이동 실패: ' + (data.error || data.message));
                 }
             });
         }

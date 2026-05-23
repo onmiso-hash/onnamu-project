@@ -391,10 +391,23 @@ def upload():
 @require_login
 @admin_required
 def manage():
-    all_folders = ["public", "private", "family"]
-    videos = get_all_files(all_folders, VIDEO_EXTS, "videos")
-    images = get_all_files(all_folders, IMAGE_EXTS, "images")
-    return render_template("manage.html", videos=videos, images=images, all_folders=all_folders)
+    tab = request.args.get("tab", "videos")
+    folders = session.get("folders", [])
+    
+    if tab == "images":
+        files = get_all_files(folders, IMAGE_EXTS, "images")
+    elif tab == "movies":
+        files = get_all_files(folders, MOVIE_EXTS, "movies")
+    else:
+        files = get_all_files(folders, VIDEO_EXTS, "videos")
+        tab = "videos"
+    
+    return render_template(
+        "manage.html", 
+        files=files, 
+        tab=tab, 
+        available_folders=folders
+    )
 
 
 @app.route("/api/move", methods=["POST"])
@@ -402,18 +415,16 @@ def manage():
 @admin_required
 def move_file():
     data = request.get_json()
-    old_path = data.get("old_path")
+    old_folder = data.get("old_folder")
     new_folder = data.get("new_folder")
+    tab = data.get("tab")
+    filename = data.get("filename")
     
-    if not old_path or not new_folder:
+    if not all([old_folder, new_folder, tab, filename]):
         return jsonify({"success": False, "error": "잘못된 요청"}), 400
     
     try:
-        parts = old_path.split("/")
-        if len(parts) != 3:
-            raise ValueError("경로 형식 오류")
-        
-        old_folder, media_type, filename = parts
+        media_type = tab  # videos, images, movies
         old_file = MEDIA_ROOT / old_folder / media_type / filename
         new_file = MEDIA_ROOT / new_folder / media_type / filename
         
@@ -423,8 +434,7 @@ def move_file():
         new_file.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(old_file), str(new_file))
         
-        new_path = f"{new_folder}/{media_type}/{filename}"
-        return jsonify({"success": True, "message": f"✅ {filename} → {new_folder}", "new_path": new_path})
+        return jsonify({"success": True, "message": f"✅ {filename} → {new_folder}"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -434,23 +444,28 @@ def move_file():
 @admin_required
 def delete_file():
     data = request.get_json()
-    file_path = data.get("path")
+    folder = data.get("folder")
+    tab = data.get("tab")
+    filename = data.get("filename")
     
-    if not file_path:
+    if not all([folder, tab, filename]):
         return jsonify({"success": False, "error": "잘못된 요청"}), 400
     
     try:
-        parts = file_path.split("/")
-        if len(parts) != 3:
-            raise ValueError("경로 형식 오류")
-        
-        folder, media_type, filename = parts
+        media_type = tab
         full_path = MEDIA_ROOT / folder / media_type / filename
         
         if not full_path.exists():
             return jsonify({"success": False, "error": "파일이 존재하지 않습니다"}), 404
         
         full_path.unlink()
+        
+        # 썸네일도 삭제 (이미지인 경우)
+        if media_type == "images":
+            thumb_path = THUMBNAIL_DIR / folder / media_type / f"thumb_{filename}"
+            if thumb_path.exists():
+                thumb_path.unlink()
+                
         return jsonify({"success": True, "message": f"🗑️ {filename} 삭제됨"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
