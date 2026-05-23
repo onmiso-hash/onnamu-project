@@ -175,6 +175,20 @@
         {% endif %}
     </div>
 
+    {% if total_pages > 1 %}
+    <div class="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 30px;">
+        {% if page > 1 %}
+            <a href="?tab={{ tab }}&page={{ page - 1 }}" class="tab" style="padding: 8px 16px; text-decoration: none;">‹ 이전</a>
+        {% endif %}
+        
+        <span class="tab active" style="padding: 8px 16px;">{{ page }} / {{ total_pages }}</span>
+
+        {% if page < total_pages %}
+            <a href="?tab={{ tab }}&page={{ page + 1 }}" class="tab" style="padding: 8px 16px; text-decoration: none;">다음 ›</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <a href="/" class="back-link">← 갤러리로 돌아가기</a>
 
     <script>

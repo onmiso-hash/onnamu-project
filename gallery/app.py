@@ -279,15 +279,32 @@ def upload():
 @admin_required
 def manage():
     tab = request.args.get("tab", "videos")
+    page = int(request.args.get("page", 1))
     folders = session.get("folders", [])
+    
     if tab == "images":
-        files = get_all_files(folders, IMAGE_EXTS, "images")
+        all_files = get_all_files(folders, IMAGE_EXTS, "images")
     elif tab == "movies":
-        files = get_all_files(folders, MOVIE_EXTS, "movies")
+        all_files = get_all_files(folders, MOVIE_EXTS, "movies")
     else:
-        files = get_all_files(folders, VIDEO_EXTS, "videos")
+        all_files = get_all_files(folders, VIDEO_EXTS, "videos")
         tab = "videos"
-    return render_template("manage.html", files=files, tab=tab, available_folders=folders)
+
+    total = len(all_files)
+    total_pages = max(1, math.ceil(total / PER_PAGE))
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * PER_PAGE
+    files = all_files[start:start + PER_PAGE]
+    
+    return render_template(
+        "manage.html", 
+        files=files, 
+        tab=tab, 
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        available_folders=folders
+    )
 
 @app.route("/api/move", methods=["POST"])
 @require_login
