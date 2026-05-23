@@ -5,10 +5,31 @@
     <title>Flappy Clone</title>
     <style>
         body { background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; overflow: hidden; }
+        .game-container { position: relative; }
         canvas { border: 2px solid #38bdf8; background: #1e293b; }
         .info { margin-bottom: 20px; text-align: center; }
         .score { font-size: 24px; color: #38bdf8; }
         .back { margin-top: 20px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+        
+        #startOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #38bdf8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+        .start-btn:hover { background: #0ea5e9; }
     </style>
 </head>
 <body>
@@ -16,22 +37,44 @@
         <h1>Flappy Clone</h1>
         <div class="score">Score: <span id="scoreVal">0</span></div>
     </div>
-    <canvas id="flappy" width="400" height="500"></canvas>
+    <div class="game-container">
+        <canvas id="flappy" width="400" height="500"></canvas>
+        <div id="startOverlay">
+            <button class="start-btn" onclick="startGame()">Game Start</button>
+        </div>
+    </div>
     <a href="/" class="back">← Back to Lobby</a>
 
     <script>
         const canvas = document.getElementById('flappy');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('scoreVal');
+        const startOverlay = document.getElementById('startOverlay');
 
         let score = 0;
-        let gameActive = true;
+        let gameActive = false;
 
-        const bird = { x: 50, y: 150, width: 30, height: 30, gravity: 0.6, lift: -10, velocity: 0 };
-        const pipes = [];
+        let bird = { x: 50, y: 150, width: 30, height: 30, gravity: 0.6, lift: -10, velocity: 0 };
+        let pipes = [];
         const pipeWidth = 50;
         const pipeGap = 150;
         let frameCount = 0;
+
+        function startGame() {
+            resetGame();
+            gameActive = true;
+            startOverlay.style.display = 'none';
+            gameLoop();
+        }
+
+        function resetGame() {
+            score = 0;
+            scoreElement.innerText = score;
+            bird = { x: 50, y: 150, width: 30, height: 30, gravity: 0.6, lift: -10, velocity: 0 };
+            pipes.length = 0;
+            frameCount = 0;
+            gameActive = false;
+        }
 
         function drawBird() {
             ctx.fillStyle = '#facc15';
@@ -68,7 +111,7 @@
         }
 
         function updatePipes() {
-            pipes.forEach(pipe => {
+            pipes.forEach((pipe, index) => {
                 pipe.x -= 3;
                 if (
                     bird.x < pipe.x + pipeWidth &&
@@ -78,7 +121,7 @@
                     gameOver();
                 }
                 if (pipe.x + pipeWidth < 0) {
-                    pipes.shift();
+                    pipes.splice(index, 1);
                     score++;
                     scoreElement.innerText = score;
                 }
@@ -87,9 +130,12 @@
         }
 
         function gameOver() {
+            if (!gameActive) return;
             gameActive = false;
-            alert("Game Over! Score: " + score);
-            location.reload();
+            setTimeout(() => {
+                alert("Game Over! Score: " + score);
+                startOverlay.style.display = 'flex';
+            }, 10);
         }
 
         function gameLoop() {
@@ -107,16 +153,21 @@
         }
 
         window.addEventListener('keydown', e => {
+            if (!gameActive) return;
             if (e.code === 'Space' || e.key === 'ArrowUp') {
                 bird.velocity = bird.lift;
             }
         });
 
         canvas.addEventListener('mousedown', () => {
+            if (!gameActive) return;
             bird.velocity = bird.lift;
         });
 
-        gameLoop();
+        // Initial draw
+        ctx.fillStyle = '#1e293b';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawBird();
     </script>
 </body>
 </html>

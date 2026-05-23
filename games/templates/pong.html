@@ -5,10 +5,31 @@
     <title>Pong Game</title>
     <style>
         body { background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; }
+        .game-container { position: relative; }
         canvas { border: 2px solid #38bdf8; background: #1e293b; }
         .info { margin-bottom: 20px; text-align: center; }
         .score { font-size: 24px; color: #38bdf8; }
         .back { margin-top: 20px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+        
+        #startOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #38bdf8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+        .start-btn:hover { background: #0ea5e9; }
     </style>
 </head>
 <body>
@@ -16,16 +37,42 @@
         <h1>Pong</h1>
         <div class="score"><span id="p1Score">0</span> - <span id="p2Score">0</span></div>
     </div>
-    <canvas id="pong" width="600" height="400"></canvas>
+    <div class="game-container">
+        <canvas id="pong" width="600" height="400"></canvas>
+        <div id="startOverlay">
+            <button class="start-btn" onclick="startGame()">Game Start</button>
+        </div>
+    </div>
     <a href="/" class="back">← Back to Lobby</a>
 
     <script>
         const canvas = document.getElementById('pong');
         const ctx = canvas.getContext('2d');
+        const startOverlay = document.getElementById('startOverlay');
 
-        const ball = { x: 300, y: 200, radius: 10, speed: 5, dx: 5, dy: 5 };
+        let ball = { x: 300, y: 200, radius: 10, speed: 5, dx: 5, dy: 5 };
         const user = { x: 0, y: 150, width: 10, height: 100, score: 0, color: '#38bdf8' };
         const ai = { x: 590, y: 150, width: 10, height: 100, score: 0, color: '#ef4444' };
+        
+        let gameActive = false;
+        let gameInterval = null;
+        const WIN_SCORE = 5;
+
+        function startGame() {
+            resetGame();
+            gameActive = true;
+            startOverlay.style.display = 'none';
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(game, 1000 / 60);
+        }
+
+        function resetGame() {
+            user.score = 0;
+            ai.score = 0;
+            document.getElementById('p1Score').innerText = 0;
+            document.getElementById('p2Score').innerText = 0;
+            resetBall();
+        }
 
         function drawRect(x, y, w, h, color) {
             ctx.fillStyle = color;
@@ -55,6 +102,7 @@
         }
 
         canvas.addEventListener('mousemove', e => {
+            if (!gameActive) return;
             let rect = canvas.getBoundingClientRect();
             user.y = e.clientY - rect.top - user.height / 2;
         });
@@ -90,22 +138,41 @@
             if (ball.x - ball.radius < 0) {
                 ai.score++;
                 document.getElementById('p2Score').innerText = ai.score;
-                resetBall();
+                if (ai.score >= WIN_SCORE) {
+                    gameOver("AI Wins!");
+                } else {
+                    resetBall();
+                }
             } else if (ball.x + ball.radius > canvas.width) {
                 user.score++;
                 document.getElementById('p1Score').innerText = user.score;
-                resetBall();
+                if (user.score >= WIN_SCORE) {
+                    gameOver("You Win!");
+                } else {
+                    resetBall();
+                }
             }
 
             ai.y += (ball.y - (ai.y + ai.height / 2)) * 0.1;
         }
 
+        function gameOver(msg) {
+            gameActive = false;
+            clearInterval(gameInterval);
+            setTimeout(() => {
+                alert("Game Over! " + msg + " Score: " + user.score + " - " + ai.score);
+                startOverlay.style.display = 'flex';
+            }, 10);
+        }
+
         function game() {
+            if (!gameActive) return;
             update();
             render();
         }
 
-        setInterval(game, 1000 / 60);
+        // Initial render
+        render();
     </script>
 </body>
 </html>

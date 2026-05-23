@@ -5,10 +5,31 @@
     <title>Snake Game</title>
     <style>
         body { background: #0f172a; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; color: white; font-family: sans-serif; }
+        .game-container { position: relative; }
         canvas { border: 2px solid #38bdf8; background: #1e293b; box-shadow: 0 0 20px rgba(56, 189, 248, 0.2); }
         .info { margin-bottom: 20px; text-align: center; }
         .score { font-size: 24px; font-weight: bold; color: #38bdf8; }
         .back { margin-top: 20px; color: #94a3b8; text-decoration: none; font-size: 14px; }
+        
+        #startOverlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.8);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .start-btn {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #38bdf8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-weight: bold;
+        }
+        .start-btn:hover { background: #0ea5e9; }
     </style>
 </head>
 <body>
@@ -16,13 +37,19 @@
         <h1>Snake</h1>
         <div class="score">Score: <span id="scoreVal">0</span></div>
     </div>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <div class="game-container">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+        <div id="startOverlay">
+            <button class="start-btn" onclick="startGame()">Game Start</button>
+        </div>
+    </div>
     <a href="/" class="back">← Back to Lobby</a>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('scoreVal');
+        const startOverlay = document.getElementById('startOverlay');
 
         const gridSize = 20;
         const tileCount = canvas.width / gridSize;
@@ -32,39 +59,36 @@
         let dy = 0;
         let snake = [{x: 10, y: 10}];
         let food = {x: 5, y: 5};
+        let gameActive = false;
+        let gameInterval = null;
+
+        function startGame() {
+            resetGame();
+            gameActive = true;
+            startOverlay.style.display = 'none';
+            if (gameInterval) clearInterval(gameInterval);
+            gameInterval = setInterval(drawGame, 100);
+        }
 
         function drawGame() {
             update();
             if (checkGameOver()) {
-                alert("Game Over! Score: " + score);
-                resetGame();
+                gameActive = false;
+                clearInterval(gameInterval);
+                setTimeout(() => {
+                    alert("Game Over! Score: " + score);
+                    startOverlay.style.display = 'flex';
+                }, 10);
+                return;
             }
             clearCanvas();
             drawFood();
             drawSnake();
-            setTimeout(drawGame, 100);
         }
 
-        function update() {
-            const head = {x: snake[0].x + dx, y: snake[0].y + dy};
-            snake.unshift(head);
-            if (head.x === food.x && head.y === food.y) {
-                score += 10;
-                scoreElement.innerText = score;
-                generateFood();
-            } else {
-                if (dx !== 0 || dy !== 0) snake.pop();
-            }
-        }
+        // ... rest of the helper functions ...
 
-        function checkGameOver() {
-            const head = snake[0];
-            if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) return true;
-            for (let i = 1; i < snake.length; i++) {
-                if (head.x === snake[i].x && head.y === snake[i].y) return true;
-            }
-            return false;
-        }
+        drawGame(); // Initial draw
 
         function clearCanvas() {
             ctx.fillStyle = '#1e293b';
