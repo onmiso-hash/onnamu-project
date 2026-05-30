@@ -26,5 +26,9 @@ def flappy():
 def shooter():
     return render_template('shooter.html')
 
+@app.route('/cloud_crush')
+def cloud_crush():
+    return render_template('cloud_crush.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

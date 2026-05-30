@@ -1,0 +1,2113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud Crush - Match-3 Cloud Puzzle</title>
+    <!-- Google Fonts 및 Pretendard CDN 링크 -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+    <style>
+        :root {
+            --bg-gradient: radial-gradient(circle at top, #1e1b4b 0%, #0f0b29 50%, #050314 100%);
+            --glass-bg: rgba(255, 255, 255, 0.04);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-glow: rgba(99, 102, 241, 0.15);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-neon: #38bdf8;
+            --accent-purple: #a855f7;
+            --accent-success: #34d399;
+            --accent-warning: #fb923c;
+            --accent-danger: #f87171;
+            --font-family: 'Outfit', 'Pretendard', sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-family);
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            padding: 20px;
+            position: relative;
+        }
+
+        /* 몽환적인 움직이는 네온 배경 먼지 효과 */
+        .ambient-glow {
+            position: absolute;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+            top: 10%;
+            left: 10%;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+            animation: floatGlow 12s infinite alternate ease-in-out;
+        }
+        .ambient-glow-2 {
+            position: absolute;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.08) 0%, transparent 70%);
+            bottom: 10%;
+            right: 10%;
+            z-index: 0;
+            pointer-events: none;
+            filter: blur(60px);
+            animation: floatGlow2 15s infinite alternate ease-in-out;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(80px, 50px) scale(1.2); }
+        }
+        @keyframes floatGlow2 {
+            0% { transform: translate(0, 0) scale(1.2); }
+            100% { transform: translate(-80px, -50px) scale(0.9); }
+        }
+
+        /* 메인 컨테이너 */
+        .game-wrapper {
+            display: flex;
+            gap: 32px;
+            max-width: 1100px;
+            width: 100%;
+            z-index: 10;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        @media (max-width: 900px) {
+            .game-wrapper {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+        }
+
+        /* 게임 보드 컨테이너 */
+        .board-container {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 28px;
+            padding: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 
+                        0 0 40px var(--glass-glow);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .board-header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .game-title {
+            font-size: 2.2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-neon), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.03em;
+            text-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .title-emoji {
+            font-size: 1.8rem;
+            animation: bounceEmoji 2s infinite ease-in-out;
+            -webkit-text-fill-color: initial;
+        }
+
+        @keyframes bounceEmoji {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        canvas {
+            background: rgba(10, 8, 30, 0.6);
+            border-radius: 20px;
+            box-shadow: inset 0 4px 20px rgba(0, 0, 0, 0.8), 
+                        0 0 1px rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            touch-action: none;
+            display: block;
+        }
+
+        /* 오른쪽 사이드 패널 */
+        .sidebar {
+            width: 380px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media (max-width: 900px) {
+            .sidebar {
+                width: 100%;
+                max-width: 540px;
+            }
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 24px;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        /* 대시보드 스탯 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            padding: 16px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            border-color: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 800;
+            color: var(--text-primary);
+        }
+
+        .stat-value.neon-blue {
+            color: var(--accent-neon);
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+        .stat-value.neon-purple {
+            color: var(--accent-purple);
+            text-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+        }
+
+        /* 프로그레스 바 */
+        .progress-container {
+            margin-bottom: 12px;
+        }
+
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .progress-bar-bg {
+            background: rgba(255, 255, 255, 0.05);
+            height: 14px;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--accent-purple), var(--accent-neon));
+            border-radius: 10px;
+            box-shadow: 0 0 12px var(--accent-neon);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* 사운드 & 조작 패널 */
+        .controls-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-neon), var(--accent-purple));
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(56, 189, 248, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5);
+            filter: brightness(1.1);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--text-secondary);
+        }
+
+        .sound-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: .3s;
+            border-radius: 34px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-neon);
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        /* 가이드 패널 */
+        .guide-panel h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: var(--accent-neon);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .guide-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .guide-list li {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+
+        .guide-list li::before {
+            content: "✦";
+            color: var(--accent-purple);
+            font-weight: bold;
+        }
+
+        .special-tiles-preview {
+            display: flex;
+            gap: 12px;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tile-info {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.02);
+            padding: 6px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            flex: 1;
+        }
+
+        .tile-info-icon {
+            font-size: 1rem;
+        }
+
+        /* 안내 및 모달 레이어 */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 3, 20, 0.85);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            padding: 30px;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .modal-title.stage-clear {
+            background: linear-gradient(135deg, var(--accent-success), var(--accent-neon));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-title.game-over {
+            background: linear-gradient(135deg, var(--accent-danger), var(--accent-warning));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .modal-text {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+
+        .modal-stats {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            max-width: 300px;
+        }
+
+        .modal-stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+        }
+
+        .modal-stat-label {
+            color: var(--text-secondary);
+        }
+
+        .modal-stat-value {
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .modal-btn {
+            padding: 14px 32px;
+            font-weight: 800;
+            border-radius: 14px;
+            font-size: 1.05rem;
+        }
+
+        /* 셔플 안내 인게임 오버레이 */
+        .overlay-toast {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(168, 85, 247, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 14px 28px;
+            border-radius: 16px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            box-shadow: 0 10px 30px rgba(168, 85, 247, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            z-index: 90;
+            letter-spacing: -0.01em;
+        }
+
+        .overlay-toast.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ambient-glow"></div>
+    <div class="ambient-glow-2"></div>
+
+    <div class="game-wrapper">
+        <!-- 게임판 컨테이너 -->
+        <div class="board-container">
+            <div class="board-header">
+                <h1 class="game-title">
+                    <span class="title-emoji">☁️</span>Cloud Crush
+                </h1>
+            </div>
+            
+            <div style="position: relative;">
+                <canvas id="gameCanvas" width="560" height="560"></canvas>
+                
+                <!-- 스테이지 클리어 / 게임오버 모달 -->
+                <div id="gameModal" class="modal">
+                    <h2 id="modalTitle" class="modal-title">Stage Clear!</h2>
+                    <p id="modalText" class="modal-text">목표 점수를 달성했습니다!</p>
+                    
+                    <div class="modal-stats">
+                        <div class="modal-stat-row">
+                            <span class="modal-stat-label">최종 점수</span>
+                            <span id="modalScore" class="modal-stat-value">12,500</span>
+                        </div>
+                        <div class="modal-stat-row">
+                            <span class="modal-stat-label">도달 스테이지</span>
+                            <span id="modalStage" class="modal-stat-value">Stage 2</span>
+                        </div>
+                    </div>
+                    
+                    <button id="modalBtn" class="btn btn-primary modal-btn">다음 스테이지</button>
+                </div>
+
+                <!-- 셔플/매치 불가능 등 경고 안내 -->
+                <div id="overlayToast" class="overlay-toast">
+                    새로운 길 찾기: 셔플 중... 🔄
+                </div>
+            </div>
+        </div>
+
+        <!-- 사이드 바 -->
+        <div class="sidebar">
+            <!-- 스탯 보드 -->
+            <div class="panel">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <span class="stat-label">Stage</span>
+                        <span id="stageVal" class="stat-value neon-blue">1</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Moves Left</span>
+                        <span id="movesVal" class="stat-value neon-purple">30</span>
+                    </div>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-text">
+                        <span>Score: <strong id="scoreVal" style="color: var(--text-primary);">0</strong></span>
+                        <span>Target: <strong id="targetVal" style="color: var(--accent-neon);">1,000</strong></span>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div id="progressBarFill" class="progress-bar-fill"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-secondary); margin-top: 10px;">
+                    <span>최고 스테이지: <strong id="highStageVal">1</strong></span>
+                    <span>최고 점수: <strong id="highScoreVal">0</strong></span>
+                </div>
+            </div>
+
+            <!-- 컨트롤 -->
+            <div class="panel controls-panel">
+                <div class="sound-row">
+                    <span> 효과음 (Sound FX)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="soundToggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <button id="resetBtn" class="btn btn-secondary">
+                    🔄 게임 다시 시작
+                </button>
+                <button id="lobbyBtn" class="btn btn-secondary" onclick="window.location.href='/';">
+                    🏠 로비로 돌아가기
+                </button>
+            </div>
+
+            <!-- 가이드 -->
+            <div class="panel guide-panel">
+                <h3>💡 Play Guide</h3>
+                <ul class="guide-list">
+                    <li>인접한 두 구름을 마우스로 드래그(스와이프)하거나 차례대로 클릭하여 교체(Swap)하세요.</li>
+                    <li>가로 또는 세로로 같은 날씨 구름이 3개 이상 한 줄로 맞추어지면 펑 터집니다.</li>
+                    <li><strong>번개 구름 (⚡)</strong>: 4개 구름을 매칭하면 생성됩니다. 번개 구름을 터뜨리면 십자 방향 가로/세로 전체 구름을 한꺼번에 날려버립니다!</li>
+                    <li><strong>무지개 구름 (🌈)</strong>: 5개 구름을 매칭하면 생성됩니다. 무지개 구름을 스왑하면 스왑한 구름과 같은 종류의 모든 구름을 보드에서 일제히 소거합니다!</li>
+                </ul>
+                <div class="special-tiles-preview">
+                    <div class="tile-info">
+                        <span class="tile-info-icon">⚡</span>
+                        <span>번개 구름 (4 매치)</span>
+                    </div>
+                    <div class="tile-info">
+                        <span class="tile-info-icon">🌈</span>
+                        <span>무지개 구름 (5 매치)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 1. SOUND GENERATOR (Web Audio API)
+        // ==========================================
+        class SoundFX {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playSelect() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, now); // A4
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+
+                gain.gain.setValueAtTime(0.12, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.08);
+            }
+
+            playMatch() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+                
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+                    
+                    gain.gain.setValueAtTime(0.12, now + idx * 0.05);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.05 + 0.15);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start(now + idx * 0.05);
+                    osc.stop(now + idx * 0.05 + 0.18);
+                });
+            }
+
+            playCombo(count) {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const baseFreq = 300 + (count * 80); // 콤보가 높을수록 높은 피치
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(baseFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.15);
+                
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            playLightning() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                // 짜릿한 노이즈 느낌의 스파크 사운드 생성
+                const bufferSize = this.ctx.sampleRate * 0.25; // 0.25초
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noiseNode = this.ctx.createBufferSource();
+                noiseNode.buffer = buffer;
+                
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.setValueAtTime(1000, now);
+                filter.frequency.exponentialRampToValueAtTime(200, now + 0.25);
+                
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                
+                noiseNode.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                noiseNode.start(now);
+                noiseNode.stop(now + 0.25);
+            }
+
+            playRainbow() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                // 황홀하게 올라가는 화음
+                const arpeggio = [293.66, 349.23, 440.00, 523.25, 587.33, 698.46, 880.00]; // D4-F4-A4-C5-D5-F5-A5
+                
+                arpeggio.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+                    
+                    gain.gain.setValueAtTime(0.12, now + idx * 0.04);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.04 + 0.25);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start(now + idx * 0.04);
+                    osc.stop(now + idx * 0.04 + 0.28);
+                });
+            }
+
+            playStageClear() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const notes = [523.25, 659.25, 783.99, 1046.50, 783.99, 1046.50]; // C5, E5, G5, C6, G5, C6
+                const durations = [0.1, 0.1, 0.1, 0.15, 0.1, 0.4];
+                
+                let curTime = now;
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, curTime);
+                    
+                    gain.gain.setValueAtTime(0.15, curTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, curTime + durations[idx]);
+                    
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    
+                    osc.start(curTime);
+                    osc.stop(curTime + durations[idx]);
+                    curTime += durations[idx] * 0.8;
+                });
+            }
+
+            playGameOver() {
+                if (!this.enabled) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, now);
+                osc.frequency.linearRampToValueAtTime(80, now + 0.7);
+                
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+                
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                
+                osc.start(now);
+                osc.stop(now + 0.75);
+            }
+        }
+
+        const sound = new SoundFX();
+
+        // 사운드 토글 스위치 이벤트 연동
+        document.getElementById('soundToggle').addEventListener('change', (e) => {
+            sound.enabled = e.target.checked;
+            if (sound.enabled) {
+                sound.init();
+            }
+        });
+
+
+        // ==========================================
+        // 2. CANVAS & MATCH-3 ENGINE CONFIG
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const GRID_SIZE = 8;
+        const TILE_SIZE = 70; // 70px * 8 = 560px
+        const COLORS = {
+            1: '#38bdf8', // 뭉게구름 (하늘색)
+            2: '#64748b', // 먹구름 (회색)
+            3: '#6366f1', // 비구름 (딥블루)
+            4: '#fb923c', // 해구름 (주황)
+            5: '#ec4899'  // 바람구름 (핑크)
+        };
+
+        // 타일 타입 상수
+        const TILE_NORMAL = 0;
+        const TILE_LIGHTNING = 1; // 4매치 특수
+        const TILE_RAINBOW = 2;    // 5매치 특수
+
+        class CloudTile {
+            constructor(row, col, colorType, tileType = TILE_NORMAL) {
+                this.row = row;
+                this.col = col;
+                this.colorType = colorType; // 1 ~ 5
+                this.tileType = tileType;   // NORMAL, LIGHTNING, RAINBOW
+                
+                // 애니메이션 좌표계 (부드러운 이동을 위함)
+                this.x = col * TILE_SIZE;
+                this.y = row * TILE_SIZE;
+                this.targetX = this.x;
+                this.targetY = this.y;
+                
+                // 크기 및 투명도 관련
+                this.scale = 1.0;
+                this.alpha = 1.0;
+                
+                this.isMatched = false;
+                this.isNew = true; // 떨어져 내리는 애니메이션 구분을 위함
+                this.glowOffset = Math.random() * Math.PI * 2; // 무지개 그라데이션 오프셋
+            }
+
+            update(speed = 0.15) {
+                // 부드러운 위치 보간 (Interpolation)
+                const dx = this.targetX - this.x;
+                const dy = this.targetY - this.y;
+
+                if (Math.abs(dx) > 0.5) {
+                    this.x += dx * speed;
+                } else {
+                    this.x = this.targetX;
+                }
+
+                if (Math.abs(dy) > 0.5) {
+                    this.y += dy * speed;
+                } else {
+                    this.y = this.targetY;
+                    this.isNew = false;
+                }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + TILE_SIZE / 2, this.y + TILE_SIZE / 2);
+                ctx.scale(this.scale, this.scale);
+                ctx.globalAlpha = this.alpha;
+
+                // 특수 타일 네온 이펙트
+                if (this.tileType === TILE_LIGHTNING) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = '#facc15';
+                } else if (this.tileType === TILE_RAINBOW) {
+                    this.glowOffset += 0.05;
+                    const hue = (Math.sin(this.glowOffset) * 180 + 180) | 0;
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = `hsla(${hue}, 80%, 60%, 0.8)`;
+                }
+
+                // 구름 외곽 둥글게 그리기
+                const radius = TILE_SIZE * 0.35;
+                const color = COLORS[this.colorType] || '#ffffff';
+                
+                ctx.fillStyle = color;
+                ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+                ctx.lineWidth = 2.5;
+
+                ctx.beginPath();
+                // 둥실둥실 구름 형태 드로잉 (메인 중앙 + 좌우 날개 4개 구형 겹치기)
+                const offset = radius * 0.4;
+                ctx.arc(0, offset * 0.2, radius, 0, Math.PI * 2); // 센터
+                ctx.arc(-offset * 1.2, offset * 0.4, radius * 0.75, 0, Math.PI * 2); // 좌
+                ctx.arc(offset * 1.2, offset * 0.4, radius * 0.75, 0, Math.PI * 2); // 우
+                ctx.arc(-offset * 0.6, -offset * 0.4, radius * 0.85, 0, Math.PI * 2); // 상좌
+                ctx.arc(offset * 0.6, -offset * 0.4, radius * 0.85, 0, Math.PI * 2); // 상우
+                ctx.fill();
+                ctx.stroke();
+
+                // 안면 표정 드로잉 (귀여운 캐릭터 표현)
+                ctx.shadowBlur = 0; // 표정엔 섀도 제거
+                ctx.fillStyle = '#050314'; // 진한 남검정 눈입
+                
+                const eyeY = -radius * 0.05;
+                const eyeSpacing = radius * 0.4;
+                const eyeSize = radius * 0.12;
+
+                // 1. 뭉게구름(하늘색) : 밝은 웃음 (눈 ^ ^)
+                if (this.colorType === 1) {
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#050314';
+                    // 왼쪽 눈 ^
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing, eyeY, eyeSize, Math.PI, 0);
+                    ctx.stroke();
+                    // 오른쪽 눈 ^
+                    ctx.beginPath();
+                    ctx.arc(eyeSpacing, eyeY, eyeSize, Math.PI, 0);
+                    ctx.stroke();
+                    // 웃는 입 u
+                    ctx.beginPath();
+                    ctx.arc(0, eyeY + radius * 0.2, radius * 0.18, 0, Math.PI);
+                    ctx.stroke();
+                }
+                // 2. 먹구름(회색) : 찡그린 심술 표정
+                else if (this.colorType === 2) {
+                    ctx.lineWidth = 2.5;
+                    ctx.strokeStyle = '#050314';
+                    // 화난 눈썹눈 \ /
+                    ctx.beginPath();
+                    ctx.moveTo(-eyeSpacing - eyeSize, eyeY - eyeSize);
+                    ctx.lineTo(-eyeSpacing + eyeSize, eyeY + eyeSize);
+                    ctx.moveTo(eyeSpacing + eyeSize, eyeY - eyeSize);
+                    ctx.lineTo(eyeSpacing - eyeSize, eyeY + eyeSize);
+                    ctx.stroke();
+                    // 삐진 입 ㅡ
+                    ctx.beginPath();
+                    ctx.moveTo(-radius * 0.2, eyeY + radius * 0.25);
+                    ctx.lineTo(radius * 0.2, eyeY + radius * 0.25);
+                    ctx.stroke();
+                }
+                // 3. 비구름(딥블루) : 우는 표정 + 눈물 맺힘
+                else if (this.colorType === 3) {
+                    // 감은 눈 _ _
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#050314';
+                    ctx.beginPath();
+                    ctx.moveTo(-eyeSpacing - eyeSize, eyeY);
+                    ctx.lineTo(-eyeSpacing + eyeSize, eyeY);
+                    ctx.moveTo(eyeSpacing - eyeSize, eyeY);
+                    ctx.lineTo(eyeSpacing + eyeSize, eyeY);
+                    ctx.stroke();
+                    
+                    // 슬픈 입 ㅜ
+                    ctx.beginPath();
+                    ctx.arc(0, eyeY + radius * 0.35, radius * 0.15, Math.PI, 0);
+                    ctx.stroke();
+
+                    // 왼쪽 눈물방울
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing + 4, eyeY + 8, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // 4. 해구름(주황) : 밝게 윙크하는 둥글고 해사한 얼굴
+                else if (this.colorType === 4) {
+                    // 왼쪽 눈 (동그라미)
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing, eyeY, eyeSize * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 오른쪽 눈 윙크 >
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#050314';
+                    ctx.beginPath();
+                    ctx.moveTo(eyeSpacing - eyeSize, eyeY - eyeSize * 0.5);
+                    ctx.lineTo(eyeSpacing, eyeY);
+                    ctx.lineTo(eyeSpacing - eyeSize, eyeY + eyeSize * 0.5);
+                    ctx.stroke();
+                    // 열린 웃음 O
+                    ctx.fillStyle = '#050314';
+                    ctx.beginPath();
+                    ctx.arc(0, eyeY + radius * 0.22, radius * 0.15, 0, Math.PI);
+                    ctx.fill();
+                }
+                // 5. 바람구름(핑크) : 발그레한 뺨과 기본 깜찍 얼굴
+                else if (this.colorType === 5) {
+                    // 동그란 눈
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing, eyeY, eyeSize * 0.9, 0, Math.PI * 2);
+                    ctx.arc(eyeSpacing, eyeY, eyeSize * 0.9, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 볼터치 (연한 핑크)
+                    ctx.fillStyle = 'rgba(244, 63, 94, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(-eyeSpacing - 6, eyeY + 6, 6, 0, Math.PI * 2);
+                    ctx.arc(eyeSpacing + 6, eyeY + 6, 6, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // 미소 입 u
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#050314';
+                    ctx.beginPath();
+                    ctx.arc(0, eyeY + radius * 0.18, radius * 0.12, 0, Math.PI);
+                    ctx.stroke();
+                }
+
+                // 특수 타일 오버레이 기호 표시
+                if (this.tileType === TILE_LIGHTNING) {
+                    // 번개 마크 ⚡ 드로잉
+                    ctx.fillStyle = '#facc15';
+                    ctx.strokeStyle = '#050314';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#facc15';
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, -radius * 1.1);
+                    ctx.lineTo(-radius * 0.4, -radius * 0.5);
+                    ctx.lineTo(-radius * 0.1, -radius * 0.5);
+                    ctx.lineTo(-radius * 0.3, 0);
+                    ctx.lineTo(radius * 0.4, -radius * 0.5);
+                    ctx.lineTo(radius * 0.1, -radius * 0.5);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.stroke();
+                } else if (this.tileType === TILE_RAINBOW) {
+                    // 무지개 🌈 미세 띠 형상 드로잉
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#e11d48';
+                    ctx.lineWidth = 4;
+                    const rBase = radius * 1.1;
+
+                    // 빨/노/초/파 그라데이션 아크
+                    const colors = ['#f43f5e', '#eab308', '#22c55e', '#06b6d4'];
+                    colors.forEach((col, i) => {
+                        ctx.strokeStyle = col;
+                        ctx.beginPath();
+                        ctx.arc(0, radius * 0.2, rBase - (i * 3.5), Math.PI * 1.25, Math.PI * 1.75);
+                        ctx.stroke();
+                    });
+                }
+
+                ctx.restore();
+            }
+        }
+
+        // ==========================================
+        // 3. 파티클 이펙트 시스템
+        // ==========================================
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                
+                // 가속도 및 속도 무작위
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 2 + Math.random() * 5;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed - 1.5; // 중력 역행 살짝
+                
+                this.alpha = 1.0;
+                this.decay = 0.02 + Math.random() * 0.02;
+                this.size = 3 + Math.random() * 6;
+                this.gravity = 0.15;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.vy += this.gravity;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.alpha);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 6;
+                ctx.shadowColor = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // 라인 클리어(번개) 시 레이저 광선 이펙트
+        class LaserEffect {
+            constructor(index, isRow) {
+                this.index = index;
+                this.isRow = isRow; // true: 가로줄, false: 세로줄
+                this.alpha = 1.0;
+                this.decay = 0.04;
+                this.width = 32;
+            }
+
+            update() {
+                this.alpha -= this.decay;
+                this.width -= 0.6;
+            }
+
+            draw() {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = '#eab308';
+                
+                ctx.fillStyle = 'rgba(253, 224, 71, 0.4)';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 3;
+
+                if (this.isRow) {
+                    const y = this.index * TILE_SIZE + TILE_SIZE / 2;
+                    ctx.fillRect(0, y - this.width / 2, canvas.width, this.width);
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                } else {
+                    const x = this.index * TILE_SIZE + TILE_SIZE / 2;
+                    ctx.fillRect(x - this.width / 2, 0, this.width, canvas.height);
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+
+        // ==========================================
+        // 4. GAME MANAGER & LOGIC STATE
+        // ==========================================
+        class GameEngine {
+            constructor() {
+                this.board = [];
+                this.particles = [];
+                this.effects = [];
+                
+                // 점수 및 상태 변수
+                this.stage = 1;
+                this.score = 0;
+                this.targetScore = 1000;
+                this.moves = 30;
+                
+                // 최고 기록 연동
+                this.highScore = parseInt(localStorage.getItem('cloud_crush_highScore')) || 0;
+                this.highStage = parseInt(localStorage.getItem('cloud_crush_highStage')) || 1;
+                
+                // 조작 변수
+                this.selectedTile = null;
+                this.isAnimating = false;
+                this.comboCount = 0;
+
+                // 드래그 추적
+                this.dragStart = null;
+                this.isDragging = false;
+
+                // UI 엘리먼트 캐싱
+                this.stageEl = document.getElementById('stageVal');
+                this.movesEl = document.getElementById('movesVal');
+                this.scoreEl = document.getElementById('scoreVal');
+                this.targetEl = document.getElementById('targetVal');
+                this.progressBar = document.getElementById('progressBarFill');
+                this.highScoreEl = document.getElementById('highScoreVal');
+                this.highStageEl = document.getElementById('highStageVal');
+                
+                this.modal = document.getElementById('gameModal');
+                this.modalTitle = document.getElementById('modalTitle');
+                this.modalText = document.getElementById('modalText');
+                this.modalScore = document.getElementById('modalScore');
+                this.modalStage = document.getElementById('modalStage');
+                this.modalBtn = document.getElementById('modalBtn');
+
+                this.initUI();
+                this.initEvents();
+            }
+
+            initUI() {
+                // 저장된 최고 스코어 화면 출력
+                this.highScoreEl.textContent = this.highScore.toLocaleString();
+                this.highStageEl.textContent = this.highStage;
+                this.updateUI();
+            }
+
+            updateUI() {
+                this.stageEl.textContent = this.stage;
+                this.movesEl.textContent = this.moves;
+                this.scoreEl.textContent = this.score.toLocaleString();
+                this.targetEl.textContent = this.targetScore.toLocaleString();
+
+                // 게이지 바 계산
+                const percent = Math.min(100, (this.score / this.targetScore) * 100);
+                this.progressBar.style.width = percent + '%';
+
+                if (this.moves <= 5) {
+                    this.movesEl.style.color = 'var(--accent-danger)';
+                    this.movesEl.style.textShadow = '0 0 10px rgba(248, 113, 113, 0.5)';
+                } else {
+                    this.movesEl.style.color = 'var(--accent-purple)';
+                    this.movesEl.style.textShadow = '0 0 10px rgba(168, 85, 247, 0.4)';
+                }
+            }
+
+            saveHighScore() {
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('cloud_crush_highScore', this.highScore);
+                    this.highScoreEl.textContent = this.highScore.toLocaleString();
+                }
+                if (this.stage > this.highStage) {
+                    this.highStage = this.stage;
+                    localStorage.setItem('cloud_crush_highStage', this.highStage);
+                    this.highStageEl.textContent = this.highStage;
+                }
+            }
+
+            // 게임 리셋 (완전 초기화 또는 다음 스테이지 세팅)
+            resetGame(nextStage = false) {
+                if (nextStage) {
+                    this.stage++;
+                    this.targetScore = this.stage * 1000 + (this.stage - 1) * 500;
+                    this.moves = 25 + Math.min(5, this.stage);
+                } else {
+                    this.stage = 1;
+                    this.score = 0;
+                    this.targetScore = 1000;
+                    this.moves = 30;
+                }
+                
+                this.board = [];
+                this.particles = [];
+                this.effects = [];
+                this.selectedTile = null;
+                this.isAnimating = false;
+                this.comboCount = 0;
+
+                this.modal.classList.remove('active');
+                
+                this.generateBoard();
+                this.updateUI();
+                sound.playSelect();
+            }
+
+            // 8x8 보드에 랜덤 구름 타일 배치
+            generateBoard() {
+                let validBoard = false;
+                
+                while (!validBoard) {
+                    this.board = [];
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        this.board[r] = [];
+                        for (let c = 0; c < GRID_SIZE; c++) {
+                            // 시작 즉시 3개 매칭이 완성되어 터지는 상황을 미연에 방지
+                            const forbiddenColors = [];
+                            
+                            // 좌측 2개 연속 체크
+                            if (c >= 2) {
+                                const c1 = this.board[r][c - 1].colorType;
+                                const c2 = this.board[r][c - 2].colorType;
+                                if (c1 === c2) forbiddenColors.push(c1);
+                            }
+                            // 상단 2개 연속 체크
+                            if (r >= 2) {
+                                const c1 = this.board[r - 1][c].colorType;
+                                const c2 = this.board[r - 2][c].colorType;
+                                if (c1 === c2) forbiddenColors.push(c1);
+                            }
+
+                            // 불가능한 색 제외 후 픽
+                            let finalColor;
+                            do {
+                                finalColor = Math.floor(Math.random() * 5) + 1;
+                            } while (forbiddenColors.includes(finalColor));
+
+                            // 초기 드롭 애니메이션 느낌을 위해 상단 오프셋 배치
+                            const tile = new CloudTile(r, c, finalColor);
+                            tile.y = -TILE_SIZE * (r + 1); // 천장에서 떨어지게
+                            this.board[r][c] = tile;
+                        }
+                    }
+
+                    // 배치된 보드가 막다른 길(매치 불가능)이 아니라 플레이 가능한 상태인지 검사
+                    if (this.hasPossibleMoves()) {
+                        validBoard = true;
+                    }
+                }
+            }
+
+            // ==========================================
+            // 5. INTERACTION & MOUSE EVENTS
+            // ==========================================
+            initEvents() {
+                // 인게임 리셋 버튼 연결
+                document.getElementById('resetBtn').addEventListener('click', () => {
+                    if (confirm('게임을 새로 시작하시겠습니까? 현재 스테이지와 점수가 초기화됩니다.')) {
+                        this.resetGame(false);
+                    }
+                });
+
+                // 모달 내 버튼 클릭 시
+                this.modalBtn.addEventListener('click', () => {
+                    if (this.modalBtn.textContent.includes('다음')) {
+                        this.resetGame(true);
+                    } else {
+                        this.resetGame(false);
+                    }
+                });
+
+                // 캔버스 인터랙션 마우스 & 터치 연동
+                canvas.addEventListener('mousedown', (e) => this.handlePointerDown(e));
+                canvas.addEventListener('mousemove', (e) => this.handlePointerMove(e));
+                canvas.addEventListener('mouseup', (e) => this.handlePointerUp());
+
+                canvas.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.handlePointerDown(e.touches[0]);
+                }, { passive: false });
+
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    this.handlePointerMove(e.touches[0]);
+                }, { passive: false });
+
+                canvas.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.handlePointerUp();
+                }, { passive: false });
+            }
+
+            getCanvasCoordinates(pointerEvent) {
+                const rect = canvas.getBoundingClientRect();
+                // 캔버스 자체의 물리 크기 비율 스케일링 보정
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: (pointerEvent.clientX - rect.left) * scaleX,
+                    y: (pointerEvent.clientY - rect.top) * scaleY
+                };
+            }
+
+            getGridPosition(coords) {
+                const col = Math.floor(coords.x / TILE_SIZE);
+                const row = Math.floor(coords.y / TILE_SIZE);
+                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                    return { row, col };
+                }
+                return null;
+            }
+
+            handlePointerDown(e) {
+                if (this.isAnimating) return;
+                sound.init(); // 브라우저 보안에 따른 컨텍스트 활성화
+
+                const coords = this.getCanvasCoordinates(e);
+                const pos = this.getGridPosition(coords);
+                
+                if (pos) {
+                    this.isDragging = true;
+                    this.dragStart = pos;
+                    
+                    const tile = this.board[pos.row][pos.col];
+                    
+                    // 연속 클릭 스왑 로직
+                    if (this.selectedTile) {
+                        const adj = this.areAdjacent(this.selectedTile, tile);
+                        if (adj) {
+                            this.swapTiles(this.selectedTile, tile);
+                            this.selectedTile.scale = 1.0;
+                            this.selectedTile = null;
+                        } else {
+                            // 같은 자리를 누르면 해제, 다른 비인접 타일 누르면 선택 변경
+                            this.selectedTile.scale = 1.0;
+                            if (this.selectedTile === tile) {
+                                this.selectedTile = null;
+                            } else {
+                                this.selectedTile = tile;
+                                this.selectedTile.scale = 1.15;
+                                sound.playSelect();
+                            }
+                        }
+                    } else {
+                        this.selectedTile = tile;
+                        this.selectedTile.scale = 1.15;
+                        sound.playSelect();
+                    }
+                }
+            }
+
+            handlePointerMove(e) {
+                if (!this.isDragging || !this.dragStart || this.isAnimating) return;
+
+                const coords = this.getCanvasCoordinates(e);
+                const pos = this.getGridPosition(coords);
+
+                if (pos) {
+                    // 드래그 시작 포지션과 현재 포지션이 다르고 인접할 때 스왑
+                    const startTile = this.board[this.dragStart.row][this.dragStart.col];
+                    const currentTile = this.board[pos.row][pos.col];
+                    
+                    if (startTile !== currentTile && this.areAdjacent(startTile, currentTile)) {
+                        if (this.selectedTile) {
+                            this.selectedTile.scale = 1.0;
+                            this.selectedTile = null;
+                        }
+                        this.swapTiles(startTile, currentTile);
+                        this.isDragging = false;
+                        this.dragStart = null;
+                    }
+                }
+            }
+
+            handlePointerUp() {
+                this.isDragging = false;
+            }
+
+            areAdjacent(t1, t2) {
+                const rDiff = Math.abs(t1.row - t2.row);
+                const cDiff = Math.abs(t1.col - t2.col);
+                return (rDiff === 1 && cDiff === 0) || (rDiff === 0 && cDiff === 1);
+            }
+
+
+            // ==========================================
+            // 6. CORE SWAP & MATCH DETECT ENGINE
+            // ==========================================
+            swapTiles(t1, t2) {
+                this.isAnimating = true;
+                
+                // 데이터상 상호 교체
+                const tempColor = t1.colorType;
+                const tempType = t1.tileType;
+                
+                t1.colorType = t2.colorType;
+                t1.tileType = t2.tileType;
+                
+                t2.colorType = tempColor;
+                t2.tileType = tempType;
+
+                // 애니메이션 시각 타겟 재설정
+                t1.x = t1.col * TILE_SIZE;
+                t1.y = t1.row * TILE_SIZE;
+                t2.x = t2.col * TILE_SIZE;
+                t2.y = t2.row * TILE_SIZE;
+
+                t1.targetX = t1.col * TILE_SIZE;
+                t1.targetY = t1.row * TILE_SIZE;
+                t2.targetX = t2.col * TILE_SIZE;
+                t2.targetY = t2.row * TILE_SIZE;
+
+                // 특수 타일 (무지개 구름) 스왑 트리거 감지
+                let isSpecialActivated = false;
+                if (t1.tileType === TILE_RAINBOW || t2.tileType === TILE_RAINBOW) {
+                    isSpecialActivated = this.triggerRainbowSwap(t1, t2);
+                }
+
+                if (isSpecialActivated) {
+                    this.moves--;
+                    this.comboCount = 1;
+                    this.updateUI();
+                    setTimeout(() => this.processDestruction(), 250);
+                    return;
+                }
+
+                // 일반적인 스왑 진행 후 매치 검사
+                setTimeout(() => {
+                    const matches = this.detectMatches();
+                    
+                    if (matches.length > 0) {
+                        // 유효 매치 존재: 이동 수 1 차감 및 매치 파괴 진행
+                        this.moves--;
+                        this.comboCount = 1;
+                        this.updateUI();
+                        this.processDestruction();
+                    } else {
+                        // 무효 매치: 다시 롤백 스왑 애니메이션 진행
+                        sound.playSelect();
+                        const tempColorBack = t1.colorType;
+                        const tempTypeBack = t1.tileType;
+                        
+                        t1.colorType = t2.colorType;
+                        t1.tileType = t2.tileType;
+                        
+                        t2.colorType = tempColorBack;
+                        t2.tileType = tempTypeBack;
+
+                        t1.x = t1.col * TILE_SIZE;
+                        t1.y = t1.row * TILE_SIZE;
+                        t2.x = t2.col * TILE_SIZE;
+                        t2.y = t2.row * TILE_SIZE;
+
+                        setTimeout(() => {
+                            this.isAnimating = false;
+                        }, 200);
+                    }
+                }, 200);
+            }
+
+            // 보드 내 3개 이상 가로/세로 매칭 감지
+            detectMatches() {
+                const matchGrid = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+                const matchGroups = [];
+
+                // 1. 가로 매치 스캔
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    let matchLen = 1;
+                    let matchColor = -1;
+                    let startCol = 0;
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const tile = this.board[r][c];
+                        if (c === 0) {
+                            matchColor = tile.colorType;
+                            startCol = 0;
+                            matchLen = 1;
+                        } else {
+                            if (tile.colorType === matchColor && tile.colorType !== -1) {
+                                matchLen++;
+                            } else {
+                                if (matchLen >= 3) {
+                                    matchGroups.push({ row: r, col: startCol, len: matchLen, isRow: true, color: matchColor });
+                                    for (let i = startCol; i < startCol + matchLen; i++) matchGrid[r][i] = true;
+                                }
+                                matchColor = tile.colorType;
+                                startCol = c;
+                                matchLen = 1;
+                            }
+                        }
+                    }
+                    if (matchLen >= 3) {
+                        matchGroups.push({ row: r, col: startCol, len: matchLen, isRow: true, color: matchColor });
+                        for (let i = startCol; i < startCol + matchLen; i++) matchGrid[r][i] = true;
+                    }
+                }
+
+                // 2. 세로 매치 스캔
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    let matchLen = 1;
+                    let matchColor = -1;
+                    let startRow = 0;
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        const tile = this.board[r][c];
+                        if (r === 0) {
+                            matchColor = tile.colorType;
+                            startRow = 0;
+                            matchLen = 1;
+                        } else {
+                            if (tile.colorType === matchColor && tile.colorType !== -1) {
+                                matchLen++;
+                            } else {
+                                if (matchLen >= 3) {
+                                    matchGroups.push({ row: startRow, col: c, len: matchLen, isRow: false, color: matchColor });
+                                    for (let i = startRow; i < startRow + matchLen; i++) matchGrid[i][c] = true;
+                                }
+                                matchColor = tile.colorType;
+                                startRow = r;
+                                matchLen = 1;
+                            }
+                        }
+                    }
+                    if (matchLen >= 3) {
+                        matchGroups.push({ row: startRow, col: c, len: matchLen, isRow: false, color: matchColor });
+                        for (let i = startRow; i < startRow + matchLen; i++) matchGrid[i][c] = true;
+                    }
+                }
+
+                // 매치된 타일 플래그 설정 및 리스트 취합
+                const targetTiles = [];
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        if (matchGrid[r][c]) {
+                            this.board[r][c].isMatched = true;
+                            targetTiles.push(this.board[r][c]);
+                        }
+                    }
+                }
+
+                // 3. 특수 타일 생성 로직 반영 (4매치 -> Lightning / 5매치 -> Rainbow)
+                matchGroups.forEach(group => {
+                    if (group.len === 4) {
+                        // 4매치 중앙부 위치에 Lightning 구름 배치 타겟 지정
+                        const targetCol = group.isRow ? group.col + 2 : group.col;
+                        const targetRow = group.isRow ? group.row : group.row + 2;
+                        
+                        this.queueSpecialCreation(targetRow, targetCol, group.color, TILE_LIGHTNING);
+                    } else if (group.len >= 5) {
+                        // 5매치 중앙부에 Rainbow 구름 배치 타겟 지정
+                        const targetCol = group.isRow ? group.col + 2 : group.col;
+                        const targetRow = group.isRow ? group.row : group.row + 2;
+                        
+                        this.queueSpecialCreation(targetRow, targetCol, group.color, TILE_RAINBOW);
+                    }
+                });
+
+                return targetTiles;
+            }
+
+            // 매칭 파괴 시 해당 자리에 특수 구름이 재생성되도록 예약
+            queueSpecialCreation(row, col, color, type) {
+                if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+                    this.specialQueue = this.specialQueue || [];
+                    this.specialQueue.push({ row, col, color, type });
+                }
+            }
+
+            // 무지개 구름 스왑 로직 처리
+            triggerRainbowSwap(t1, t2) {
+                let rainbowTile, normalTile;
+                if (t1.tileType === TILE_RAINBOW) {
+                    rainbowTile = t1;
+                    normalTile = t2;
+                } else {
+                    rainbowTile = t2;
+                    normalTile = t1;
+                }
+
+                sound.playRainbow();
+                rainbowTile.isMatched = true;
+                
+                // 만약 무지개 구름과 또 다른 무지개 구름을 교체하는 초대형 스왑인 경우 -> 올 보드 클리어
+                if (normalTile.tileType === TILE_RAINBOW) {
+                    for (let r = 0; r < GRID_SIZE; r++) {
+                        for (let c = 0; c < GRID_SIZE; c++) {
+                            this.board[r][c].isMatched = true;
+                        }
+                    }
+                    return true;
+                }
+
+                // 스왑된 일반 구름과 같은 컬러를 가진 맵 상의 모든 구름 마크 지정
+                const targetColor = normalTile.colorType;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        if (this.board[r][c].colorType === targetColor) {
+                            this.board[r][c].isMatched = true;
+                        }
+                    }
+                }
+                return true;
+            }
+
+
+            // ==========================================
+            // 7. DESTRUCTION & GRAVITY LOOP
+            // ==========================================
+            processDestruction() {
+                let anyMatches = false;
+                let lightningActivated = false;
+
+                // 1. 연쇄적인 번개 구름(Lightning) 제거 활성화
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const tile = this.board[r][c];
+                        if (tile.isMatched && tile.tileType === TILE_LIGHTNING) {
+                            tile.tileType = TILE_NORMAL; // 폭발 무한루프 방지
+                            this.activateLightningEffect(r, c);
+                            lightningActivated = true;
+                        }
+                    }
+                }
+
+                // Lightning 효과 발동 시 사운드
+                if (lightningActivated) {
+                    sound.playLightning();
+                }
+
+                // 2. 파티클 소환 및 실제 파괴 처리
+                let destroyedCount = 0;
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const tile = this.board[r][c];
+                        if (tile.isMatched) {
+                            anyMatches = true;
+                            destroyedCount++;
+
+                            // 파스텔 톤 입자 팝 애니메이션 생성
+                            const pColor = COLORS[tile.colorType] || '#ffffff';
+                            const tileCenterX = tile.x + TILE_SIZE / 2;
+                            const tileCenterY = tile.y + TILE_SIZE / 2;
+                            
+                            for (let i = 0; i < 8; i++) {
+                                this.particles.push(new Particle(tileCenterX, tileCenterY, pColor));
+                            }
+
+                            // 보드에서 임시로 소거 (-1)
+                            tile.colorType = -1;
+                            tile.tileType = TILE_NORMAL;
+                            tile.isMatched = false;
+                        }
+                    }
+                }
+
+                if (anyMatches) {
+                    // 점수 합산 및 가중치 (콤보 콤보 가점)
+                    const comboMultiplier = 1.0 + (this.comboCount - 1) * 0.5;
+                    const pointsGained = Math.round(destroyedCount * 60 * comboMultiplier);
+                    this.score += pointsGained;
+                    
+                    if (this.comboCount > 1) {
+                        sound.playCombo(this.comboCount);
+                    } else if (!lightningActivated) {
+                        sound.playMatch();
+                    }
+
+                    this.updateUI();
+
+                    // 예약된 Lightning/Rainbow 특수 구름 새로고침 및 데이터 대입
+                    if (this.specialQueue && this.specialQueue.length > 0) {
+                        this.specialQueue.forEach(item => {
+                            this.board[item.row][item.col].colorType = item.color;
+                            this.board[item.row][item.col].tileType = item.type;
+                        });
+                        this.specialQueue = [];
+                    }
+
+                    // 중력 드롭 및 리필 시퀀스로 이행
+                    setTimeout(() => this.applyGravity(), 300);
+                } else {
+                    // 매칭 체인이 완전히 종료됨: 다음 턴 진행 가능
+                    this.isAnimating = false;
+                    this.comboCount = 0;
+                    this.checkGameStatus();
+                }
+            }
+
+            // 번개 구름 터졌을 때 십자 레이저 이펙트 및 타일 매치 지정
+            activateLightningEffect(row, col) {
+                this.effects.push(new LaserEffect(row, true)); // 가로줄 광선
+                this.effects.push(new LaserEffect(col, false)); // 세로줄 광선
+
+                // 가로 및 세로줄 모든 타일 매치 확정
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    if (c !== col) this.board[row][c].isMatched = true;
+                }
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    if (r !== row) this.board[r][col].isMatched = true;
+                }
+            }
+
+            // 중력 적용 로직: 공중에 붕 뜬 타일을 아래로 툭 떨어뜨리기
+            applyGravity() {
+                let dropsOccurred = false;
+
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    // 아래서부터 스캔하여 빈자리(-1)가 있을 때 위의 구름들을 차례대로 내림
+                    let emptyRows = 0;
+                    for (let r = GRID_SIZE - 1; r >= 0; r--) {
+                        if (this.board[r][c].colorType === -1) {
+                            emptyRows++;
+                        } else if (emptyRows > 0) {
+                            // 위 타일을 아래 빈 칸으로 이동
+                            const destRow = r + emptyRows;
+                            const srcTile = this.board[r][c];
+                            
+                            this.board[destRow][c].colorType = srcTile.colorType;
+                            this.board[destRow][c].tileType = srcTile.tileType;
+                            
+                            // 애니메이션 시작 지점 조정
+                            this.board[destRow][c].x = c * TILE_SIZE;
+                            this.board[destRow][c].y = srcTile.y;
+                            this.board[destRow][c].targetX = c * TILE_SIZE;
+                            this.board[destRow][c].targetY = destRow * TILE_SIZE;
+                            
+                            srcTile.colorType = -1;
+                            srcTile.tileType = TILE_NORMAL;
+                            dropsOccurred = true;
+                        }
+                    }
+
+                    // 빈 윗자리들을 하늘 위 천장에서 무작위 생성하여 신규 드롭
+                    for (let i = 0; i < emptyRows; i++) {
+                        const targetRow = emptyRows - 1 - i;
+                        const randColor = Math.floor(Math.random() * 5) + 1;
+                        
+                        this.board[targetRow][c].colorType = randColor;
+                        this.board[targetRow][c].tileType = TILE_NORMAL;
+                        
+                        // 천장 바깥 낙하지점
+                        this.board[targetRow][c].x = c * TILE_SIZE;
+                        this.board[targetRow][c].y = -TILE_SIZE * (i + 1.5);
+                        this.board[targetRow][c].targetX = c * TILE_SIZE;
+                        this.board[targetRow][c].targetY = targetRow * TILE_SIZE;
+                        this.board[targetRow][c].isNew = true;
+                        dropsOccurred = true;
+                    }
+                }
+
+                // 애니메이션 대기 후, 낙하 완료된 보드로 2차 연쇄 매치 검사
+                setTimeout(() => {
+                    this.comboCount++;
+                    const nextMatches = this.detectMatches();
+                    if (nextMatches.length > 0) {
+                        this.processDestruction();
+                    } else {
+                        // 연쇄 매치 종료
+                        this.isAnimating = false;
+                        this.comboCount = 0;
+                        this.checkGameStatus();
+
+                        // 매치가 다 끝났는데 혹시 막다른 골목(교착 상태)에 빠졌다면 오토 셔플 진행
+                        if (!this.hasPossibleMoves()) {
+                            this.triggerBoardShuffle();
+                        }
+                    }
+                }, 350);
+            }
+
+
+            // ==========================================
+            // 8. 셔플 및 교착 상태 방지 로직 (Deadlock Prevention)
+            // ==========================================
+            triggerBoardShuffle() {
+                this.isAnimating = true;
+                const toast = document.getElementById('overlayToast');
+                toast.classList.add('active');
+
+                sound.playRainbow();
+
+                setTimeout(() => {
+                    let valid = false;
+                    while (!valid) {
+                        // 보드 상의 모든 컬러 수집
+                        const colors = [];
+                        for (let r = 0; r < GRID_SIZE; r++) {
+                            for (let c = 0; c < GRID_SIZE; c++) {
+                                if (this.board[r][c].colorType !== -1) {
+                                    colors.push({
+                                        color: this.board[r][c].colorType,
+                                        type: this.board[r][c].tileType
+                                    });
+                                }
+                            }
+                        }
+
+                        // 피셔-예이츠 셔플
+                        for (let i = colors.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            const temp = colors[i];
+                            colors[i] = colors[j];
+                            colors[j] = temp;
+                        }
+
+                        // 보드에 재분배 (즉시 터지는 세팅 피하기)
+                        let idx = 0;
+                        for (let r = 0; r < GRID_SIZE; r++) {
+                            for (let c = 0; c < GRID_SIZE; c++) {
+                                const forbid = [];
+                                if (c >= 2 && this.board[r][c - 1].colorType === this.board[r][c - 2].colorType) {
+                                    forbid.push(this.board[r][c - 1].colorType);
+                                }
+                                if (r >= 2 && this.board[r - 1][c].colorType === this.board[r - 2][c].colorType) {
+                                    forbid.push(this.board[r - 1][c].colorType);
+                                }
+
+                                // 가능한 셔플 원소 배치 시도
+                                let itemIdx = colors.findIndex((el, index) => index >= idx && !forbid.includes(el.color));
+                                if (itemIdx === -1) itemIdx = idx; // 최악의 경우 임의 배분
+
+                                // 스왑 교체
+                                const tempEl = colors[idx];
+                                colors[idx] = colors[itemIdx];
+                                colors[itemIdx] = tempEl;
+
+                                this.board[r][c].colorType = colors[idx].color;
+                                this.board[r][c].tileType = colors[idx].type;
+                                
+                                // 연출: 사방 흩뿌렸다가 안으로 모이는 애니메이션
+                                this.board[r][c].x = canvas.width / 2 + (Math.random() * 200 - 100);
+                                this.board[r][c].y = canvas.height / 2 + (Math.random() * 200 - 100);
+                                this.board[r][c].targetX = c * TILE_SIZE;
+                                this.board[r][c].targetY = r * TILE_SIZE;
+
+                                idx++;
+                            }
+                        }
+
+                        if (this.hasPossibleMoves()) {
+                            valid = true;
+                        }
+                    }
+
+                    setTimeout(() => {
+                        toast.classList.remove('active');
+                        this.isAnimating = false;
+                    }, 600);
+
+                }, 1000);
+            }
+
+            // 매칭할 수 있는 콤보 경로가 보드 상에 1개라도 존재하는지 완전 탐색
+            hasPossibleMoves() {
+                // 가상으로 한 쌍을 스왑해 매칭이 일어나는지 브루트포스 테스트
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        // 오른쪽 스왑 테스트
+                        if (c < GRID_SIZE - 1) {
+                            if (this.testSwapAndMatch(r, c, r, c + 1)) return true;
+                        }
+                        // 아래쪽 스왑 테스트
+                        if (r < GRID_SIZE - 1) {
+                            if (this.testSwapAndMatch(r, c, r + 1, c)) return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            testSwapAndMatch(r1, c1, r2, c2) {
+                // Rainbow 타일이 있으면 100% 매칭 스왑 가능
+                if (this.board[r1][c1].tileType === TILE_RAINBOW || this.board[r2][c2].tileType === TILE_RAINBOW) {
+                    return true;
+                }
+
+                // 가상 스왑
+                const temp = this.board[r1][c1].colorType;
+                this.board[r1][c1].colorType = this.board[r2][c2].colorType;
+                this.board[r2][c2].colorType = temp;
+
+                // 3개 정렬 여부 검사
+                const isMatch = this.checkGridMatchExist();
+
+                // 가상 스왑 롤백
+                this.board[r2][c2].colorType = this.board[r1][c1].colorType;
+                this.board[r1][c1].colorType = temp;
+
+                return isMatch;
+            }
+
+            checkGridMatchExist() {
+                for (let r = 0; r < GRID_SIZE; r++) {
+                    for (let c = 0; c < GRID_SIZE; c++) {
+                        const col = this.board[r][c].colorType;
+                        if (col === -1) continue;
+
+                        // 가로 3개 동일 검사
+                        if (c < GRID_SIZE - 2 && col === this.board[r][c+1].colorType && col === this.board[r][c+2].colorType) return true;
+                        // 세로 3개 동일 검사
+                        if (r < GRID_SIZE - 2 && col === this.board[r+1][c].colorType && col === this.board[r+2][c].colorType) return true;
+                    }
+                }
+                return false;
+            }
+
+
+            // ==========================================
+            // 9. GAME OVER & WIN/LOSS CONDITIONS
+            // ==========================================
+            checkGameStatus() {
+                // 승리 조건: 이동 횟수가 남아있는 중에 목표 점수 이상 돌파
+                if (this.score >= this.targetScore) {
+                    this.saveHighScore();
+                    this.showModal(true);
+                }
+                // 패배 조건: 목표 점수를 못 넘겼는데 이동 제한이 0회 도달
+                else if (this.moves <= 0) {
+                    this.saveHighScore();
+                    this.showModal(false);
+                }
+            }
+
+            showModal(isWin) {
+                this.saveHighScore();
+                
+                this.modalScore.textContent = this.score.toLocaleString();
+                this.modalStage.textContent = `Stage ${this.stage}`;
+
+                if (isWin) {
+                    sound.playStageClear();
+                    this.modalTitle.textContent = 'Stage Clear! 🎉';
+                    this.modalTitle.className = 'modal-title stage-clear';
+                    this.modalText.innerHTML = `구름들을 훌륭하게 터뜨리셨습니다!<br>다음 레벨에서는 더 높은 목표 점수가 주어집니다.`;
+                    this.modalBtn.textContent = '다음 스테이지 도전 ⚡';
+                } else {
+                    sound.playGameOver();
+                    this.modalTitle.textContent = 'Game Over 🌧️';
+                    this.modalTitle.className = 'modal-title game-over';
+                    this.modalText.innerHTML = `아쉽게도 이동 횟수를 모두 소모했습니다.<br>다시 도전해서 구름들을 깨뜨려보세요!`;
+                    this.modalBtn.textContent = '첫 스테이지부터 재도전 🔄';
+                }
+
+                this.modal.classList.add('active');
+            }
+        }
+
+        // ==========================================
+        // 10. MAIN GAMELOOP (60FPS DRAW & TICK)
+        // ==========================================
+        const game = new GameEngine();
+        game.resetGame(false);
+
+        function gameLoop() {
+            // 캔버스 잔상 제거 및 다크 그라디언트 배경 드로잉
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 미세한 밤하늘 스페이스 패턴 그리드
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.025)';
+            ctx.lineWidth = 1.0;
+            for (let i = 0; i <= GRID_SIZE; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * TILE_SIZE, 0);
+                ctx.lineTo(i * TILE_SIZE, canvas.height);
+                ctx.moveTo(0, i * TILE_SIZE);
+                ctx.lineTo(canvas.width, i * TILE_SIZE);
+                ctx.stroke();
+            }
+
+            // 1. 구름 타일 위치 업데이트 및 드로잉
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const tile = game.board[r][c];
+                    if (tile && tile.colorType !== -1) {
+                        tile.update();
+                        tile.draw();
+                    }
+                }
+            }
+
+            // 2. 레이저 빔 이펙트 업데이트 및 그리기
+            for (let i = game.effects.length - 1; i >= 0; i--) {
+                const eff = game.effects[i];
+                eff.update();
+                eff.draw();
+                if (eff.alpha <= 0) {
+                    game.effects.splice(i, 1);
+                }
+            }
+
+            // 3. 팝 파티클 입자 업데이트 및 그리기
+            for (let i = game.particles.length - 1; i >= 0; i--) {
+                const p = game.particles[i];
+                p.update();
+                p.draw();
+                if (p.alpha <= 0) {
+                    game.particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 루프 가동
+        requestAnimationFrame(gameLoop);
+
+    </script>
+</body>
+</html>

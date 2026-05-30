@@ -44,6 +44,7 @@
 - **AI 협업**: Gemini CLI와 협업 시, 이 파일을 최우선 지침으로 삼습니다.
 
 ## 📅 주요 히스토리
+- 2026-05-30: 매치-3 퍼즐 게임 'Cloud Crush' 추가 및 포털 연동. 상세 내용은 `history/GAMES_CLOUD_CRUSH_20260530.md` 참조.
 - 2026-05-23: Media Home 갤러리 뷰어(Lightbox) 내비게이션 기능 추가 (버튼, 키보드, 스와이프). 상세 내용은 `history/MEDIA_NAVIGATION_20260523.md` 참조.
 - 2026-05-23: Games 마이크로서비스 추가 및 포털 연동 (Snake, 2048, Pong, Flappy Clone). 상세 내용은 `history/GAMES_INTEGRATION_20260523.md` 참조.
 - 2026-05-23: 1943 스타일 슈팅 게임 '1943 Retro' 추가. 상세 내용은 `history/GAMES_1943_ADDITION_20260523.md` 참조.
