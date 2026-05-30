@@ -32,7 +32,7 @@ async_client = httpx.AsyncClient(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,  # 공개 API이므로 credentials가 필요 없으며, 최신 FastAPI 크래시 방지를 위해 False로 명시
     allow_methods=["*"],
     allow_headers=["*"],
 )
