@@ -6,7 +6,6 @@ services:
     container_name: rdap-bootstrap
     restart: unless-stopped
     ports:
-      - "5003:8000"
       - "5004:8000"
     volumes:
       - ./bootstrap_server/data:/app/bootstrap_server/data
