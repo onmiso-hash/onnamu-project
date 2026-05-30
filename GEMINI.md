@@ -44,6 +44,7 @@
 - **AI 협업**: Gemini CLI와 협업 시, 이 파일을 최우선 지침으로 삼습니다.
 
 ## 📅 주요 히스토리
+- 2026-05-31: 하이퍼 스네이크(Hyper Snake) 모던 웹게임 개편 및 로비 연동 (가속도 시스템, localStorage 랭킹 대시보드, Web Audio API 효과음, 파티클 폭발 연출 추가). 상세 내용은 `history/GAMES_HYPER_SNAKE_20260531.md` 참조.
 - 2026-05-30: 매치-3 퍼즐 게임 'Cloud Crush' 추가 및 포털 연동 (스테이지 난이도 밸런싱 및 누적 점수 구조 개선). 상세 내용은 `history/GAMES_CLOUD_CRUSH_20260530.md` 참조.
 - 2026-05-23: Media Home 갤러리 뷰어(Lightbox) 내비게이션 기능 추가 (버튼, 키보드, 스와이프). 상세 내용은 `history/MEDIA_NAVIGATION_20260523.md` 참조.
 - 2026-05-23: Games 마이크로서비스 추가 및 포털 연동 (Snake, 2048, Pong, Flappy Clone). 상세 내용은 `history/GAMES_INTEGRATION_20260523.md` 참조.
