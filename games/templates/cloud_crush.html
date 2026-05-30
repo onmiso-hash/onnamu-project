@@ -1208,6 +1208,7 @@
                 // 점수 및 상태 변수
                 this.stage = 1;
                 this.score = 0;
+                this.totalScore = 0; // 게임 전반의 누적 총점 도입
                 this.targetScore = 1000;
                 this.moves = 30;
                 
@@ -1271,8 +1272,8 @@
             }
 
             saveHighScore() {
-                if (this.score > this.highScore) {
-                    this.highScore = this.score;
+                if (this.totalScore > this.highScore) {
+                    this.highScore = this.totalScore;
                     localStorage.setItem('cloud_crush_highScore', this.highScore);
                     this.highScoreEl.textContent = this.highScore.toLocaleString();
                 }
@@ -1289,9 +1290,11 @@
                     this.stage++;
                     this.targetScore = this.stage * 1000 + (this.stage - 1) * 500;
                     this.moves = 25 + Math.min(5, this.stage);
+                    this.score = 0; // 스테이지 득점 0으로 리셋하여 정상적인 스테이지 클리어 밸런스 제공
                 } else {
                     this.stage = 1;
                     this.score = 0;
+                    this.totalScore = 0; // 게임 완전 재시작 시 누적 총점도 0으로 클리어
                     this.targetScore = 1000;
                     this.moves = 30;
                 }
@@ -1762,6 +1765,7 @@
                     const comboMultiplier = 1.0 + (this.comboCount - 1) * 0.5;
                     const pointsGained = Math.round(destroyedCount * 60 * comboMultiplier);
                     this.score += pointsGained;
+                    this.totalScore += pointsGained; // 누적 총점 추가
                     
                     if (this.comboCount > 1) {
                         sound.playCombo(this.comboCount);
@@ -2028,7 +2032,7 @@
             showModal(isWin) {
                 this.saveHighScore();
                 
-                this.modalScore.textContent = this.score.toLocaleString();
+                this.modalScore.textContent = this.totalScore.toLocaleString(); // 누적 총점 노출
                 this.modalStage.textContent = `Stage ${this.stage}`;
 
                 if (isWin) {
@@ -2041,7 +2045,7 @@
                     sound.playGameOver();
                     this.modalTitle.textContent = 'Game Over 🌧️';
                     this.modalTitle.className = 'modal-title game-over';
-                    this.modalText.innerHTML = `아쉽게도 이동 횟수를 모두 소모했습니다.<br>다시 도전해서 구름들을 깨뜨려보세요!`;
+                    this.modalText.innerHTML = `아쉽게도 이동 횟수를 모두 소모했습니다.<br>최종 누적 총점: <strong>${this.totalScore.toLocaleString()}</strong>점<br>다시 도전해서 구름들을 깨뜨려보세요!`;
                     this.modalBtn.textContent = '첫 스테이지부터 재도전 🔄';
                 }
 
