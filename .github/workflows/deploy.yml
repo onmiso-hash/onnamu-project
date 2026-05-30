@@ -19,14 +19,18 @@ jobs:
           script: |
             powershell -Command "cd C:\Users\onmis\project; git fetch origin main; git reset --hard origin/main; cd gallery; docker compose up -d --build; cd ../portal; docker compose up -d --build; cd ../games; docker compose up -d --build; cd ../rdap; docker compose up -d --build bootstrap-server; docker compose up -d --build my-rdap; git log -1"
 
-      # ✨ 카테고리와 타이틀을 한글로 수정한 버전이에요
+      # ✨ 카테고리와 타이틀을 한글로 수정한 버전이며, 따옴표와 줄바꿈 문제를 jq로 안전하게 처리한 버전이에요
       - name: Send Work Log to Portal
+        env:
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
         run: |
+          JSON_DATA=$(jq -n \
+            --arg cat "깃허브 푸시" \
+            --arg title "업데이트: ${{ github.event.repository.name }}" \
+            --arg msg "$COMMIT_MSG" \
+            --arg date "$(date +'%Y-%m-%d')" \
+            '{category: $cat, title: $title, content: $msg, date: $date}')
+          
           curl -X POST "https://onnamu.kr/api/work/save" \
           -H "Content-Type: application/json" \
-          -d '{
-            "category": "깃허브 푸시",
-            "title": "업데이트: ${{ github.event.repository.name }}",
-            "content": "${{ github.event.head_commit.message }}",
-            "date": "'"$(date +'%Y-%m-%d')"'"
-          }'
+          -d "$JSON_DATA"
