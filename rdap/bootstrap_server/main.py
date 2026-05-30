@@ -79,10 +79,67 @@ async def startup_event():
 async def shutdown_event():
     await async_client.aclose()
 
+from fastapi.staticfiles import StaticFiles
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# 캐시 제어용 커스텀 StaticFiles 클래스 정의
+class NoCacheStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        # Cloudflare CDN 및 브라우저 캐싱을 완벽히 방지하는 강력한 캐시 무효화 헤더 주입
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, proxy-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        response.headers["Surrogate-Control"] = "no-store"
+        return response
+
+# client 디렉토리를 NoCacheStaticFiles로 마운트
+client_dir = os.path.join(BASE_DIR, "client")
+app.mount("/client", NoCacheStaticFiles(directory=client_dir), name="client")
+
+def get_nocache_html_response(file_name: str):
+    """HTML 파일 서빙 시 캐시 차단 헤더를 내포하는 FileResponse를 반환합니다."""
+    file_path = os.path.join(BASE_DIR, file_name)
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"{file_name} not found")
+    return FileResponse(
+        file_path,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate, proxy-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+            "Surrogate-Control": "no-store"
+        }
+    )
+
 @app.get("/")
 async def root(request: Request = None):
-    status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
-    return {"message": "onnamu RDAP Bootstrap Server is running", "status": status}
+    # JSON 요청인 경우(예: API 모니터링 툴 등) 이전 JSON 응답 하위 호환 유지
+    accept = request.headers.get("accept", "") if request else ""
+    if "application/json" in accept and "text/html" not in accept:
+        status = "ready" if (bootstrap_manager and bootstrap_manager.data) else "initializing or error"
+        return {"message": "onnamu RDAP Bootstrap Server is running", "status": status}
+    
+    # 일반 브라우저 요청인 경우 한국어 메인 페이지 렌더링
+    return get_nocache_html_response("rdap-about-ko.html")
+
+@app.get("/rdap-about-ko.html")
+async def get_about_ko():
+    return get_nocache_html_response("rdap-about-ko.html")
+
+@app.get("/rdap-about-en.html")
+async def get_about_en():
+    return get_nocache_html_response("rdap-about-en.html")
+
+@app.get("/rdap-javascript-ko.html")
+async def get_javascript_ko():
+    return get_nocache_html_response("rdap-javascript-ko.html")
+
+@app.get("/rdap-javascript-en.html")
+async def get_javascript_en():
+    return get_nocache_html_response("rdap-javascript-en.html")
+
 
 @app.get("/dashboard")
 async def get_dashboard():

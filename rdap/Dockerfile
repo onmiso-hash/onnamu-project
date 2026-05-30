@@ -2,12 +2,17 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# 소스 파일 복사
+# requirements.txt 복사 및 의존성 설치
+COPY bootstrap_server/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# rdap 내 전체 소스 파일(client 디렉토리, HTML 파일, 백엔드 등)을 복사
 COPY . .
 
-# 메인 페이지를 index.html로 설정
-RUN cp rdap-about-ko.html index.html
+# 데이터 저장 디렉토리 생성
+RUN mkdir -p bootstrap_server/data
 
-# Python 내장 HTTP 서버를 사용하여 80포트로 서빙
-EXPOSE 80
-CMD ["python", "-m", "http.server", "80"]
+EXPOSE 8000
+
+# uvicorn을 사용하여 백엔드 서비스 실행
+CMD ["uvicorn", "bootstrap_server.main:app", "--host", "0.0.0.0", "--port", "8000"]

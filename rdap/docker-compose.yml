@@ -1,23 +1,15 @@
 services:
-  my-rdap:
-    build: .
-    container_name: my-rdap
-    restart: unless-stopped
-    ports:
-      - "5003:80"
-    networks:
-      - rdap-network
-
   bootstrap-server:
     build:
       context: .
-      dockerfile: ./bootstrap_server/Dockerfile
+      dockerfile: ./Dockerfile
     container_name: rdap-bootstrap
     restart: unless-stopped
     ports:
+      - "5003:8000"
       - "5004:8000"
     volumes:
-      - ./bootstrap_server/data:/app/data
+      - ./bootstrap_server/data:/app/bootstrap_server/data
     networks:
       - rdap-network
 
