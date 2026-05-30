@@ -14,6 +14,7 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 # ═══════════════════════════════════════════════════════════
 # 사용자 설정 - 외부 파일 로드 방식
@@ -46,10 +47,10 @@ THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 
 @app.after_request
 def add_no_cache(response):
-    if request.endpoint in ['gallery', 'movies', 'player', 'upload', 'manage']:
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, proxy-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    response.headers['Surrogate-Control'] = 'no-store'
     return response
 
 # ═══════════════════════════════════════════════════════════
