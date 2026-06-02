@@ -137,7 +137,7 @@ window.onpopstate = function(e) {
 
 	// construct an RDAP URL for the given object
 	function getRDAPURL(typeval, object, lang) {
-		return 'https://bootstrap.rdap.kr/' + typeval + '/' + object;
+		return 'https://bootstrap.rdap.kr/' + typeval + '/' + object + '?proxy=true';
 	}
 
 	// given a URL, injects that URL into the query input,
