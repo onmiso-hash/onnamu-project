@@ -223,6 +223,9 @@ class ChronicleApp {
                     if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
                     if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
                     if (this.inputCharacter) this.inputCharacter.value = '';
+                    if (this.inputChatUserName) this.inputChatUserName.value = '';
+                    this.characterName = '';
+                    if (this.hudCharacter) this.hudCharacter.textContent = '';
 
                     // 19금 상태였던 설정 복구 방어 (드롭다운 최종 검증)
                     if (this.selectGenre) this.selectGenre.value = 'fantasy';
