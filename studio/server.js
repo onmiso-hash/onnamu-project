@@ -317,7 +317,10 @@ app.post('/api/generate-image', async (req, res) => {
 
         const response = await fetch(apiURL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey
+            },
             body: JSON.stringify(requestBody)
         });
 
