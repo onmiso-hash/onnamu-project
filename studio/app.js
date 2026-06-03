@@ -206,7 +206,7 @@ class ChronicleApp {
                 if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
                 if (this.selectTone) this.selectTone.value = recentStoryTone;
 
-                // 관리자가 아닐 때 19금 상태였던 설정 자동 강제 복구 방어
+                // 관리자가 아닐 때 19금 방지 및 최근 설정 자동 복구 방어 (폼 필드 일괄 비우기)
                 if (!this.isAdmin) {
                     const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
                     if (adultGenre) adultGenre.remove();
@@ -217,125 +217,19 @@ class ChronicleApp {
                     const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
                     if (adultLevel) adultLevel.remove();
 
-                    // 일반(비-19금) 프리셋 목록 추출
-                    let normalPresetList = [];
-                    try {
-                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                        Object.keys(presets).forEach(name => {
-                            const p = presets[name];
-                            if (p.level !== 'adult-19' && !name.includes('19금')) {
-                                normalPresetList.push({
-                                    presetName: name,
-                                    charName: p.charName,
-                                    relation: p.relation,
-                                    desc: p.desc,
-                                    level: p.level || 'normal'
-                                });
-                            }
-                        });
-                    } catch(e) {}
+                    // 일반 계정은 로그인 시 디폴트 입력값들을 그냥 비웁니다.
+                    if (this.inputChatCharName) this.inputChatCharName.value = '';
+                    if (this.inputChatRelation) this.inputChatRelation.value = '';
+                    if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
+                    if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
+                    if (this.inputCharacter) this.inputCharacter.value = '';
 
-                    // 1) 채팅 모드 캐릭터 복구 및 보안 필터링
-                    let isAdultChat = false;
-                    
-                    // 프리셋 등급 판별
-                    try {
-                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                        if (presets[recentChatName] && (presets[recentChatName].level === 'adult-19' || recentChatName.includes('19금'))) {
-                            isAdultChat = true;
-                        }
-                    } catch(e) {}
-
-                    // 수동 입력 또는 최근 세션 정보 기반 19금 판별 (텍스트 내용 및 키워드 검사)
-                    const lowerChatName = recentChatName.toLowerCase();
-                    const lowerChatRelation = recentChatRelation.toLowerCase();
-                    const lowerChatDesc = recentChatDesc.toLowerCase();
-                    const adultKeywords = ['욕정', '성관계', '타락', '19금', '성인', 'sensual', 'adult-19', '섹스', 'sex', '릴리스', '한지수', '지수'];
-                    
-                    const hasAdultKeyword = adultKeywords.some(keyword => 
-                        lowerChatName.includes(keyword) || 
-                        lowerChatRelation.includes(keyword) || 
-                        lowerChatDesc.includes(keyword)
-                    );
-
-                    if (hasAdultKeyword || recentChatLevel === 'adult-19') {
-                        isAdultChat = true;
-                    }
-
-                    if (isAdultChat) {
-                        // 19금 복구가 차단되었으므로 일반 캐릭터(혜린, 서아 등) 중 첫 번째를 채우거나 비움
-                        if (normalPresetList.length > 0) {
-                            const defaultChar = normalPresetList[0];
-                            if (this.inputChatCharName) this.inputChatCharName.value = defaultChar.charName;
-                            if (this.inputChatRelation) this.inputChatRelation.value = defaultChar.relation;
-                            if (this.inputChatCharDesc) this.inputChatCharDesc.value = defaultChar.desc;
-                            if (this.selectChatLevel) this.selectChatLevel.value = defaultChar.level;
-
-                            localStorage.setItem('recent_chat_char_name', defaultChar.charName);
-                            localStorage.setItem('recent_chat_relation', defaultChar.relation);
-                            localStorage.setItem('recent_chat_char_desc', defaultChar.desc);
-                            localStorage.setItem('recent_chat_level', defaultChar.level);
-                        } else {
-                            if (this.inputChatCharName) this.inputChatCharName.value = '';
-                            if (this.inputChatRelation) this.inputChatRelation.value = '';
-                            if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
-                            if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
-
-                            localStorage.removeItem('recent_chat_char_name');
-                            localStorage.removeItem('recent_chat_relation');
-                            localStorage.removeItem('recent_chat_char_desc');
-                            localStorage.removeItem('recent_chat_level');
-                        }
-                    } else {
-                        // 정상 캐릭터는 정상 복구
-                        if (this.inputChatCharName) this.inputChatCharName.value = recentChatName;
-                        if (this.inputChatRelation) this.inputChatRelation.value = recentChatRelation;
-                        if (this.inputChatCharDesc) this.inputChatCharDesc.value = recentChatDesc;
-                        if (this.selectChatLevel) this.selectChatLevel.value = recentChatLevel === 'adult-19' ? 'normal' : recentChatLevel;
-                    }
-
-                    // 2) 소설 모드 캐릭터 복구 및 보안 필터링
-                    let isAdultStory = false;
-                    try {
-                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                        if (presets[recentStoryChar] && (presets[recentStoryChar].level === 'adult-19' || recentStoryChar.includes('19금'))) {
-                            isAdultStory = true;
-                        }
-                    } catch(e) {}
-
-                    const lowerStoryChar = recentStoryChar.toLowerCase();
-                    const hasAdultStoryKeyword = adultKeywords.some(keyword => lowerStoryChar.includes(keyword));
-
-                    if (hasAdultStoryKeyword || recentStoryGenre === 'adult-19' || recentStoryTone === 'sensual') {
-                        isAdultStory = true;
-                    }
-
-                    if (isAdultStory) {
-                        if (normalPresetList.length > 0) {
-                            const defaultChar = normalPresetList[0];
-                            if (this.inputCharacter) this.inputCharacter.value = defaultChar.charName;
-                            localStorage.setItem('recent_story_character', defaultChar.charName);
-                        } else {
-                            if (this.inputCharacter) this.inputCharacter.value = '';
-                            localStorage.removeItem('recent_story_character');
-                        }
-                    } else {
-                        if (this.inputCharacter) this.inputCharacter.value = recentStoryChar;
-                    }
-
-                    // 19금 상태였던 설정 복구 방어 (최종 정합성 검사)
-                    if (this.selectChatLevel && this.selectChatLevel.value === 'adult-19') {
-                        this.selectChatLevel.value = 'normal';
-                    }
-                    if (this.selectGenre && this.selectGenre.value === 'adult-19') {
-                        this.selectGenre.value = 'fantasy';
-                    }
-                    if (this.selectTone && this.selectTone.value === 'sensual') {
-                        this.selectTone.value = 'normal';
-                    }
+                    // 19금 상태였던 설정 복구 방어 (드롭다운 최종 검증)
+                    if (this.selectGenre) this.selectGenre.value = 'fantasy';
+                    if (this.selectTone) this.selectTone.value = 'normal';
 
                 } else {
-                    // 어드민인 경우는 모든 정보 제한 없이 그대로 복구
+                    // 어드민인 경우는 제한 없이 로컬스토리지 최근 세션 정보로 채웁니다.
                     if (this.inputChatCharName) this.inputChatCharName.value = recentChatName;
                     if (this.inputChatRelation) this.inputChatRelation.value = recentChatRelation;
                     if (this.inputChatCharDesc) this.inputChatCharDesc.value = recentChatDesc;
