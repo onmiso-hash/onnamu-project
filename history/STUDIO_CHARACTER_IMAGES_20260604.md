@@ -54,3 +54,12 @@ graph TD
 
 * **작업 일자**: 2026-06-04
 * **작업 이력 주입**: `portal/data/news.db` 내 `work_history` 테이블에 오늘 날짜(2026-06-04) 및 상세 구현 내역 SQLite 쿼리 주입 완료.
+
+---
+
+## 🚀 4. 추가 사항: Windows SSH 배포 자격 증명 오류 우회 성공
+* **이슈**: Windows Mini PC 서버에 비대화형 SSH 세션으로 배포할 때, Docker CLI가 윈도우 자격 증명 관리자(LSASS)에 접근하려다 `A specified logon session does not exist` 에러를 내며 빌드가 강제 중단되는 현상이 지속되었습니다.
+* **해결 조치**:
+  1. **더미 레지스트리 인증 정보(Dummy Auth) 주입**: `deploy.yml` 상에서 윈도우 내 모든 Docker 설정 경로들의 `config.json`에 `credsStore: ""` 뿐만 아니라 `auths`에 더미 Docker Hub 레지스트리 정보(`https://index.docker.io/v1/: {}`)를 아스키 코드 조각 결합 방식으로 완벽하게 주입하여, Docker CLI가 자격 증명 헬퍼를 리스팅하지 않고 무시하도록 유도했습니다.
+  2. **오프라인 로컬 태깅(Local Custom Tagging) 우회**: 빌드 시 원격 갱신 체크를 완벽히 회피하기 위해, 배포 시작 전 로컬 캐시 이미지(`8d6421d663b4`)를 `local-node:18-alpine`이라는 커스텀 로컬 전용 태그로 지정하고, `Dockerfile`의 `FROM` 베이스 이미지로 참조하게 유도했습니다.
+  3. **결과**: 이 우회 조치들의 시너지로 인해 자격 증명 헬퍼 에러가 완벽히 소멸되어 빌드가 통과했으며, `chronicle-studio` 컨테이너가 성공적으로 재구동(Started)되었습니다.
