@@ -238,7 +238,25 @@ class ChronicleApp {
                         this.selectTone.value = 'normal';
                     }
 
-                    // 현재 설정된 캐릭터가 19금 프리셋이거나 19금 수위 캐릭터인지 판별
+                    // 일반(비-19금) 프리셋 목록 추출
+                    let normalPresetList = [];
+                    try {
+                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                        Object.keys(presets).forEach(name => {
+                            const p = presets[name];
+                            if (p.level !== 'adult-19' && !name.includes('19금')) {
+                                normalPresetList.push({
+                                    presetName: name,
+                                    charName: p.charName,
+                                    relation: p.relation,
+                                    desc: p.desc,
+                                    level: p.level || 'normal'
+                                });
+                            }
+                        });
+                    } catch(e) {}
+
+                    // 현재 설정된 캐릭터가 19금 프리셋이거나 19금 수위 캐릭터인지 판별 (채팅 모드)
                     let isAdultChar = false;
                     const curCharName = this.inputChatCharName ? this.inputChatCharName.value.trim() : '';
                     
@@ -250,29 +268,59 @@ class ChronicleApp {
                         }
                     } catch(e) {}
 
-                    // 2) 프리셋에 없더라도 캐릭터 이름이 '릴리스'이거나 로컬스토리지 복구 레벨이 19금이었던 경우
-                    if (curCharName === '릴리스' || curCharName.includes('19금') || localStorage.getItem('recent_chat_level') === 'adult-19') {
+                    // 2) 프리셋에 없더라도 캐릭터 이름이 '릴리스', '한지수'이거나 로컬스토리지 복구 레벨이 19금이었던 경우
+                    if (curCharName === '릴리스' || curCharName === '한지수' || curCharName.includes('19금') || localStorage.getItem('recent_chat_level') === 'adult-19') {
                         isAdultChar = true;
                     }
 
-                    // 19금 캐릭터가 감지되면 전체이용가 디폴트 캐릭터인 '혜린'으로 강제 전환
+                    // 19금 캐릭터가 감지되면 전체이용가 프리셋 중 첫 번째로 전환하거나, 없으면 비워둠
                     if (isAdultChar) {
-                        const defaultChar = {
-                            charName: "혜린",
-                            relation: "초등학교 때부터 알고 지낸 소꿉친구",
-                            desc: "새침하고 도도해 보이지만 속은 아주 여리고 주인공을 몰래 좋아함. 칭찬을 받으면 볼을 붉히며 화를 내는 전형적인 츤데레.",
-                            level: "normal"
-                        };
-                        
-                        if (this.inputChatCharName) this.inputChatCharName.value = defaultChar.charName;
-                        if (this.inputChatRelation) this.inputChatRelation.value = defaultChar.relation;
-                        if (this.inputChatCharDesc) this.inputChatCharDesc.value = defaultChar.desc;
-                        if (this.selectChatLevel) this.selectChatLevel.value = defaultChar.level;
+                        if (normalPresetList.length > 0) {
+                            const defaultChar = normalPresetList[0];
+                            if (this.inputChatCharName) this.inputChatCharName.value = defaultChar.charName;
+                            if (this.inputChatRelation) this.inputChatRelation.value = defaultChar.relation;
+                            if (this.inputChatCharDesc) this.inputChatCharDesc.value = defaultChar.desc;
+                            if (this.selectChatLevel) this.selectChatLevel.value = defaultChar.level;
 
-                        localStorage.setItem('recent_chat_char_name', defaultChar.charName);
-                        localStorage.setItem('recent_chat_relation', defaultChar.relation);
-                        localStorage.setItem('recent_chat_char_desc', defaultChar.desc);
-                        localStorage.setItem('recent_chat_level', defaultChar.level);
+                            localStorage.setItem('recent_chat_char_name', defaultChar.charName);
+                            localStorage.setItem('recent_chat_relation', defaultChar.relation);
+                            localStorage.setItem('recent_chat_char_desc', defaultChar.desc);
+                            localStorage.setItem('recent_chat_level', defaultChar.level);
+                        } else {
+                            if (this.inputChatCharName) this.inputChatCharName.value = '';
+                            if (this.inputChatRelation) this.inputChatRelation.value = '';
+                            if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
+                            if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
+
+                            localStorage.removeItem('recent_chat_char_name');
+                            localStorage.removeItem('recent_chat_relation');
+                            localStorage.removeItem('recent_chat_char_desc');
+                            localStorage.removeItem('recent_chat_level');
+                        }
+                    }
+
+                    // 소설 모드의 캐릭터명 필터링 (동일한 보안 필터 적용)
+                    const curStoryChar = this.inputCharacter ? this.inputCharacter.value.trim() : '';
+                    let isAdultStoryChar = false;
+                    if (curStoryChar === '릴리스' || curStoryChar === '한지수' || curStoryChar.includes('19금')) {
+                        isAdultStoryChar = true;
+                    }
+                    try {
+                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                        if (presets[curStoryChar] && (presets[curStoryChar].level === 'adult-19' || curStoryChar.includes('19금'))) {
+                            isAdultStoryChar = true;
+                        }
+                    } catch(e) {}
+
+                    if (isAdultStoryChar) {
+                        if (normalPresetList.length > 0) {
+                            const defaultChar = normalPresetList[0];
+                            if (this.inputCharacter) this.inputCharacter.value = defaultChar.charName;
+                            localStorage.setItem('recent_story_character', defaultChar.charName);
+                        } else {
+                            if (this.inputCharacter) this.inputCharacter.value = '';
+                            localStorage.removeItem('recent_story_character');
+                        }
                     }
                 }
 
