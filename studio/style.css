@@ -639,7 +639,7 @@ select {
 .interactive-choices-wrapper h3 {
     font-size: 0.78rem;
     font-weight: 700;
-    color: rgba(0, 0, 0, 0.5);
+    color: var(--gold); /* 더 선명하고 고급스러운 금색 대비 적용 */
     letter-spacing: 0.08em;
     margin-bottom: 0.8rem;
 }
@@ -651,8 +651,8 @@ select {
 }
 
 .choice-card {
-    background: rgba(255, 255, 255, 0.6);
-    border: 1px solid var(--border-light);
+    background: rgba(255, 255, 255, 0.85); /* 텍스트 가독성을 위해 불투명도 상향 */
+    border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 10px;
     padding: 1rem;
     cursor: pointer;
@@ -665,14 +665,14 @@ select {
 .choice-card .card-num {
     font-size: 0.65rem;
     font-weight: 700;
-    color: var(--gold);
+    color: var(--cyan); /* 넘버링 식별을 위한 선명한 시안 색상 */
     letter-spacing: 0.05em;
 }
 
 .choice-card p {
     font-size: 0.82rem;
     line-height: 1.5;
-    color: #4a5568;
+    color: #1a202c; /* 글자 가독성을 대폭 높인 다크차콜 */
     text-align: left;
 }
 
@@ -684,12 +684,17 @@ select {
 }
 
 .choice-card:hover:not(.disabled) p {
-    color: #1a202c;
+    color: #000000;
 }
 
 .choice-card.disabled {
-    opacity: 0.4;
+    opacity: 0.65; /* 글씨가 투명해져 가독성이 저하되던 현상을 막기 위해 0.4에서 0.65로 조정 */
     cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.choice-card.disabled p {
+    color: #718096; /* 비활성화 상태의 가독성 있는 보조 회색 */
 }
 
 /* Custom Text Input Section */
@@ -1125,17 +1130,25 @@ select {
 }
 
 .chat-avatar-container {
-    width: 40px;
-    height: 40px;
+    width: 65px;
+    height: 65px;
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
     background: rgba(255, 255, 255, 0.05);
-    border: 1.5px solid var(--gold);
+    border: 2px solid var(--gold);
     display: flex;
     align-items: center;
     justify-content: center;
     box-shadow: 0 0 10px rgba(217, 119, 6, 0.25);
+    transition: transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+    cursor: pointer;
+}
+
+.chat-avatar-container:hover {
+    transform: scale(1.12);
+    border-color: var(--purple);
+    box-shadow: 0 0 15px rgba(109, 40, 217, 0.4);
 }
 
 .chat-avatar-img {
@@ -1145,7 +1158,7 @@ select {
 }
 
 .chat-avatar-icon {
-    font-size: 1.2rem;
+    font-size: 1.8rem;
 }
 
 .chat-message-content {
@@ -1162,18 +1175,19 @@ select {
 }
 
 .chat-bubble {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 0.8rem 1rem;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    padding: 0.8rem 1.1rem;
     border-radius: 4px 16px 16px 16px;
-    color: #f1f5f9;
+    color: #1a202c;
     font-size: 0.88rem;
     line-height: 1.6;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
 .ai-message .chat-bubble {
-    background: rgba(217, 119, 6, 0.05);
+    background: rgba(180, 83, 9, 0.06);
+    border: 1px solid rgba(180, 83, 9, 0.18);
     border-left: 3px solid var(--gold);
 }
 
@@ -1183,7 +1197,7 @@ select {
 
 .user-bubble {
     background: rgba(8, 145, 178, 0.06);
-    border: 1px solid rgba(8, 145, 178, 0.15);
+    border: 1px solid rgba(8, 145, 178, 0.18);
     border-right: 3px solid var(--cyan);
     border-radius: 16px 4px 16px 16px;
 }
