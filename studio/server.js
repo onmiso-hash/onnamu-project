@@ -299,14 +299,20 @@ app.post('/api/generate-image', async (req, res) => {
 
     try {
         const selectedModel = model || 'imagen-3.0-generate-002';
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateImages?key=${apiKey}`;
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:predict?key=${apiKey}`;
 
         const requestBody = {
-            prompt: prompt,
-            numberOfImages: 1,
-            outputMimeType: 'image/jpeg',
-            aspectRatio: '1:1',
-            personGeneration: 'ALLOW_ADULT'
+            instances: [
+                {
+                    prompt: prompt
+                }
+            ],
+            parameters: {
+                sampleCount: 1,
+                aspectRatio: '1:1',
+                outputMimeType: 'image/jpeg',
+                personGeneration: 'ALLOW_ADULT'
+            }
         };
 
         const response = await fetch(apiURL, {
@@ -322,11 +328,15 @@ app.post('/api/generate-image', async (req, res) => {
 
         const data = await response.json();
         
-        if (!data.generatedImages || data.generatedImages.length === 0) {
+        if (!data.predictions || data.predictions.length === 0) {
             throw new Error("이미지가 정상적으로 생성되지 않았습니다.");
         }
 
-        const base64Image = data.generatedImages[0].image.imageBytes;
+        const base64Image = data.predictions[0].bytesBase64Encoded;
+        if (!base64Image) {
+            throw new Error("이미지 데이터가 포함되어 있지 않습니다.");
+        }
+        
         res.json({ imageBytes: base64Image });
     } catch (error) {
         console.error("[Proxy Image Server Error]:", error);
