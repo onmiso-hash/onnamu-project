@@ -2285,6 +2285,7 @@ JSON Schema:
                 if (!overwrite) return;
             }
 
+            const existingPreset = presets[trimmedPresetName];
             presets[trimmedPresetName] = {
                 charName,
                 relation,
@@ -2292,7 +2293,8 @@ JSON Schema:
                 level,
                 userName,
                 imagePrompt: this.inputCharImagePrompt.value.trim(),
-                characterImages: this.characterImages || {}
+                characterImages: this.characterImages || {},
+                savedSession: existingPreset ? existingPreset.savedSession : undefined
             };
             localStorage.setItem('persona_presets', JSON.stringify(presets));
             

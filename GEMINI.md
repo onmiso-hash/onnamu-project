@@ -49,7 +49,7 @@
 - **신중한 보고 및 검증 권유**: 직접 테스트나 런타임 검증을 완벽하게 끝마친 확정적인 사실이 아닌 경우, 단정적으로 "해결되었습니다", "완벽히 수정되었습니다"와 같은 표현의 사용을 전면 금지합니다. 대신 "수정 작업을 완료하였고 확인이 필요합니다"와 같이 사용자에게 정중히 재검증을 권유하는 방식으로 일관되게 보고를 수행합니다.
 
 ## 📅 주요 히스토리
-- 2026-06-04: Chronicle AI Studio 수동 이미지 업로드 용량 제한(localStorage 한도 초과) 해결 및 대화창 아바타 노출 보완. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
+- 2026-06-04: Chronicle AI Studio 수동 이미지 업로드 용량 제한(localStorage 한도 초과) 해결 및 대화창 아바타 노출 보완. 기존 프리셋 덮어쓰기 시 대화 세션 보존 패치 적용. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 설정창 캐릭터 이미지 생성(평온, 기쁨, 슬픔, 화남, 부끄러움) 및 대화 응답(emotion) 이미지 자동 매핑 시스템 구축. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-03: Windows SSH 배포 자동화 Docker 자격 증명 오류 우회 조치 및 배포 로그 절대 경로 단일화. 상세 내용은 `history/CI_DEPLOY_FIX_20260603.md` 참조.
 - 2026-06-03: 통합 로그인 페이지 명칭 개편(Media Home -> onnamu) 및 스튜디오 내 환영 메시지 UI 로딩 깜빡임 개선. 일반 유저(family) 로그인 시 로컬 스토리지 19금 세션 복구 차단 패치 적용. 상세 내용은 `history/STUDIO_LOGIN_INTEGRATION_20260603.md` 참조.
