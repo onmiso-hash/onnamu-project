@@ -47,6 +47,7 @@
 - **포털 히트맵 동시 기록**: AI가 코드를 수정하고 기능을 완성(배포/푸시)한 후에는 반드시 로컬 포털 서비스의 작업 히트맵 데이터베이스(`portal/data/news.db`)에도 오늘 날짜(YYYY-MM-DD)와 상세 작업 이력 데이터를 SQLite 쿼리를 가동해 직접 주입해 두어야 합니다. 이는 매 세션마다 사용자의 별도 지시가 없어도 항상 자동으로 작동해야 하는 기본 행동 지침입니다.
 
 ## 📅 주요 히스토리
+- 2026-06-03: Chronicle Studio 로그인 기능 추가 및 Media Home 통합(SSO) 연동 완료 (공통 서명 토큰 auth_token 발행/검증, 연동 로그아웃 및 UI 컴포넌트 추가). 상세 내용은 `history/STUDIO_LOGIN_INTEGRATION_20260603.md` 참조.
 - 2026-06-03: Chronicle AI Studio 마이크로서비스 추가 및 포털 연동 완료 (소설 메이커 및 대화형 롤플레이 모드, Web Audio API 사운드, RAG 임베딩 검색 적용 및 docker-compose 빌드 버그 수정).
 - 2026-06-02: RDAP 부트스트랩 API 표준 리다이렉트(HTTP 307) 응답 복구 및 CORS 우회용 프록시 쿼리 파라미터 적용. 상세 내용은 `history/RDAP_REDIRECT_FIX_20260602.md` 참조.
 - 2026-05-31: RDAP 서비스 프론트-백엔드 아키텍처 통합 및 Cloudflare/브라우저 캐시 문제 근본적 해결. 상세 내용은 `history/RDAP_UNIFICATION_20260531.md` 참조.

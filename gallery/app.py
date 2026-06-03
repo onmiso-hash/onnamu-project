@@ -103,6 +103,26 @@ def format_size(size_bytes: int) -> str:
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} PB"
 
+def generate_auth_token(username, secret_key):
+    import hmac
+    import hashlib
+    import base64
+    import time
+    import json
+    # 만료시간: 현재 시간 + 30일
+    exp = int(time.time()) + (30 * 24 * 3600)
+    payload_data = {"username": username, "exp": exp}
+    payload_json = json.dumps(payload_data)
+    payload_b64 = base64.urlsafe_b64encode(payload_json.encode('utf-8')).decode('utf-8').rstrip('=')
+    
+    signature = hmac.new(
+        secret_key.encode('utf-8'),
+        payload_b64.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    
+    return f"{payload_b64}.{signature}"
+
 def require_login(fn):
     from functools import wraps
     @wraps(fn)
@@ -140,7 +160,24 @@ def login():
             session["is_admin"] = user.get("is_admin", False)
             next_url = request.args.get("next") or url_for("gallery")
             flash(f"✅ {username}님 환영합니다!", "success")
-            return redirect(next_url)
+            
+            response = redirect(next_url)
+            # Chronicle Studio 연동을 위한 공통 쿠키 생성
+            token = generate_auth_token(username, app.secret_key)
+            cookie_domain = None
+            host = request.headers.get('Host', '')
+            if 'onnamu.kr' in host:
+                cookie_domain = '.onnamu.kr'
+                
+            response.set_cookie(
+                'auth_token',
+                token,
+                domain=cookie_domain,
+                httponly=True,
+                samesite='Lax',
+                max_age=30 * 24 * 3600 # 30일
+            )
+            return response
         error = "아이디 또는 비밀번호가 틀렸습니다."
     return render_template("login.html", error=error)
 
@@ -153,6 +190,13 @@ def logout():
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
+    
+    # auth_token 쿠키 만료
+    cookie_domain = None
+    host = request.headers.get('Host', '')
+    if 'onnamu.kr' in host:
+        cookie_domain = '.onnamu.kr'
+    response.delete_cookie('auth_token', domain=cookie_domain)
     return response
 
 @app.route("/")

@@ -44,6 +44,9 @@ class ChronicleApp {
         
         // Bind DOM Elements
         this.initDOM();
+
+        // Fetch User Info
+        this.fetchUserInfo();
     }
 
     initDOM() {
@@ -159,6 +162,16 @@ class ChronicleApp {
         this.btnExportText.addEventListener('click', () => this.exportStory());
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
+        // Logout Event Listener
+        this.btnLogout = document.getElementById('btn-logout');
+        if (this.btnLogout) {
+            this.btnLogout.addEventListener('click', () => {
+                if (confirm('로그아웃 하시겠습니까?')) {
+                    window.location.href = '/logout';
+                }
+            });
+        }
+
         // Persona Preset Event Listeners
         this.btnSavePersona.addEventListener('click', () => this.saveCurrentPersona());
         this.btnDeletePersona.addEventListener('click', () => this.deleteSelectedPersona());
@@ -183,6 +196,21 @@ class ChronicleApp {
 
         // Load saved persona presets
         this.loadPersonaPresets();
+    }
+
+    async fetchUserInfo() {
+        try {
+            const res = await fetch('/api/user-info');
+            if (res.ok) {
+                const data = await res.json();
+                const displayNameEl = document.getElementById('user-display-name');
+                if (displayNameEl && data.username) {
+                    displayNameEl.textContent = data.username;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to fetch user info:", e);
+        }
     }
 
     initResizer() {
