@@ -551,8 +551,10 @@ class ChronicleApp {
                 const targetPreset = this.selectPersonaPreset.value || this.chatCharName;
                 const presetData = presets[targetPreset];
                 if (presetData) {
-                    // Restore character images for active session
-                    this.characterImages = presetData.characterImages || {};
+                    // Restore character images for active session (Only if not already populated)
+                    if (!this.characterImages || Object.keys(this.characterImages).length === 0) {
+                        this.characterImages = presetData.characterImages || {};
+                    }
                     
                     if (presetData.savedSession) {
                         // Auto-load previous session without annoying popup
@@ -721,8 +723,8 @@ class ChronicleApp {
             this.appContainer.classList.add('visible');
             
             // Re-render chat profile to reflect any configuration changes instantly
-            if (this.modeType === 'chat' && this.storyHistory.length > 0) {
-                this.renderChatProfile();
+            if (this.modeType === 'chat') {
+                this.renderChatProfile('normal');
             }
             
             // Start writing or chatting ONLY if history is empty
@@ -2521,7 +2523,7 @@ JSON Schema:
         }
     }
 
-    // Handle manual local image upload (File Reader Base64 conversion)
+    // Handle manual local image upload (File Reader Base64 conversion + Server Upload)
     handleImageUpload(emotion, inputEl) {
         if (!inputEl || !inputEl.files || inputEl.files.length === 0) {
             return;
@@ -2534,43 +2536,79 @@ JSON Schema:
         }
 
         const reader = new FileReader();
-        reader.onload = (e) => {
+        reader.onload = async (e) => {
             const base64Data = e.target.result;
             
-            // Store to in-memory images map
-            this.characterImages[emotion] = base64Data;
-
-            // Update UI preview
-            const imgEl = document.getElementById(`img-preview-${emotion}`);
+            // Show loading status in UI
             const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-
-            if (imgEl) {
-                imgEl.src = base64Data;
-                imgEl.style.display = 'block';
-            }
+            let oldPlaceholderHtml = '';
             if (placeholderEl) {
-                placeholderEl.style.display = 'none';
+                oldPlaceholderHtml = placeholderEl.innerHTML;
+                placeholderEl.innerHTML = `<span class="spinner-icon">⏳</span><span class="upload-text">전송중</span>`;
             }
 
-            // Auto-save to current preset if selected
-            const selected = this.selectPersonaPreset.value;
-            if (selected) {
-                try {
-                    const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                    if (presets[selected]) {
-                        presets[selected].characterImages = this.characterImages;
-                        localStorage.setItem('persona_presets', JSON.stringify(presets));
-                        console.log(`[Auto-save] Image for '${emotion}' saved to preset '${selected}'.`);
-                    }
-                } catch (err) {
-                    console.error("Auto-saving uploaded image to preset failed:", err);
+            try {
+                // Upload to server via API
+                const response = await fetch('/api/upload-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        emotion: emotion,
+                        imageBytes: base64Data
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ error: '서버 통신 실패' }));
+                    throw new Error(errData.error || '이미지 저장 서버 오류');
                 }
-            }
 
-            this.playSelectionSwell();
-            
-            // Clear file input so same file can be re-uploaded if needed
-            inputEl.value = '';
+                const data = await response.json();
+                const fileUrl = data.fileUrl;
+
+                // Store to in-memory images map (uses server relative path instead of massive base64)
+                this.characterImages[emotion] = fileUrl;
+
+                // Update UI preview
+                const imgEl = document.getElementById(`img-preview-${emotion}`);
+                if (imgEl) {
+                    imgEl.src = fileUrl;
+                    imgEl.style.display = 'block';
+                }
+                if (placeholderEl) {
+                    placeholderEl.style.display = 'none';
+                }
+
+                // Auto-save to current preset if selected
+                const selected = this.selectPersonaPreset.value;
+                if (selected) {
+                    try {
+                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                        if (presets[selected]) {
+                            presets[selected].characterImages = this.characterImages;
+                            localStorage.setItem('persona_presets', JSON.stringify(presets));
+                            console.log(`[Auto-save] Image for '${emotion}' saved to preset '${selected}'.`);
+                        }
+                    } catch (err) {
+                        console.error("Auto-saving uploaded image to preset failed:", err);
+                    }
+                }
+
+                this.playSelectionSwell();
+            } catch (err) {
+                console.error("Server upload error:", err);
+                alert(`이미지 업로드 중 오류가 발생했습니다: ${err.message}`);
+                // Restore placeholder on error
+                if (placeholderEl) {
+                    placeholderEl.innerHTML = oldPlaceholderHtml || `
+                        <span class="upload-icon">➕</span>
+                        <span class="upload-text">${emotion === 'normal' ? '평온' : emotion === 'happy' ? '기쁨' : emotion === 'sad' ? '슬픔' : emotion === 'angry' ? '화남' : '부끄'}</span>
+                    `;
+                }
+            } finally {
+                // Clear file input so same file can be re-uploaded if needed
+                inputEl.value = '';
+            }
         };
 
         reader.onerror = (err) => {

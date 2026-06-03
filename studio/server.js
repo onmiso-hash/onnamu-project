@@ -1,11 +1,23 @@
 const express = require('express');
 const path = require('path');
 const crypto = require('crypto');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(express.json());
+// Increase request size limit for large base64 uploads
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Ensure upload directory exists
+const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
+if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+}
+
+// Serve uploaded images statically
+app.use('/data/uploads', express.static(UPLOAD_DIR));
 
 // Cookie parsing helper
 function parseCookies(cookieHeader) {
@@ -354,6 +366,34 @@ app.post('/api/generate-image', async (req, res) => {
     // 모든 모델 시도 실패 시 최종 에러 반환
     console.error("[Proxy Image Server Error - All Models Failed]:", lastError);
     res.status(500).json({ error: lastError.message });
+});
+
+// POST API to upload image (converts Base64 data to physical file)
+app.post('/api/upload-image', (req, res) => {
+    const { emotion, imageBytes } = req.body;
+    if (!imageBytes) {
+        return res.status(400).json({ error: '이미지 데이터가 없습니다.' });
+    }
+
+    try {
+        // Remove base64 data URL prefix
+        const base64Data = imageBytes.replace(/^data:image\/\w+;base64,/, "");
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Generate filename
+        const filename = `uploaded_${Date.now()}_${emotion}.png`;
+        const filePath = path.join(UPLOAD_DIR, filename);
+
+        // Write file to disk
+        fs.writeFileSync(filePath, buffer);
+
+        // Return client relative URL path
+        const fileUrl = `/data/uploads/${filename}`;
+        res.json({ success: true, fileUrl });
+    } catch (error) {
+        console.error("[Upload Image Error]:", error);
+        res.status(500).json({ error: '이미지 저장에 실패했습니다.' });
+    }
 });
 
 // Quick response to favicon requests to prevent browser infinite loading spinner
