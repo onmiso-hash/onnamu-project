@@ -225,12 +225,30 @@ class ChronicleApp {
 
                 // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
                 this.loadPersonaPresets();
+            } else if (res.status === 401) {
+                // API 인증 실패 (로그인 안 됨) -> 로그인 페이지로 강제 연동 리다이렉트
+                this.redirectToLogin();
             }
         } catch (e) {
             console.error("Failed to fetch user info:", e);
             this.isAdmin = false;
             this.loadPersonaPresets();
         }
+    }
+
+    redirectToLogin() {
+        const reqHost = window.location.host;
+        let redirectBase = '';
+        
+        if (reqHost.includes('localhost') || reqHost.includes('127.0.0.1')) {
+            const hostIp = reqHost.split(':')[0];
+            redirectBase = `http://${hostIp}:5002`;
+        } else {
+            redirectBase = 'https://gallery.onnamu.kr';
+        }
+        
+        const nextUrl = window.location.href;
+        window.location.href = `${redirectBase}/login?next=${encodeURIComponent(nextUrl)}`;
     }
 
     initResizer() {

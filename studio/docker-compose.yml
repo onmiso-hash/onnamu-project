@@ -4,4 +4,6 @@ services:
     container_name: chronicle-studio
     ports:
       - "8080:8080"
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
     restart: always
