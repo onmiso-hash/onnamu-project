@@ -1108,9 +1108,9 @@ select {
 /* Chat bubble with avatars */
 .chat-bubble-wrapper {
     display: flex;
-    gap: 0.8rem;
-    margin-bottom: 0.5rem;
-    max-width: 85%;
+    gap: 1.2rem; /* 아바타 2배 확대에 따른 시각적 밸런스 간격 상향 */
+    margin-bottom: 0.8rem;
+    max-width: 92%; /* 대형 아바타 삽입에 맞춰 말풍선의 가로폭 사용도 확장 */
     align-items: flex-start;
 }
 
@@ -1130,8 +1130,8 @@ select {
 }
 
 .chat-avatar-container {
-    width: 65px;
-    height: 65px;
+    width: 130px; /* 기존 65px 대비 2배(130px)로 이미지 초상화 극대화 */
+    height: 130px;
     border-radius: 50%;
     overflow: hidden;
     flex-shrink: 0;
@@ -1146,9 +1146,9 @@ select {
 }
 
 .chat-avatar-container:hover {
-    transform: scale(1.12);
+    transform: scale(1.08); /* 이미 크기가 크므로 호버 줌인 스케일을 1.08로 조율해 부드러움 유도 */
     border-color: var(--purple);
-    box-shadow: 0 0 15px rgba(109, 40, 217, 0.4);
+    box-shadow: 0 0 20px rgba(109, 40, 217, 0.4);
 }
 
 .chat-avatar-img {
@@ -1158,7 +1158,7 @@ select {
 }
 
 .chat-avatar-icon {
-    font-size: 1.8rem;
+    font-size: 3.2rem; /* 아바타 2배 확대에 맞추어 기본 이모지 아이콘의 폰트 사이즈 상향 */
 }
 
 .chat-message-content {

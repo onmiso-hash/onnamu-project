@@ -49,6 +49,7 @@
 - **신중한 보고 및 검증 권유**: 직접 테스트나 런타임 검증을 완벽하게 끝마친 확정적인 사실이 아닌 경우, 단정적으로 "해결되었습니다", "완벽히 수정되었습니다"와 같은 표현의 사용을 전면 금지합니다. 대신 "수정 작업을 완료하였고 확인이 필요합니다"와 같이 사용자에게 정중히 재검증을 권유하는 방식으로 일관되게 보고를 수행합니다.
 
 ## 📅 주요 히스토리
+- 2026-06-04: Chronicle AI Studio 아바타 이미지 추가 2배 확대(130px) 및 마이크로 인터랙션 개선. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 아바타 이미지 확대 및 텍스트 가독성(말풍선/선택지) 대폭 상향. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 수동 이미지 업로드 용량 제한(localStorage 한도 초과) 해결 및 대화창 아바타 노출 보완. 기존 프리셋 덮어쓰기 시 대화 세션 보존 패치 적용. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 설정창 캐릭터 이미지 생성(평온, 기쁨, 슬픔, 화남, 부끄러움) 및 대화 응답(emotion) 이미지 자동 매핑 시스템 구축. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
