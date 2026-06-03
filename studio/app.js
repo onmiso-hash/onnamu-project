@@ -246,8 +246,19 @@ class ChronicleApp {
                         }
                     } catch(e) {}
 
-                    // 수동 입력 감지 판별
-                    if (recentChatName === '릴리스' || recentChatName === '한지수' || recentChatName.includes('19금') || recentChatLevel === 'adult-19') {
+                    // 수동 입력 또는 최근 세션 정보 기반 19금 판별 (텍스트 내용 및 키워드 검사)
+                    const lowerChatName = recentChatName.toLowerCase();
+                    const lowerChatRelation = recentChatRelation.toLowerCase();
+                    const lowerChatDesc = recentChatDesc.toLowerCase();
+                    const adultKeywords = ['욕정', '성관계', '타락', '19금', '성인', 'sensual', 'adult-19', '섹스', 'sex', '릴리스', '한지수', '지수'];
+                    
+                    const hasAdultKeyword = adultKeywords.some(keyword => 
+                        lowerChatName.includes(keyword) || 
+                        lowerChatRelation.includes(keyword) || 
+                        lowerChatDesc.includes(keyword)
+                    );
+
+                    if (hasAdultKeyword || recentChatLevel === 'adult-19') {
                         isAdultChat = true;
                     }
 
@@ -292,7 +303,10 @@ class ChronicleApp {
                         }
                     } catch(e) {}
 
-                    if (recentStoryChar === '릴리스' || recentStoryChar === '한지수' || recentStoryChar.includes('19금')) {
+                    const lowerStoryChar = recentStoryChar.toLowerCase();
+                    const hasAdultStoryKeyword = adultKeywords.some(keyword => lowerStoryChar.includes(keyword));
+
+                    if (hasAdultStoryKeyword || recentStoryGenre === 'adult-19' || recentStoryTone === 'sensual') {
                         isAdultStory = true;
                     }
 
