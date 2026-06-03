@@ -1022,3 +1022,160 @@ select {
     background: rgba(220, 38, 38, 0.15);
     border-color: rgba(220, 38, 38, 0.6);
 }
+
+/* ==========================================================================
+   Character Image Generator & Chat Avatar Styles
+   ========================================================================== */
+.char-images-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.6rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.preview-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.preview-label {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    font-weight: 600;
+}
+
+.img-wrapper {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.img-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Chat bubble with avatars */
+.chat-bubble-wrapper {
+    display: flex;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+    max-width: 85%;
+    align-items: flex-start;
+}
+
+.ai-message.chat-bubble-wrapper {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border-left: none;
+}
+
+.user-message.chat-bubble-wrapper {
+    align-self: flex-end;
+    padding: 0;
+    background: none;
+    border-right: none;
+    justify-content: flex-end;
+}
+
+.chat-avatar-container {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1.5px solid var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 10px rgba(217, 119, 6, 0.25);
+}
+
+.chat-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.chat-avatar-icon {
+    font-size: 1.2rem;
+}
+
+.chat-message-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.chat-sender-name {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-left: 0.2rem;
+}
+
+.chat-bubble {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.8rem 1rem;
+    border-radius: 4px 16px 16px 16px;
+    color: #f1f5f9;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.ai-message .chat-bubble {
+    background: rgba(217, 119, 6, 0.05);
+    border-left: 3px solid var(--gold);
+}
+
+.user-content {
+    align-items: flex-end;
+}
+
+.user-bubble {
+    background: rgba(8, 145, 178, 0.06);
+    border: 1px solid rgba(8, 145, 178, 0.15);
+    border-right: 3px solid var(--cyan);
+    border-radius: 16px 4px 16px 16px;
+}
+
+/* Character Profile Image Customization */
+.profile-avatar-wrapper {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(217, 119, 6, 0.3);
+}
+
+.profile-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.character-profile-card .profile-avatar {
+    font-size: 2rem;
+}

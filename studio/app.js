@@ -22,6 +22,7 @@ class ChronicleApp {
         this.affinityValue = 50;
         this.memoryList = [];
         this.dialogueVectors = []; // Stores embedded text vectors for RAG (2단계)
+        this.characterImages = {}; // Stores generated image bytes for each emotion
 
         this.storyHistory = []; // Tracks generated chapters / chat dialogues
         this.currentChapterIndex = 0;
@@ -140,6 +141,17 @@ class ChronicleApp {
         this.btnSavePersona.addEventListener('click', () => this.saveCurrentPersona());
         this.btnDeletePersona.addEventListener('click', () => this.deleteSelectedPersona());
         this.selectPersonaPreset.addEventListener('change', () => this.loadSelectedPersona());
+
+        // Character Image Generation DOM Elements & Events
+        this.inputCharImagePrompt = document.getElementById('input-char-image-prompt');
+        this.btnGenerateCharImages = document.getElementById('btn-generate-char-images');
+        this.charImagesPreview = document.getElementById('char-images-preview');
+        this.charImageStatus = document.getElementById('char-image-status');
+        this.charImageStatusText = document.getElementById('char-image-status-text');
+
+        if (this.btnGenerateCharImages) {
+            this.btnGenerateCharImages.addEventListener('click', () => this.generateCharacterImages());
+        }
 
         // Keyboard press for submission
         this.chatTextarea.addEventListener('keydown', (e) => {
@@ -538,22 +550,34 @@ class ChronicleApp {
                 const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
                 const targetPreset = this.selectPersonaPreset.value || this.chatCharName;
                 const presetData = presets[targetPreset];
-                if (presetData && presetData.savedSession) {
-                    // Auto-load previous session without annoying popup
-                    const session = presetData.savedSession;
-                    this.affinityValue = session.affinityValue || 50;
-                    this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
-                    this.storyHistory = [...(session.storyHistory || [])];
-                    this.dialogueVectors = [...(session.dialogueVectors || [])]; // RAG 벡터 복원 (2단계)
-                    this.currentChapterIndex = this.storyHistory.length;
+                if (presetData) {
+                    // Restore character images for active session
+                    this.characterImages = presetData.characterImages || {};
                     
-                    this.chatLogArea.innerHTML = session.chatLogHtml || '';
-                    
-                    if (this.storyHistory.length > 0) {
-                        setTimeout(() => {
-                            this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
-                            this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
-                        }, 900);
+                    if (presetData.savedSession) {
+                        // Auto-load previous session without annoying popup
+                        const session = presetData.savedSession;
+                        this.affinityValue = session.affinityValue || 50;
+                        this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
+                        this.storyHistory = [...(session.storyHistory || [])];
+                        this.dialogueVectors = [...(session.dialogueVectors || [])]; // RAG 벡터 복원 (2단계)
+                        this.currentChapterIndex = this.storyHistory.length;
+                        
+                        // Dynamically reconstruct chat log UI from history to save localStorage space
+                        this.chatLogArea.innerHTML = '';
+                        this.storyHistory.forEach(item => {
+                            if (item.actionText && item.actionText !== "대화를 시작하자.") {
+                                this.appendChatMessage("user", item.actionText);
+                            }
+                            this.appendChatMessage("ai", item.dialogue, item.emotion || 'normal');
+                        });
+                        
+                        if (this.storyHistory.length > 0) {
+                            setTimeout(() => {
+                                this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
+                                this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
+                            }, 900);
+                        }
                     }
                 }
             }
@@ -999,12 +1023,48 @@ JSON Schema:
     }
 
     // Chat Log Bubbles
-    appendChatMessage(sender, text) {
+    appendChatMessage(sender, text, emotion = 'normal') {
         const msgEl = document.createElement('div');
-        msgEl.className = `${sender}-message`;
+        msgEl.className = `${sender}-message chat-bubble-wrapper`;
         
-        const senderName = sender === 'user' ? this.characterName : (sender === 'ai' ? '오라클 예언자' : '시스템');
-        msgEl.innerHTML = `<p><strong>${senderName}:</strong> ${text}</p>`;
+        if (sender === 'ai') {
+            const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
+            const imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+            
+            let avatarHtml = '';
+            if (imgUrl) {
+                avatarHtml = `<img src="${imgUrl}" class="chat-avatar-img" alt="${emotion}" />`;
+            } else {
+                let avatarIcon = '🔮';
+                if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
+                else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
+                else avatarIcon = '👤';
+                avatarHtml = `<div class="chat-avatar-icon">${avatarIcon}</div>`;
+            }
+            
+            msgEl.innerHTML = `
+                <div class="chat-avatar-container">
+                    ${avatarHtml}
+                </div>
+                <div class="chat-message-content">
+                    <span class="chat-sender-name">${this.chatCharName}</span>
+                    <div class="chat-bubble">
+                        <p>${text}</p>
+                    </div>
+                </div>
+            `;
+        } else if (sender === 'user') {
+            msgEl.innerHTML = `
+                <div class="chat-message-content user-content">
+                    <div class="chat-bubble user-bubble">
+                        <p>${text}</p>
+                    </div>
+                </div>
+            `;
+        } else {
+            msgEl.className = 'system-message';
+            msgEl.innerHTML = `<p><strong>시스템:</strong> ${text}</p>`;
+        }
         
         this.chatLogArea.appendChild(msgEl);
         this.chatLogArea.scrollTop = this.chatLogArea.scrollHeight;
@@ -1117,9 +1177,12 @@ JSON Schema:
                 affinityValue: this.affinityValue,
                 memoryList: [...this.memoryList],
                 storyHistory: [...this.storyHistory],
-                dialogueVectors: [...this.dialogueVectors], // RAG 벡터 스냅샷 추가 (2단계)
-                chatLogHtml: this.chatLogArea.innerHTML
+                dialogueVectors: [...this.dialogueVectors] // RAG 벡터 스냅샷 추가 (2단계)
             };
+            
+            // Ensure preset images & prompt are preserved
+            presets[presetName].characterImages = this.characterImages || {};
+            presets[presetName].imagePrompt = this.inputCharImagePrompt.value.trim();
 
             try {
                 localStorage.setItem('persona_presets', JSON.stringify(presets));
@@ -1720,6 +1783,8 @@ JSON Schema:
             this.removeLoadingIndicator();
 
             if (result) {
+                // Ensure emotion has a fallback value
+                result.emotion = result.emotion || 'normal';
                 result.actionText = actionText;
                 this.storyHistory.push(result);
                 this.currentChapterIndex = this.storyHistory.length;
@@ -1738,11 +1803,11 @@ JSON Schema:
                     if (this.memoryList.length > 5) this.memoryList.shift();
                 }
 
-                // Render Left Panel
+                // Render Left Panel (which will update the profile picture automatically)
                 this.renderChatLeftPanel(result);
 
-                // Append AI reply to log
-                this.appendChatMessage("ai", result.dialogue);
+                // Append AI reply to log with current emotion
+                this.appendChatMessage("ai", result.dialogue, result.emotion);
 
                 // Render Choices
                 this.renderChoiceCards(result.choices);
@@ -1769,11 +1834,10 @@ JSON Schema:
                                         presets[activePreset].savedSession = presets[activePreset].savedSession || {};
                                         presets[activePreset].savedSession.dialogueVectors = [...this.dialogueVectors];
                                         
-                                        // 무정전 동기화 (기존 세션 정보와 동기화 유지)
+                                        // 무정전 동기화 (기존 세션 정보와 동기화 유지, 대화창 HTML은 용량 절약을 위해 비저장)
                                         presets[activePreset].savedSession.affinityValue = this.affinityValue;
                                         presets[activePreset].savedSession.memoryList = [...this.memoryList];
                                         presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
-                                        presets[activePreset].savedSession.chatLogHtml = this.chatLogArea.innerHTML;
 
                                         localStorage.setItem('persona_presets', JSON.stringify(presets));
                                     }
@@ -1822,14 +1886,23 @@ JSON Schema:
     }
 
     // Render character profile in the fixed top container
-    renderChatProfile() {
+    renderChatProfile(emotion = 'normal') {
         if (!this.charProfileContainer) return;
         this.charProfileContainer.style.display = 'block';
 
-        let avatarIcon = '🔮';
-        if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
-        else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
-        else avatarIcon = '👤';
+        const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
+        const imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+        
+        let avatarHtml = '';
+        if (imgUrl) {
+            avatarHtml = `<img src="${imgUrl}" class="profile-avatar-img" alt="${this.chatCharName}" />`;
+        } else {
+            let avatarIcon = '🔮';
+            if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
+            else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
+            else avatarIcon = '👤';
+            avatarHtml = `<span class="profile-avatar">${avatarIcon}</span>`;
+        }
 
         const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
 
@@ -1840,7 +1913,7 @@ JSON Schema:
             profileCard.className = 'character-profile-card';
             profileCard.innerHTML = `
                 <div class="profile-header">
-                    <span class="profile-avatar">${avatarIcon}</span>
+                    <div class="profile-avatar-wrapper">${avatarHtml}</div>
                     <div class="profile-meta">
                         <h3 class="char-name-el">${this.chatCharName}</h3>
                         <p class="char-relation-el">${this.chatRelation}</p>
@@ -1864,14 +1937,14 @@ JSON Schema:
             `;
             this.charProfileContainer.appendChild(profileCard);
         } else {
-            const avatarEl = profileCard.querySelector('.profile-avatar');
+            const avatarWrapper = profileCard.querySelector('.profile-avatar-wrapper');
             const nameEl = profileCard.querySelector('.char-name-el');
             const relationEl = profileCard.querySelector('.char-relation-el');
             const affinityTextEl = profileCard.querySelector('.affinity-text-el');
             const affinityBarEl = profileCard.querySelector('.affinity-bar-el');
             const memoryListEl = profileCard.querySelector('.memory-list-el');
 
-            if (avatarEl) avatarEl.textContent = avatarIcon;
+            if (avatarWrapper) avatarWrapper.innerHTML = avatarHtml;
             if (nameEl) nameEl.textContent = this.chatCharName;
             if (relationEl) relationEl.textContent = this.chatRelation;
             
@@ -1889,8 +1962,8 @@ JSON Schema:
     renderChatLeftPanel(latestResult) {
         this.storyScrollArea.innerHTML = '';
 
-        // Render Profile Card in its fixed container
-        this.renderChatProfile();
+        // Render Profile Card in its fixed container with the current emotion
+        this.renderChatProfile(latestResult ? (latestResult.emotion || 'normal') : 'normal');
 
         // Render Dialogue Logs in scrollable area
         const logContainer = document.createElement('div');
@@ -1986,11 +2059,13 @@ JSON Schema:
 3. 유저의 입력([${actionText}])과 대화 기록을 바탕으로 유저에게 품은 호감도 변화 수치(affinityChange)를 -10에서 +10 사이의 정수로 연산하여 알려주세요. 유저가 무례하거나 냉대하면 마이너스, 다정하거나 자극적인 유혹에 넘어가면 플러스를 줍니다.
 4. 이번 턴의 대화 결과를 인물이 머릿속에 기억할 내용(memoryNotes)을 한 문장으로 간결하게 작성해 주세요 (예: "주인공이 나의 어깨를 감싸 안아서 당황했지만 기뻤음").
 5. 인물의 대사가 끝났을 때 유저가 대답할 수 있는 매력적이고 자연스러운 대화 대답 선택지 3가지를 배열로 구성해 주세요.
-6. 반드시 아래 명시된 JSON Schema 구조를 완전하게 만족하여 JSON 문자열로만 응답해 주세요. 마크다운 기호(\`\`\`json)는 절대 포함하지 마세요.
+6. 이번 대사에서 드러나는 인물의 주된 감정을 normal (평온), happy (기쁨), sad (슬픔), angry (화남), blush (부끄러움) 중 하나로 정확히 판별하여 emotion 필드에 지정해 주세요.
+7. 반드시 아래 명시된 JSON Schema 구조를 완전하게 만족하여 JSON 문자열로만 응답해 주세요. 마크다운 기호(\`\`\`json)는 절대 포함하지 마세요.
 
 JSON Schema:
 {
   "dialogue": "인물의 반응 대사와 행동 지문 묘사 string",
+  "emotion": "인물의 현재 감정 상태 (normal | happy | sad | angry | blush) string",
   "affinityChange": "이번 턴의 호감도 변화량 (-10~10 사이의 정수) number",
   "memoryNotes": "인물이 기억 보관소에 기록할 기억 메모리 string",
   "choices": [
@@ -2213,7 +2288,9 @@ JSON Schema:
                 relation,
                 desc,
                 level,
-                userName
+                userName,
+                imagePrompt: this.inputCharImagePrompt.value.trim(),
+                characterImages: this.characterImages || {}
             };
             localStorage.setItem('persona_presets', JSON.stringify(presets));
             
@@ -2284,6 +2361,29 @@ JSON Schema:
                 this.selectChatLevel.value = data.level || 'normal';
                 this.inputChatUserName.value = data.userName || '알렉스';
 
+                // 캐릭터 이미지 및 프롬프트 복원
+                this.inputCharImagePrompt.value = data.imagePrompt || '';
+                this.characterImages = data.characterImages || {};
+                
+                const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
+                const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
+                
+                if (hasImages) {
+                    emotions.forEach(emotion => {
+                        const imgEl = document.getElementById(`img-preview-${emotion}`);
+                        if (imgEl && this.characterImages[emotion]) {
+                            imgEl.src = this.characterImages[emotion];
+                        }
+                    });
+                    this.charImagesPreview.style.display = 'grid';
+                } else {
+                    emotions.forEach(emotion => {
+                        const imgEl = document.getElementById(`img-preview-${emotion}`);
+                        if (imgEl) imgEl.src = '';
+                    });
+                    this.charImagesPreview.style.display = 'none';
+                }
+
                 // Restore dialogueVectors from preset session if it exists (2단계)
                 if (data.savedSession) {
                     this.dialogueVectors = [...(data.savedSession.dialogueVectors || [])];
@@ -2295,6 +2395,93 @@ JSON Schema:
             }
         } catch (e) {
             console.error("Error loading selected persona preset:", e);
+        }
+    }
+
+    // Generate Character Images for all emotions via API
+    async generateCharacterImages() {
+        const promptInput = this.inputCharImagePrompt.value.trim();
+        const apiKey = this.apiKey || this.inputApiKey.value.trim();
+
+        if (!apiKey) {
+            alert("이미지를 생성하려면 Gemini API Key를 입력하셔야 합니다.");
+            this.inputApiKey.focus();
+            return;
+        }
+
+        if (!promptInput) {
+            alert("캐릭터의 외모를 묘사하는 프롬프트를 입력해 주세요.");
+            this.inputCharImagePrompt.focus();
+            return;
+        }
+
+        // Show status & hide preview grid
+        this.charImageStatus.style.display = 'block';
+        this.charImagesPreview.style.display = 'none';
+        this.btnGenerateCharImages.disabled = true;
+
+        const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
+        const emotionPrompts = {
+            normal: promptInput,
+            happy: `${promptInput}, happy smiling expression, laughing, cheerful, bright eyes`,
+            sad: `${promptInput}, sad crying expression, tearful, looking down, melancholy`,
+            angry: `${promptInput}, angry frowning expression, glaring eyes, annoyed, upset`,
+            blush: `${promptInput}, blushing embarrassed expression, shy smile, looking away, cute`
+        };
+
+        this.characterImages = {};
+
+        try {
+            for (let i = 0; i < emotions.length; i++) {
+                const emotion = emotions[i];
+                const displayEmotion = emotion === 'normal' ? '평온' : 
+                                      emotion === 'happy' ? '기쁨' :
+                                      emotion === 'sad' ? '슬픔' :
+                                      emotion === 'angry' ? '화남' : '부끄러움';
+
+                this.charImageStatusText.textContent = `[${i + 1}/${emotions.length}] ${displayEmotion} 감정 이미지 생성 중...`;
+
+                const response = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        apiKey: apiKey,
+                        prompt: emotionPrompts[emotion]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errData = await response.json().catch(() => ({ error: '서버 통신 실패' }));
+                    throw new Error(`[${displayEmotion}] 생성 실패: ${errData.error || '알 수 없는 서버 에러'}`);
+                }
+
+                const data = await response.json();
+                if (!data.imageBytes) {
+                    throw new Error(`[${displayEmotion}] 이미지 데이터를 받지 못했습니다.`);
+                }
+
+                this.characterImages[emotion] = `data:image/jpeg;base64,${data.imageBytes}`;
+                
+                // Update preview image immediately
+                const imgEl = document.getElementById(`img-preview-${emotion}`);
+                if (imgEl) {
+                    imgEl.src = this.characterImages[emotion];
+                }
+            }
+
+            this.charImageStatusText.textContent = "모든 캐릭터 이미지 생성 완료!";
+            this.charImagesPreview.style.display = 'grid';
+            this.playMagicChime();
+        } catch (error) {
+            console.error("Image generation error:", error);
+            alert(`이미지 생성 중 오류가 발생했습니다: ${error.message}`);
+            this.charImageStatusText.textContent = "이미지 생성 실패";
+        } finally {
+            this.btnGenerateCharImages.disabled = false;
+            // 3초 후 상태 메시지 숨기기
+            setTimeout(() => {
+                this.charImageStatus.style.display = 'none';
+            }, 3000);
         }
     }
 }

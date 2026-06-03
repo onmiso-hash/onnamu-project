@@ -120,6 +120,45 @@
                         </select>
                     </div>
 
+                    <!-- Character Image Generation Section -->
+                    <div class="form-group" style="margin-top: 1.2rem; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 1.2rem;">
+                        <label>🎨 캐릭터 이미지 생성 (선택)</label>
+                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                            <input type="text" id="input-char-image-prompt" placeholder="생성할 캐릭터의 외모 프롬프트 (영문 권장)">
+                            <button id="btn-generate-char-images" class="glow-btn sm" style="width: auto; white-space: nowrap;">생성</button>
+                        </div>
+                        <span class="field-hint">입력 시 대표 이미지와 4가지 감정 이미지(기쁨, 슬픔, 화남, 부끄러움)가 자동 생성됩니다.</span>
+                        
+                        <!-- Preview Grid -->
+                        <div id="char-images-preview" class="char-images-preview-grid" style="display: none;">
+                            <div class="preview-item">
+                                <span class="preview-label">평온</span>
+                                <div class="img-wrapper"><img id="img-preview-normal" src="" alt="Normal"></div>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">기쁨</span>
+                                <div class="img-wrapper"><img id="img-preview-happy" src="" alt="Happy"></div>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">슬픔</span>
+                                <div class="img-wrapper"><img id="img-preview-sad" src="" alt="Sad"></div>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">화남</span>
+                                <div class="img-wrapper"><img id="img-preview-angry" src="" alt="Angry"></div>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">부끄</span>
+                                <div class="img-wrapper"><img id="img-preview-blush" src="" alt="Blush"></div>
+                            </div>
+                        </div>
+                        
+                        <!-- Image Loading Status -->
+                        <div id="char-image-status" style="display: none; font-size: 0.8rem; color: #a855f7; margin-top: 0.5rem;">
+                            <span class="spinner-icon">⏳</span> <span id="char-image-status-text">이미지를 생성하고 있습니다...</span>
+                        </div>
+                    </div>
+
                     <!-- Persona Preset Management Section -->
                     <div class="preset-section">
                         <label class="preset-label">💾 페르소나 프리셋 관리</label>

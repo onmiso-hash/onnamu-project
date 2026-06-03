@@ -286,6 +286,54 @@ app.post('/api/embed', async (req, res) => {
     }
 });
 
+// POST Endpoint to generate images using Imagen 3 model via Google AI Studio API
+app.post('/api/generate-image', async (req, res) => {
+    const { apiKey, prompt, model } = req.body;
+
+    if (!apiKey) {
+        return res.status(400).json({ error: 'API Key가 누락되었습니다.' });
+    }
+    if (!prompt) {
+        return res.status(400).json({ error: '생성할 이미지 프롬프트가 누락되었습니다.' });
+    }
+
+    try {
+        const selectedModel = model || 'imagen-3.0-generate-002';
+        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateImages?key=${apiKey}`;
+
+        const requestBody = {
+            prompt: prompt,
+            numberOfImages: 1,
+            outputMimeType: 'image/jpeg',
+            aspectRatio: '1:1',
+            personGeneration: 'ALLOW_ADULT'
+        };
+
+        const response = await fetch(apiURL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`구글 이미지 API 오류 (HTTP ${response.status}): ${errText}`);
+        }
+
+        const data = await response.json();
+        
+        if (!data.generatedImages || data.generatedImages.length === 0) {
+            throw new Error("이미지가 정상적으로 생성되지 않았습니다.");
+        }
+
+        const base64Image = data.generatedImages[0].image.imageBytes;
+        res.json({ imageBytes: base64Image });
+    } catch (error) {
+        console.error("[Proxy Image Server Error]:", error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Quick response to favicon requests to prevent browser infinite loading spinner
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
