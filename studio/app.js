@@ -210,6 +210,11 @@ class ChronicleApp {
                 if (displayNameEl && data.username) {
                     displayNameEl.textContent = data.username;
                 }
+                
+                const profileBarEl = document.querySelector('.user-profile-bar');
+                if (profileBarEl) {
+                    profileBarEl.style.display = 'flex';
+                }
 
                 // 관리자가 아니면 수위 조절(19금) 옵션 제거
                 if (!this.isAdmin) {
