@@ -6,6 +6,7 @@
 class ChronicleApp {
     constructor() {
         // App State
+        this.isAdmin = false;
         this.apiKey = localStorage.getItem('gemini_api_key') || '';
         this.model = localStorage.getItem('gemini_api_model') || 'gemini-3.5-flash';
         this.genre = 'dark-fantasy';
@@ -203,13 +204,32 @@ class ChronicleApp {
             const res = await fetch('/api/user-info');
             if (res.ok) {
                 const data = await res.json();
+                this.isAdmin = data.isAdmin || false;
+                
                 const displayNameEl = document.getElementById('user-display-name');
                 if (displayNameEl && data.username) {
                     displayNameEl.textContent = data.username;
                 }
+
+                // 관리자가 아니면 수위 조절(19금) 옵션 제거
+                if (!this.isAdmin) {
+                    const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
+                    if (adultGenre) adultGenre.remove();
+                    
+                    const adultTone = document.querySelector('#select-tone option[value="sensual"]');
+                    if (adultTone) adultTone.remove();
+                    
+                    const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
+                    if (adultLevel) adultLevel.remove();
+                }
+
+                // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
+                this.loadPersonaPresets();
             }
         } catch (e) {
             console.error("Failed to fetch user info:", e);
+            this.isAdmin = false;
+            this.loadPersonaPresets();
         }
     }
 
@@ -2081,6 +2101,11 @@ JSON Schema:
 
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             Object.keys(presets).forEach(name => {
+                const preset = presets[name];
+                // 관리자가 아니고 19금 설정이 있는 경우 렌더링 스킵
+                if (!this.isAdmin && (preset.level === 'adult-19' || name.includes('19금'))) {
+                    return;
+                }
                 const opt = document.createElement('option');
                 opt.value = name;
                 opt.textContent = name;

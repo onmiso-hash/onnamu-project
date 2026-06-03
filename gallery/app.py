@@ -103,7 +103,7 @@ def format_size(size_bytes: int) -> str:
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} PB"
 
-def generate_auth_token(username, secret_key):
+def generate_auth_token(username, secret_key, is_admin=False):
     import hmac
     import hashlib
     import base64
@@ -111,7 +111,7 @@ def generate_auth_token(username, secret_key):
     import json
     # 만료시간: 현재 시간 + 30일
     exp = int(time.time()) + (30 * 24 * 3600)
-    payload_data = {"username": username, "exp": exp}
+    payload_data = {"username": username, "exp": exp, "is_admin": is_admin}
     payload_json = json.dumps(payload_data)
     payload_b64 = base64.urlsafe_b64encode(payload_json.encode('utf-8')).decode('utf-8').rstrip('=')
     
@@ -163,7 +163,7 @@ def login():
             
             response = redirect(next_url)
             # Chronicle Studio 연동을 위한 공통 쿠키 생성
-            token = generate_auth_token(username, app.secret_key)
+            token = generate_auth_token(username, app.secret_key, is_admin=user.get("is_admin", False))
             cookie_domain = None
             host = request.headers.get('Host', '')
             if 'onnamu.kr' in host:

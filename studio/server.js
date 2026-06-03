@@ -134,7 +134,10 @@ app.get('/api/user-info', (req, res) => {
     if (!req.user) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
-    res.json({ username: req.user.username });
+    res.json({ 
+        username: req.user.username,
+        isAdmin: !!req.user.is_admin
+    });
 });
 
 // Proxy endpoint to bypass browser CORS limits when calling Gemini API
