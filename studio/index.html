@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Serif+KR:wght@300;400;700;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260604_0238">
+    <link rel="stylesheet" href="style.css?v=20260604_0346">
 </head>
 <body>
     <!-- Fullscreen Ambient Particle Background -->
@@ -118,6 +118,64 @@
                             <option value="normal">전체 이용가 (소프트하고 일상적인 분위기)</option>
                             <option value="adult-19">🔥 19금 성인용 (수위 높고 관능적인 치명적 로맨스 롤플레이)</option>
                         </select>
+                        <!-- Preview Grid -->
+                        <div id="char-images-preview" class="char-images-preview-grid" style="display: grid;">
+                            <div class="preview-item">
+                                <span class="preview-label">평온 (대표)</span>
+                                <div class="img-wrapper" onclick="document.getElementById('file-upload-normal').click()">
+                                    <img id="img-preview-normal" src="" alt="Normal" style="display: none;">
+                                    <div class="upload-placeholder" id="placeholder-normal">
+                                        <span class="upload-icon">➕</span>
+                                        <span class="upload-text">평온</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="file-upload-normal" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload('normal', this)">
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">기쁨</span>
+                                <div class="img-wrapper" onclick="document.getElementById('file-upload-happy').click()">
+                                    <img id="img-preview-happy" src="" alt="Happy" style="display: none;">
+                                    <div class="upload-placeholder" id="placeholder-happy">
+                                        <span class="upload-icon">➕</span>
+                                        <span class="upload-text">기쁨</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="file-upload-happy" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload('happy', this)">
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">슬픔</span>
+                                <div class="img-wrapper" onclick="document.getElementById('file-upload-sad').click()">
+                                    <img id="img-preview-sad" src="" alt="Sad" style="display: none;">
+                                    <div class="upload-placeholder" id="placeholder-sad">
+                                        <span class="upload-icon">➕</span>
+                                        <span class="upload-text">슬픔</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="file-upload-sad" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload('sad', this)">
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">화남</span>
+                                <div class="img-wrapper" onclick="document.getElementById('file-upload-angry').click()">
+                                    <img id="img-preview-angry" src="" alt="Angry" style="display: none;">
+                                    <div class="upload-placeholder" id="placeholder-angry">
+                                        <span class="upload-icon">➕</span>
+                                        <span class="upload-text">화남</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="file-upload-angry" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload('angry', this)">
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">부끄러움</span>
+                                <div class="img-wrapper" onclick="document.getElementById('file-upload-blush').click()">
+                                    <img id="img-preview-blush" src="" alt="Blush" style="display: none;">
+                                    <div class="upload-placeholder" id="placeholder-blush">
+                                        <span class="upload-icon">➕</span>
+                                        <span class="upload-text">부끄</span>
+                                    </div>
+                                </div>
+                                <input type="file" id="file-upload-blush" accept="image/*" style="display: none;" onchange="window.app.handleImageUpload('blush', this)">
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Character Image Generation Section -->
@@ -128,30 +186,6 @@
                             <button id="btn-generate-char-images" class="glow-btn sm" style="width: 100%;">🎨 캐릭터 이미지 5종 일괄 생성</button>
                         </div>
                         <span class="field-hint">입력 시 대표 이미지와 4가지 감정 이미지(기쁨, 슬픔, 화남, 부끄러움)가 자동 생성됩니다.</span>
-                        
-                        <!-- Preview Grid -->
-                        <div id="char-images-preview" class="char-images-preview-grid" style="display: none;">
-                            <div class="preview-item">
-                                <span class="preview-label">평온</span>
-                                <div class="img-wrapper"><img id="img-preview-normal" src="" alt="Normal"></div>
-                            </div>
-                            <div class="preview-item">
-                                <span class="preview-label">기쁨</span>
-                                <div class="img-wrapper"><img id="img-preview-happy" src="" alt="Happy"></div>
-                            </div>
-                            <div class="preview-item">
-                                <span class="preview-label">슬픔</span>
-                                <div class="img-wrapper"><img id="img-preview-sad" src="" alt="Sad"></div>
-                            </div>
-                            <div class="preview-item">
-                                <span class="preview-label">화남</span>
-                                <div class="img-wrapper"><img id="img-preview-angry" src="" alt="Angry"></div>
-                            </div>
-                            <div class="preview-item">
-                                <span class="preview-label">부끄</span>
-                                <div class="img-wrapper"><img id="img-preview-blush" src="" alt="Blush"></div>
-                            </div>
-                        </div>
                         
                         <!-- Image Loading Status -->
                         <div id="char-image-status" style="display: none; font-size: 0.8rem; color: #a855f7; margin-top: 0.5rem;">
@@ -299,6 +333,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260604_0238"></script>
+    <script src="app.js?v=20260604_0346"></script>
 </body>
 </html>

@@ -2332,7 +2332,6 @@ JSON Schema:
     // Load the selected preset data into the setup input fields
     loadSelectedPersona() {
         const selected = this.selectPersonaPreset.value;
-        if (!selected) return;
 
         // Reset in-memory active session silently to allow loading the new preset's session
         this.storyHistory = [];
@@ -2351,6 +2350,33 @@ JSON Schema:
             this.charProfileContainer.innerHTML = '';
         }
 
+        const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
+
+        if (!selected) {
+            // 프리셋을 선택하지 않은 경우(새 캐릭터) 폼 필드와 이미지 상태를 초기화
+            this.inputChatCharName.value = '';
+            this.inputChatRelation.value = '';
+            this.inputChatCharDesc.value = '';
+            this.selectChatLevel.value = 'normal';
+            this.inputChatUserName.value = '';
+            this.inputCharImagePrompt.value = '';
+            this.characterImages = {};
+
+            emotions.forEach(emotion => {
+                const imgEl = document.getElementById(`img-preview-${emotion}`);
+                const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+                if (imgEl) {
+                    imgEl.src = '';
+                    imgEl.style.display = 'none';
+                }
+                if (placeholderEl) {
+                    placeholderEl.style.display = 'flex';
+                }
+            });
+            this.charImagesPreview.style.display = 'grid'; // 수동 업로드할 수 있도록 항상 grid 노출
+            return;
+        }
+
         try {
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             const data = presets[selected];
@@ -2365,24 +2391,28 @@ JSON Schema:
                 this.inputCharImagePrompt.value = data.imagePrompt || '';
                 this.characterImages = data.characterImages || {};
                 
-                const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
-                const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
-                
-                if (hasImages) {
-                    emotions.forEach(emotion => {
-                        const imgEl = document.getElementById(`img-preview-${emotion}`);
-                        if (imgEl && this.characterImages[emotion]) {
+                emotions.forEach(emotion => {
+                    const imgEl = document.getElementById(`img-preview-${emotion}`);
+                    const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+                    if (this.characterImages[emotion]) {
+                        if (imgEl) {
                             imgEl.src = this.characterImages[emotion];
+                            imgEl.style.display = 'block';
                         }
-                    });
-                    this.charImagesPreview.style.display = 'grid';
-                } else {
-                    emotions.forEach(emotion => {
-                        const imgEl = document.getElementById(`img-preview-${emotion}`);
-                        if (imgEl) imgEl.src = '';
-                    });
-                    this.charImagesPreview.style.display = 'none';
-                }
+                        if (placeholderEl) {
+                            placeholderEl.style.display = 'none';
+                        }
+                    } else {
+                        if (imgEl) {
+                            imgEl.src = '';
+                            imgEl.style.display = 'none';
+                        }
+                        if (placeholderEl) {
+                            placeholderEl.style.display = 'flex';
+                        }
+                    }
+                });
+                this.charImagesPreview.style.display = 'grid'; // 상시 grid 노출
 
                 // Restore dialogueVectors from preset session if it exists (2단계)
                 if (data.savedSession) {
@@ -2464,8 +2494,13 @@ JSON Schema:
                 
                 // Update preview image immediately
                 const imgEl = document.getElementById(`img-preview-${emotion}`);
+                const placeholderEl = document.getElementById(`placeholder-${emotion}`);
                 if (imgEl) {
                     imgEl.src = this.characterImages[emotion];
+                    imgEl.style.display = 'block';
+                }
+                if (placeholderEl) {
+                    placeholderEl.style.display = 'none';
                 }
             }
 
@@ -2476,6 +2511,7 @@ JSON Schema:
             console.error("Image generation error:", error);
             alert(`이미지 생성 중 오류가 발생했습니다: ${error.message}`);
             this.charImageStatusText.textContent = "이미지 생성 실패";
+            this.charImagesPreview.style.display = 'grid'; // 에러가 나도 그리드는 다시 보여야 함
         } finally {
             this.btnGenerateCharImages.disabled = false;
             // 3초 후 상태 메시지 숨기기
@@ -2483,6 +2519,66 @@ JSON Schema:
                 this.charImageStatus.style.display = 'none';
             }, 3000);
         }
+    }
+
+    // Handle manual local image upload (File Reader Base64 conversion)
+    handleImageUpload(emotion, inputEl) {
+        if (!inputEl || !inputEl.files || inputEl.files.length === 0) {
+            return;
+        }
+
+        const file = inputEl.files[0];
+        if (!file.type.startsWith('image/')) {
+            alert('이미지 파일만 업로드할 수 있습니다.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const base64Data = e.target.result;
+            
+            // Store to in-memory images map
+            this.characterImages[emotion] = base64Data;
+
+            // Update UI preview
+            const imgEl = document.getElementById(`img-preview-${emotion}`);
+            const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+
+            if (imgEl) {
+                imgEl.src = base64Data;
+                imgEl.style.display = 'block';
+            }
+            if (placeholderEl) {
+                placeholderEl.style.display = 'none';
+            }
+
+            // Auto-save to current preset if selected
+            const selected = this.selectPersonaPreset.value;
+            if (selected) {
+                try {
+                    const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                    if (presets[selected]) {
+                        presets[selected].characterImages = this.characterImages;
+                        localStorage.setItem('persona_presets', JSON.stringify(presets));
+                        console.log(`[Auto-save] Image for '${emotion}' saved to preset '${selected}'.`);
+                    }
+                } catch (err) {
+                    console.error("Auto-saving uploaded image to preset failed:", err);
+                }
+            }
+
+            this.playSelectionSwell();
+            
+            // Clear file input so same file can be re-uploaded if needed
+            inputEl.value = '';
+        };
+
+        reader.onerror = (err) => {
+            console.error("File reading error:", err);
+            alert("이미지 파일을 읽는 중 오류가 발생했습니다.");
+        };
+
+        reader.readAsDataURL(file);
     }
 }
 
