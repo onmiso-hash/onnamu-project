@@ -455,5 +455,18 @@ def get_work_events():
     rows = c.fetchall(); conn.close()
     return jsonify([{"date": r[0]} for r in rows])
 
+@app.route('/api/debug/deploy-log')
+def get_deploy_log():
+    import os
+    log_path = "/host_c/Users/onmis/project/deploy.log"
+    if not os.path.exists(log_path):
+        return f"Deploy log not found at: {log_path}", 404
+    try:
+        with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
+        return f"<pre style='background:#1e1e1e; color:#d4d4d4; padding:20px; font-family:monospace; line-height:1.5;'>{content}</pre>"
+    except Exception as e:
+        return f"Error reading log: {str(e)}", 500
+
 if __name__ == '__main__':
     init_db(); app.run(host='0.0.0.0', port=5001)
