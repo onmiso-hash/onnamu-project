@@ -289,9 +289,13 @@ app.post('/api/embed', async (req, res) => {
 // Quick response to favicon requests to prevent browser infinite loading spinner
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
-// Fallback to index.html
+// Fallback to index.html (HTML 요청 또는 확장자가 없는 페이지 경로에만 매칭)
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    if (req.accepts('html') && !path.extname(req.path)) {
+        res.sendFile(path.join(__dirname, 'index.html'));
+    } else {
+        res.status(404).end();
+    }
 });
 
 app.listen(PORT, () => {

@@ -499,11 +499,32 @@ class ChronicleApp {
         this.modeType = this.selectModeType.value;
 
         if (this.modeType === 'chat') {
-            const inputName = this.inputChatCharName.value.trim() || '릴리스';
-            const inputRelation = this.inputChatRelation.value.trim() || '계약 악마';
-            const inputDesc = this.inputChatCharDesc.value.trim() || '매혹적이고 도도함';
+            const inputName = this.inputChatCharName.value.trim();
+            const inputRelation = this.inputChatRelation.value.trim();
+            const inputDesc = this.inputChatCharDesc.value.trim();
             const inputLevel = this.selectChatLevel.value;
-            const inputUserName = this.inputChatUserName.value.trim() || '알렉스';
+            const inputUserName = this.inputChatUserName.value.trim();
+
+            if (!inputName) {
+                alert('가상 인물의 이름을 입력해 주세요.');
+                this.inputChatCharName.focus();
+                return;
+            }
+            if (!inputRelation) {
+                alert('주인공과의 관계를 입력해 주세요.');
+                this.inputChatRelation.focus();
+                return;
+            }
+            if (!inputDesc) {
+                alert('가상 인물의 특징을 입력해 주세요.');
+                this.inputChatCharDesc.focus();
+                return;
+            }
+            if (!inputUserName) {
+                alert('주인공(본인) 이름을 입력해 주세요.');
+                this.inputChatUserName.focus();
+                return;
+            }
 
             // Silently apply all new configuration inputs while fully preserving existing dialogue history and affinity
             this.chatCharName = inputName;
@@ -553,9 +574,15 @@ class ChronicleApp {
             if (leftTitle) leftTitle.textContent = "Character Codex (인물 정보 및 교감)";
             if (leftIcon) leftIcon.textContent = "🔮";
         } else {
+            const inputChar = this.inputCharacter.value.trim();
+            if (!inputChar) {
+                alert('주인공 이름 및 특징을 입력해 주세요.');
+                this.inputCharacter.focus();
+                return;
+            }
             this.genre = this.selectGenre.value;
             this.tone = this.selectTone.value;
-            this.characterName = this.inputCharacter.value.trim() || '알렉스';
+            this.characterName = inputChar;
 
             // Detect and resume saved story session
             if (this.storyHistory.length === 0) {
