@@ -216,7 +216,7 @@ class ChronicleApp {
                     profileBarEl.style.display = 'flex';
                 }
 
-                // 관리자가 아니면 수위 조절(19금) 옵션 제거
+                // 관리자가 아니면 수위 조절(19금) 옵션 제거 및 19금 세션 복구 차단
                 if (!this.isAdmin) {
                     const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
                     if (adultGenre) adultGenre.remove();
@@ -226,6 +226,54 @@ class ChronicleApp {
                     
                     const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
                     if (adultLevel) adultLevel.remove();
+
+                    // 19금 상태였던 설정 복구 방어
+                    if (this.selectChatLevel && this.selectChatLevel.value === 'adult-19') {
+                        this.selectChatLevel.value = 'normal';
+                    }
+                    if (this.selectGenre && this.selectGenre.value === 'adult-19') {
+                        this.selectGenre.value = 'fantasy';
+                    }
+                    if (this.selectTone && this.selectTone.value === 'sensual') {
+                        this.selectTone.value = 'normal';
+                    }
+
+                    // 현재 설정된 캐릭터가 19금 프리셋이거나 19금 수위 캐릭터인지 판별
+                    let isAdultChar = false;
+                    const curCharName = this.inputChatCharName ? this.inputChatCharName.value.trim() : '';
+                    
+                    // 1) 프리셋에서 검색하여 19금인지 판별
+                    try {
+                        const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                        if (presets[curCharName] && (presets[curCharName].level === 'adult-19' || curCharName.includes('19금'))) {
+                            isAdultChar = true;
+                        }
+                    } catch(e) {}
+
+                    // 2) 프리셋에 없더라도 캐릭터 이름이 '릴리스'이거나 로컬스토리지 복구 레벨이 19금이었던 경우
+                    if (curCharName === '릴리스' || curCharName.includes('19금') || localStorage.getItem('recent_chat_level') === 'adult-19') {
+                        isAdultChar = true;
+                    }
+
+                    // 19금 캐릭터가 감지되면 전체이용가 디폴트 캐릭터인 '혜린'으로 강제 전환
+                    if (isAdultChar) {
+                        const defaultChar = {
+                            charName: "혜린",
+                            relation: "초등학교 때부터 알고 지낸 소꿉친구",
+                            desc: "새침하고 도도해 보이지만 속은 아주 여리고 주인공을 몰래 좋아함. 칭찬을 받으면 볼을 붉히며 화를 내는 전형적인 츤데레.",
+                            level: "normal"
+                        };
+                        
+                        if (this.inputChatCharName) this.inputChatCharName.value = defaultChar.charName;
+                        if (this.inputChatRelation) this.inputChatRelation.value = defaultChar.relation;
+                        if (this.inputChatCharDesc) this.inputChatCharDesc.value = defaultChar.desc;
+                        if (this.selectChatLevel) this.selectChatLevel.value = defaultChar.level;
+
+                        localStorage.setItem('recent_chat_char_name', defaultChar.charName);
+                        localStorage.setItem('recent_chat_relation', defaultChar.relation);
+                        localStorage.setItem('recent_chat_char_desc', defaultChar.desc);
+                        localStorage.setItem('recent_chat_level', defaultChar.level);
+                    }
                 }
 
                 // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
