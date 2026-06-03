@@ -1,0 +1,12 @@
+{
+  "name": "chronicle-ai-studio",
+  "version": "1.0.0",
+  "description": "Co-creative AI Storytelling Studio with local API Proxy",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.22.2"
+  }
+}

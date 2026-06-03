@@ -1,0 +1,7 @@
+services:
+  studio:
+   build: .
+container_name: chronicle-studio
+         ports:
+           - "8080:8080"
+       restart: always

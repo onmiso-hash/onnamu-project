@@ -176,6 +176,10 @@ HTML_TEMPLATE = """
                 <div class="service-icon">🤖</div>
                 <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p></div>
             </a>
+            <a href="https://studio.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">📖</div>
+                <div class="service-info"><h3>Chronicle Studio</h3><p>Co-creative AI Storytelling</p></div>
+            </a>
         </div>
 
         <div class="section-label" style="margin-top:20px;">Project Demos</div>

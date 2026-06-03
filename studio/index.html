@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chronicle AI | 가상 이야기 창작 스튜디오</title>
+    <meta name="description" content="AI와 함께 나만의 시나리오, 소설, 가상 이야기를 실시간으로 창작하고 아름다운 미디어와 사운드로 감상하는 스튜디오">
+    <!-- Google Fonts: Playfair Display & Noto Serif KR & Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Noto+Serif+KR:wght@300;400;700;900&family=Playfair+Display:ital,wght@0,600;0,800;1,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Fullscreen Ambient Particle Background -->
+    <canvas id="ambient-canvas"></canvas>
+
+    <!-- Start & Setup Screen -->
+    <div id="start-overlay" class="overlay">
+        <div class="overlay-content">
+            <div class="glow-sphere"></div>
+            <h1 class="logo-text">CHRONICLE AI</h1>
+            <p class="subtitle">AI와 함께 써 내려가는 환상과 심연의 대서사시</p>
+            
+            <!-- Setup Form -->
+            <div class="setup-card glass-panel">
+                <h3>창작 스튜디오 세팅</h3>
+                
+                <div class="form-group">
+                    <label for="input-api-key">Gemini API Key (선택)</label>
+                    <input type="password" id="input-api-key" placeholder="AI 실시간 생성용 API 키를 입력해 주세요 (미입력 시 시뮬레이션 모드)">
+                    <span class="field-hint"><a href="https://aistudio.google.com/" target="_blank" rel="noopener">여기서 무료로 발급받으실 수 있습니다.</a></span>
+                </div>
+
+                <div class="form-group">
+                    <label for="select-model">AI 모델 선택</label>
+                    <select id="select-model">
+                        <option value="gemini-3.5-flash">Gemini 3.5 Flash (최신 안정화 모델 - 권장)</option>
+                        <option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite (빠른 속도 및 효율성)</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (성능 대비 균형)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="select-mode-type">스튜디오 모드 선택</label>
+                    <select id="select-mode-type">
+                        <option value="story">📖 소설 메이커 (챕터형 서사 창작)</option>
+                        <option value="chat">🔮 가상 인물 시뮬레이터 (호감도 & 대화형 롤플레이)</option>
+                    </select>
+                </div>
+
+                <!-- Story Mode Fields -->
+                <div id="setup-story-fields">
+                    <div class="setup-grid">
+                        <div class="form-group">
+                            <label for="select-genre">이야기 장르</label>
+                            <select id="select-genre">
+                                <option value="dark-fantasy">다크 판타지 (마법과 심연)</option>
+                                <option value="sci-fi">스페이스 오페라 & SF</option>
+                                <option value="romance">로맨틱 판타지 & 애틋한 로맨스</option>
+                                <option value="celebrity">트렌디 연예계 & 현대 드라마</option>
+                                <option value="adult-19">성인 19금 전용 (치명적이고 매혹적인)</option>
+                                <option value="mystery">빅토리아 미스터리 & 추리</option>
+                                <option value="cyberpunk">사이버펑크 디스토피아</option>
+                                <option value="apocalypse">포스트 아포칼립스 생존</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="select-tone">서사 분위기</label>
+                            <select id="select-tone">
+                                <option value="cinematic">시네마틱 (웅장하고 비장한)</option>
+                                <option value="poetic">시적이고 서정적인</option>
+                                <option value="dark">어둡고 잔혹한</option>
+                                <option value="mysterious">기묘하고 몽환적인</option>
+                                <option value="sensual">관능적이고 치명적인 (19금)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1.2rem;">
+                        <label for="input-character">주인공 이름 및 특징</label>
+                        <input type="text" id="input-character" value="알렉스 (심연의 파편을 지닌 방랑자)" placeholder="예: 엘레나 (별빛 마법의 마지막 계승자)">
+                    </div>
+                </div>
+
+                <!-- Chat Mode Fields -->
+                <div id="setup-chat-fields" style="display: none;">
+                    <div class="setup-grid">
+                        <div class="form-group">
+                            <label for="input-chat-char-name">가상 인물 이름</label>
+                            <input type="text" id="input-chat-char-name" value="릴리스" placeholder="예: 릴리스, 주혁, 가브리엘">
+                        </div>
+                        <div class="form-group">
+                            <label for="input-chat-relation">주인공과의 관계</label>
+                            <input type="text" id="input-chat-relation" value="치명적인 거래 관계의 계약 악마" placeholder="예: 도도한 라이벌, 츤데레 소꿉친구, 직장 상사">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 1.2rem;">
+                        <label for="input-chat-user-name">주인공(본인) 이름</label>
+                        <input type="text" id="input-chat-user-name" value="알렉스" placeholder="대화 중 AI가 나를 부를 이름을 입력하세요">
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 1.2rem;">
+                        <label for="input-chat-char-desc">외모 및 성격 특징</label>
+                        <input type="text" id="input-chat-char-desc" value="매혹적이고 도도하며 붉은 눈과 칠흑 같은 날개가 있음. 평소엔 까칠하지만 스킨십을 하면 수줍어함." placeholder="예: 은발에 적안. 츤데레이며 주인공에게 은근한 소유욕과 집착이 있음.">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 1.2rem;">
+                        <label for="select-chat-level">수위 설정</label>
+                        <select id="select-chat-level">
+                            <option value="normal">전체 이용가 (소프트하고 일상적인 분위기)</option>
+                            <option value="adult-19">🔥 19금 성인용 (수위 높고 관능적인 치명적 로맨스 롤플레이)</option>
+                        </select>
+                    </div>
+
+                    <!-- Persona Preset Management Section -->
+                    <div class="preset-section">
+                        <label class="preset-label">💾 페르소나 프리셋 관리</label>
+                        <div class="preset-controls">
+                            <select id="select-persona-preset">
+                                <option value="">-- 저장된 페르소나 불러오기 --</option>
+                            </select>
+                            <button id="btn-save-persona" class="glow-btn sm save-btn">저장</button>
+                            <button id="btn-delete-persona" class="glow-btn sm outline delete-btn">삭제</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="btn-studio-start" class="glow-btn">창작 스튜디오 들어가기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Workspace Container -->
+    <main id="app-container" class="hidden">
+        <!-- Top HUD Banner -->
+        <header id="hud-header" class="glass-panel">
+            <div class="logo">
+                <span class="feather-icon">✍️</span>
+                <h1>Chronicle Studio</h1>
+            </div>
+            <div class="story-meta">
+                <div class="meta-item">
+                    <span class="label">장르</span>
+                    <span id="hud-genre" class="value">다크 판타지</span>
+                </div>
+                <div class="meta-item">
+                    <span class="label">서사 분위기</span>
+                    <span id="hud-tone" class="value">시네마틱</span>
+                </div>
+                <div class="meta-item">
+                    <span class="label">주인공</span>
+                    <span id="hud-character" class="value">알렉스</span>
+                </div>
+                <div class="meta-item">
+                    <span class="label">AI 모델</span>
+                    <span id="hud-model" class="value">Gemini 1.5 Flash</span>
+                </div>
+            </div>
+            <div class="hud-buttons">
+                <button id="btn-home-settings" class="hud-btn" title="설정 화면(홈)으로 돌아가기">⚙️ 설정</button>
+                <button id="btn-toggle-sound" class="hud-btn active" title="사운드 토글">🔊 ON</button>
+                <button id="btn-save-session" class="hud-btn" title="현재 교감 및 진행 상태 저장">💾 저장</button>
+                <button id="btn-undo-story" class="hud-btn" title="이전 선택 취소 (Undo)">↩️ 실행 취소</button>
+                <button id="btn-reset-story" class="hud-btn" title="처음부터 다시 쓰기">🔄 리셋</button>
+                <button id="btn-export-text" class="hud-btn" title="텍스트 파일로 내보내기">💾 다운로드</button>
+            </div>
+        </header>
+
+        <!-- Dynamic Split Workspace Grid -->
+        <div class="workspace-grid">
+            <!-- Left Side: Story Book Ledger (Serif Typography) -->
+            <section class="story-ledger-container glass-panel">
+                <div class="section-title">
+                    <span>📖</span>
+                    <h2>Story Codex (성장 기록 일지)</h2>
+                </div>
+                
+                <!-- Fixed Profile panel in Chat Mode -->
+                <div id="char-profile-container"></div>
+                
+                <div id="story-scroll-area" class="story-book-canvas">
+                    <!-- Dynamic Chapters will be appended here -->
+                    <div class="cover-page">
+                        <div class="crown-ornament">✨</div>
+                        <h2 id="book-title">새로운 서사시가 곧 기록됩니다</h2>
+                        <p class="book-intro">오른쪽의 예언서 대화창을 통해 이야기를 움직이고 AI와 함께 가상 세계를 조율해 나가세요.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Side: AI Oracle Console (Chat & Interaction) -->
+            <section class="oracle-console-container glass-panel">
+                <div class="section-title">
+                    <span>🔮</span>
+                    <h2>AI Oracle (운명의 선택)</h2>
+                </div>
+
+                <!-- Chat History / Messages Log -->
+                <div id="oracle-chat-log" class="chat-log-area">
+                    <div class="system-message">
+                        <p><strong>오라클 예언자:</strong> 반갑습니다, 창조자님. 당신의 결단에 따라 세계의 운명이 흘러갈 것입니다. 원하시는 이야기 전개를 하단의 3가지 추천 행동 카드나 텍스트창을 통해 들려주십시오.</p>
+                    </div>
+                </div>
+
+                <!-- Resize handle -->
+                <div id="oracle-resizer" class="resizer-y"></div>
+
+                <!-- Wrapped Bottom Controls -->
+                <div id="oracle-bottom-controls" class="oracle-bottom-container">
+                    <!-- Interactive Choices Row (Action cards) -->
+                    <div class="interactive-choices-wrapper">
+                        <h3>💡 운명의 선택지 (추천 행동)</h3>
+                        <div id="choices-container" class="choices-grid">
+                            <div class="choice-card disabled">
+                                <span class="card-num">I</span>
+                                <p>첫 챕터 작성을 시작하면 선택지가 활성화됩니다.</p>
+                            </div>
+                            <div class="choice-card disabled">
+                                <span class="card-num">II</span>
+                                <p>선택지를 눌러 방향을 조율할 수 있습니다.</p>
+                            </div>
+                            <div class="choice-card disabled">
+                                <span class="card-num">III</span>
+                                <p>원하는 방향이 없으면 대화창에 직접 지시하세요.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Direct Input Section -->
+                    <div class="chat-input-wrapper">
+                        <textarea id="chat-input-textarea" placeholder="선택지에 없는 독창적인 운명을 직접 묘사하고 지시하세요... (예: 갑자기 숲속에서 붉은 용의 포효가 들렸다.)" rows="2"></textarea>
+                        <button id="btn-submit-action" class="send-btn">
+                            <span>전송</span>
+                            <span class="send-arrow">➔</span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Settings API Key Modal (Re-openable) -->
+    <div id="api-modal" class="modal hidden">
+        <div class="modal-content glass-panel">
+            <h3>API 키 설정</h3>
+            <input type="password" id="modal-api-key" placeholder="Gemini API Key를 입력하세요">
+            <div class="modal-buttons">
+                <button id="btn-save-key" class="glow-btn sm">저장</button>
+                <button id="btn-close-modal" class="glow-btn sm outline">닫기</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
