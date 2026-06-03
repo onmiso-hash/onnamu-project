@@ -8,8 +8,6 @@
   ```
   #3 [internal] load metadata for docker.io/library/node:18-alpine
   #3 ERROR: error getting credentials - err: exit status 1, out: `A specified logon session does not exist. It may already have been terminated.`
-  ------
-  failed to solve: error getting credentials - err: exit status 1, out: `A specified logon session does not exist. It may already have been terminated.`
   ```
 
 ## 2. 원인 분석
@@ -17,6 +15,7 @@
 ### A. Docker Desktop Credential Helper 접근 장애
 - Windows 환경에서 GitHub Actions와 같은 SSH 비대화형 세션(Non-interactive Session)을 통해 `docker build`나 `docker compose`를 구동할 때 발생합니다.
 - `studio` 서비스 빌드 시 Docker는 베이스 이미지인 `node:18-alpine`을 가져와야 하지만, Windows의 자격 증명 관리 헬퍼(`docker-credential-desktop.exe`)가 백그라운드 세션에 잠겨 사용자 자격 증명(Credential Store)에 접근하지 못해 pull 단계에서 다운로드 실패 예외를 발생시켰습니다.
+- 환경 변수 `DOCKER_CONFIG`로 임시 디렉토리를 지정했음에도 윈도우 Docker Desktop의 특정 백그라운드 구동 환경에 따라 호스트 전역의 사용자 설정(`C:\Users\onmis\.docker\config.json`)을 참조하는 현상이 나타났습니다.
 
 ### B. PowerShell 상대 경로 `cd` 디렉토리 이동에 따른 로그 분산
 - 기존 배포 스크립트(`deploy.yml`)는 각 서비스를 배포하기 위해 해당 디렉토리로 `cd` 이동을 한 후, `>> deploy.log`를 사용해 상대 경로 리다이렉션을 실행했습니다.
@@ -25,12 +24,15 @@
 
 ## 3. 해결 조치 사항
 
-### A. Docker Config 파일 내 빈 자격 증명 구조 강제 설정 (`deploy.yml` 수정)
-- 임시로 환경 변수를 적용하는 디렉토리(`C:\Users\onmis\project\temp_docker_config`) 아래에 빈 `config.json` 파일을 명시적으로 생성하도록 배포 스크립트를 변경했습니다.
+### A. Windows 호스트의 전역 Docker config.json 내 자격 증명 헬퍼 설정 제거
+- 임시 환경 변수를 우회하여 적용하는 수준을 넘어, 배포 스크립트 실행 시작 시 윈도우 호스트 본체의 `C:\Users\onmis\.docker\config.json` 파일에 존재하는 자격 증명 헬퍼 지정을 비활성화하도록 조치했습니다.
   ```powershell
-  Set-Content -Path C:\Users\onmis\project\temp_docker_config\config.json -Value '{}'
+  $conf = Get-Content C:\Users\onmis\.docker\config.json -Raw;
+  $conf = $conf -replace '"credsStore"\s*:\s*"desktop"', '"credsStore": ""';
+  $conf = $conf -replace '"credsStore"\s*:\s*"wincred"', '"credsStore": ""';
+  Set-Content -Path C:\Users\onmis\.docker\config.json -Value $conf -Force;
   ```
-- 이 빈 설정 파일이 존재함에 따라 Docker CLI는 더 이상 시스템의 자격 증명 저장소(`credsStore`) 헬퍼를 경유하지 않고, 퍼블릭 레지스트리(Docker Hub)의 오픈 이미지를 인증 에러 없이 다운로드할 수 있게 되었습니다.
+- 이 수정을 통해 Docker 데몬 및 CLI가 자격 증명 저장소 헬퍼(`docker-credential-desktop.exe`)의 실행 세션 에러 없이 퍼블릭 레지스트리의 모든 공개 이미지를 안정적으로 내려받을 수 있게 되었습니다.
 
 ### B. 로그 저장 절대 경로 변수 적용
 - PowerShell 스크립트 전반에 걸쳐 `$logPath = 'C:\Users\onmis\project\deploy.log'` 변수를 정의하여, 디렉토리 이동(`cd`)이 일어나더라도 항상 동일한 절대 경로 파일에 모든 로그가 누적 기록되도록 변경했습니다.
