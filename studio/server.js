@@ -297,54 +297,63 @@ app.post('/api/generate-image', async (req, res) => {
         return res.status(400).json({ error: '생성할 이미지 프롬프트가 누락되었습니다.' });
     }
 
-    try {
-        const selectedModel = model || 'imagen-3.0-generate-002';
-        const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:predict?key=${apiKey}`;
+    const modelsToTry = model ? [model] : ['imagen-3.0-generate-002', 'imagen-3.0-generate-001'];
+    let lastError = null;
 
-        const requestBody = {
-            instances: [
-                {
-                    prompt: prompt
+    for (const currentModel of modelsToTry) {
+        try {
+            const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:predict?key=${apiKey}`;
+
+            const requestBody = {
+                instances: [
+                    {
+                        prompt: prompt
+                    }
+                ],
+                parameters: {
+                    sampleCount: 1,
+                    aspectRatio: '1:1',
+                    outputMimeType: 'image/jpeg',
+                    personGeneration: 'ALLOW_ADULT'
                 }
-            ],
-            parameters: {
-                sampleCount: 1,
-                aspectRatio: '1:1',
-                outputMimeType: 'image/jpeg',
-                personGeneration: 'ALLOW_ADULT'
+            };
+
+            const response = await fetch(apiURL, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'x-goog-api-key': apiKey
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errText = await response.text();
+                throw new Error(`모델 ${currentModel} 실패 (HTTP ${response.status}): ${errText}`);
             }
-        };
 
-        const response = await fetch(apiURL, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'x-goog-api-key': apiKey
-            },
-            body: JSON.stringify(requestBody)
-        });
+            const data = await response.json();
+            
+            if (!data.predictions || data.predictions.length === 0) {
+                throw new Error("이미지가 정상적으로 생성되지 않았습니다.");
+            }
 
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`구글 이미지 API 오류 (HTTP ${response.status}): ${errText}`);
+            const base64Image = data.predictions[0].bytesBase64Encoded;
+            if (!base64Image) {
+                throw new Error("이미지 데이터가 포함되어 있지 않습니다.");
+            }
+            
+            // 성공 시 즉시 반환
+            return res.json({ imageBytes: base64Image });
+        } catch (error) {
+            console.warn(`[Imagen API Try Failed for ${currentModel}]:`, error.message);
+            lastError = error;
         }
-
-        const data = await response.json();
-        
-        if (!data.predictions || data.predictions.length === 0) {
-            throw new Error("이미지가 정상적으로 생성되지 않았습니다.");
-        }
-
-        const base64Image = data.predictions[0].bytesBase64Encoded;
-        if (!base64Image) {
-            throw new Error("이미지 데이터가 포함되어 있지 않습니다.");
-        }
-        
-        res.json({ imageBytes: base64Image });
-    } catch (error) {
-        console.error("[Proxy Image Server Error]:", error);
-        res.status(500).json({ error: error.message });
     }
+
+    // 모든 모델 시도 실패 시 최종 에러 반환
+    console.error("[Proxy Image Server Error - All Models Failed]:", lastError);
+    res.status(500).json({ error: lastError.message });
 });
 
 // Quick response to favicon requests to prevent browser infinite loading spinner
