@@ -198,12 +198,19 @@ class ChronicleApp {
             });
         }
 
-        // Toggle Memory Accordion
-        if (this.btnToggleMemoryAccordion) {
-            this.btnToggleMemoryAccordion.addEventListener('click', () => {
-                if (this.memoryAccordionContent) {
-                    const isCollapsed = this.memoryAccordionContent.classList.toggle('collapsed');
-                    this.btnToggleMemoryAccordion.classList.toggle('active', !isCollapsed);
+        // 캐릭터 프로필 내 메모리 vault 토글 (이벤트 위임)
+        if (this.charProfileContainer) {
+            this.charProfileContainer.addEventListener('click', (e) => {
+                const toggleBtn = e.target.closest('.memory-vault-toggle');
+                if (toggleBtn) {
+                    const parentVault = toggleBtn.closest('.memory-vault');
+                    if (parentVault) {
+                        const content = parentVault.querySelector('.memory-vault-content');
+                        if (content) {
+                            const isCollapsed = content.classList.toggle('collapsed');
+                            toggleBtn.classList.toggle('active', !isCollapsed);
+                        }
+                    }
                 }
             });
         }
@@ -2051,10 +2058,15 @@ JSON Schema:
                         </div>
                     </div>
                     <div class="memory-vault">
-                        <h4>🧠 주요 기억 메모리</h4>
-                        <ul class="memory-list-el">
-                            ${memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>'}
-                        </ul>
+                        <button class="memory-vault-toggle" type="button">
+                            <span>🧠 주요 기억 메모리</span>
+                            <span class="memory-arrow">▼</span>
+                        </button>
+                        <div class="memory-vault-content collapsed">
+                            <ul class="memory-list-el">
+                                ${memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>'}
+                            </ul>
+                        </div>
                     </div>
                 `;
                 this.charProfileContainer.appendChild(profileCard);
