@@ -1997,13 +1997,12 @@ JSON Schema:
 
     // Render character profile in the fixed top container
     renderChatProfile(emotion = 'normal') {
-        // Toggle visibility of the 2nd and 3rd HUD layers based on mode
+        // Toggle visibility of the HUD layer based on mode
         if (this.modeType === 'chat') {
-            if (this.charProfileLayer) this.charProfileLayer.classList.remove('hidden');
-            if (this.memoryAccordionLayer) this.memoryAccordionLayer.classList.remove('hidden');
+            if (this.charProfileContainer) {
+                this.charProfileContainer.style.display = 'block';
+            }
         } else {
-            if (this.charProfileLayer) this.charProfileLayer.classList.add('hidden');
-            if (this.memoryAccordionLayer) this.memoryAccordionLayer.classList.add('hidden');
             if (this.charProfileContainer) {
                 this.charProfileContainer.style.display = 'none';
                 this.charProfileContainer.innerHTML = '';
@@ -2016,36 +2015,19 @@ JSON Schema:
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
         let avatarHtml = '';
-        let layerAvatarHtml = '';
         if (imgUrl) {
             avatarHtml = `<img src="${imgUrl}" class="profile-avatar-img" alt="${this.chatCharName}" />`;
-            layerAvatarHtml = `<img src="${imgUrl}" class="profile-avatar-layer-img" alt="${this.chatCharName}" style="width:100%; height:100%; object-fit:cover;" />`;
         } else {
             let avatarIcon = '🔮';
             if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
             else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
             else avatarIcon = '👤';
             avatarHtml = `<span class="profile-avatar">${avatarIcon}</span>`;
-            layerAvatarHtml = `<span class="profile-avatar" style="font-size:1.1rem;">${avatarIcon}</span>`;
         }
 
-        // 1. Update 2nd layer (Character profile Layer)
-        if (this.charAvatarSummaryWrapper) this.charAvatarSummaryWrapper.innerHTML = layerAvatarHtml;
-        if (this.charPillName) this.charPillName.textContent = this.chatCharName;
-        if (this.charPillAffinity) this.charPillAffinity.textContent = this.affinityValue;
-        if (this.charProfileLayerBar) {
-            this.charProfileLayerBar.style.width = `${this.affinityValue}%`;
-        }
+        const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
 
-        // 2. Update 3rd layer memory list inside accordion
-        if (this.hudMemoryList) {
-            const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
-            this.hudMemoryList.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
-        }
-
-        // 3. Keep standard fallback rendering in charProfileContainer for safety / backward compatibility
         if (this.charProfileContainer) {
-            this.charProfileContainer.style.display = 'none'; // 중복 노출 차단
             let profileCard = this.charProfileContainer.querySelector('.character-profile-card');
             if (!profileCard) {
                 this.charProfileContainer.innerHTML = '';
@@ -2068,6 +2050,12 @@ JSON Schema:
                             <div class="affection-bar-fill affinity-bar-el" style="width: ${this.affinityValue}%;"></div>
                         </div>
                     </div>
+                    <div class="memory-vault">
+                        <h4>🧠 주요 기억 메모리</h4>
+                        <ul class="memory-list-el">
+                            ${memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>'}
+                        </ul>
+                    </div>
                 `;
                 this.charProfileContainer.appendChild(profileCard);
             } else {
@@ -2076,6 +2064,7 @@ JSON Schema:
                 const relationEl = profileCard.querySelector('.char-relation-el');
                 const affinityTextEl = profileCard.querySelector('.affinity-text-el');
                 const affinityBarEl = profileCard.querySelector('.affinity-bar-el');
+                const memoryListEl = profileCard.querySelector('.memory-list-el');
 
                 if (avatarWrapper) avatarWrapper.innerHTML = avatarHtml;
                 if (nameEl) nameEl.textContent = this.chatCharName;
@@ -2083,6 +2072,9 @@ JSON Schema:
                 if (affinityTextEl) affinityTextEl.textContent = `${this.affinityValue} / 100`;
                 if (affinityBarEl) {
                     affinityBarEl.style.width = `${this.affinityValue}%`;
+                }
+                if (memoryListEl) {
+                    memoryListEl.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
                 }
             }
         }

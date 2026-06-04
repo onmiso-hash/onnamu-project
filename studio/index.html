@@ -277,43 +277,8 @@
                     </div>
                 </div>
 
-                <!-- [2단] 캐릭터 정보 레이어 (Chat mode 전용) -->
-                <div id="studio-char-profile-layer" class="char-profile-layer hidden">
-                    <div class="profile-layer-inner">
-                        <div id="char-avatar-summary-wrapper" class="avatar-layer-wrapper">
-                            <!-- Dynamic avatar loaded by app.js -->
-                        </div>
-                        <div class="profile-layer-meta">
-                            <div class="meta-row">
-                                <h3 id="char-pill-name" class="char-layer-name">-</h3>
-                                <div class="layer-affection">
-                                    <span class="affinity-icon">💖</span>
-                                    <span id="char-pill-affinity" class="affinity-value-text">50</span>
-                                </div>
-                            </div>
-                            <div class="affection-progress-bar-bg">
-                                <div id="char-profile-layer-bar" class="affection-progress-bar-fill" style="width: 50%;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- [3단] 주요 메모리 아코디언 레이어 (Chat mode 전용) -->
-                <div id="studio-memory-accordion-layer" class="memory-accordion-layer hidden">
-                    <button id="btn-toggle-memory-accordion" class="memory-accordion-toggle" title="주요 기억 메모리 확인">
-                        <span class="toggle-icon">🧠</span>
-                        <span class="toggle-text">주요 기억 메모리 (클릭하여 확인)</span>
-                        <span class="arrow-indicator">▼</span>
-                    </button>
-                    <div id="memory-accordion-content" class="memory-accordion-content collapsed">
-                        <ul id="hud-memory-list" class="memory-list-el">
-                            <li>기억된 대화가 아직 없습니다.</li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Full profile card backup in dropdown for data binding safety -->
-                <div id="char-profile-container" style="display: none;"></div>
+                <!-- 캐릭터 프로필 및 주요 기억 메모리 통합 영역 (Chat mode 전용) -->
+                <div id="char-profile-container"></div>
             </div>
 
             <!-- 3. Central Unified Feed Stream (scrollable) -->
