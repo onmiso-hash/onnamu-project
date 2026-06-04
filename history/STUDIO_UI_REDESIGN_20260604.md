@@ -49,5 +49,6 @@
 
 - **1차 개편 배포**: `[main 28b2c62]` 좌측 사이드바 및 3단 고정 HUD 레이아웃 개편
 - **2차 튜닝 배포**: `[main 6c28f26]` 중복 프로필 노출 제거, 메모리 아코디언 스무스 슬라이딩(collapsed 클래스 제어) 적용 및 프리미엄 다크 글래스모피즘 테마 색상/디테일 튜닝
+- **3차 튜닝 배포**: `[main]` `style.css` 내 `.memory-accordion-content.hidden`을 `.collapsed`로 변경하여 아코디언 스무스 슬라이딩 동작이 완전히 작동하도록 누락 버그 패치
 - **Git Push**: `origin main` (완료)
-- **포털 히트맵 기록**: `portal/data/news.db` 내 `work_history` 테이블에 1, 2차 이력 데이터 sqlite 쿼리로 인서트 완료.
+- **포털 히트맵 기록**: `portal/data/news.db` 내 `work_history` 테이블에 1, 2, 3차 이력 데이터 sqlite 쿼리로 인서트 완료.
