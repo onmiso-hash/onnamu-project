@@ -128,3 +128,17 @@ graph TD
   3. **디테일 조정**:
      * 이미지가 업로드되지 않은 초기 상태에서 크게 표시될 기본 이모지의 글자 크기(`.chat-avatar-icon` 의 `font-size`)를 `3.2rem`로 확장했습니다.
      * 아바타가 이미 매우 큰 상태이므로 호버 스케일 확대 배율(`.chat-avatar-container:hover` 의 `transform: scale`)을 `1.12`에서 `1.08`로 조율하여 과도하게 화면을 이탈하지 않고 부드럽게 들썩이도록 마감했습니다.
+
+---
+
+## 🚀 10. 추가 사항: 새로고침 시 설정창 이탈 방지 및 모바일 상단 아바타 2배 확대
+* **이슈**:
+  1. 대화 진행 중 새로고침(F5)을 하면 로컬 스토리지에 대화 활성화 상태(`studio_active_state`)가 `'active'`로 정상 기입되지 않고 있어 복구되지 못하고 설정창(홈 오버레이)으로 매번 튕겨 나가는 불편함이 있었습니다.
+  2. 모바일 화면에서 캐릭터 프로필 카드의 아바타가 협소하여 감정 표현이 뚜렷하지 않은 문제가 발생했습니다.
+* **해결 조치**:
+  1. **새로고침 상태 보존 트리거 구현**:
+     * `app.js` 내의 `startStudio()` 함수가 호출되어 대화 화면으로 정상 진입하는 순간 `localStorage.setItem('studio_active_state', 'active');` 및 `localStorage.setItem('recent_persona_preset', this.selectPersonaPreset.value);`를 저장하도록 구현했습니다.
+     * 사용자가 수동으로 홈 설정으로 빠져나가는 `goHomeSettings()` 함수 호출 시에는 `localStorage.setItem('studio_active_state', 'setup');`으로 상태를 전환하여 복구를 우회하도록 설계했습니다.
+  2. **모바일 상단 아바타 2배 확대**:
+     * `style.css` 내 모바일 미디어 쿼리(768px 이하) 내에서 `.profile-avatar-wrapper` 및 `.character-profile-card .profile-avatar` 의 크기를 기존 `72px`에서 `144px`로 2배 대폭 확대하였습니다.
+     * 이에 발맞추어 기본 이모지 아바타의 폰트 크기 또한 `2.2rem`에서 `4.4rem`으로 확대 조정하여 모바일에서도 캐릭터 감정이 시원하게 부각되도록 처리했습니다.

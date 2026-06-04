@@ -50,6 +50,7 @@
 - **신중한 보고 및 검증 권유**: 직접 테스트나 런타임 검증을 완벽하게 끝마친 확정적인 사실이 아닌 경우, 단정적으로 "해결되었습니다", "완벽히 수정되었습니다"와 같은 표현의 사용을 전면 금지합니다. 대신 "수정 작업을 완료하였고 확인이 필요합니다"와 같이 사용자에게 정중히 재검증을 권유하는 방식으로 일관되게 보고를 수행합니다.
 
 ## 📅 주요 히스토리
+- 2026-06-04: Chronicle AI Studio 새로고침 시 설정 이탈 현상 제어 및 모바일 프로필 아바타 2배(144px) 확대. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 대화창 UI gemini.google.com 스타일 단일 피드, 좌측 사이드바 및 3단 고정 HUD로 대대적 개편. 상세 내용은 `history/STUDIO_UI_REDESIGN_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 페르소나 및 RAG 세션 데이터 서버 동기화 API 구축 (기기 간 이동 시 데이터 유실 방지, 오프라인 폴백 오류 패치, 구조화된 출력(Structured Outputs) 도입). 상세 내용은 `history/STUDIO_PERSONA_SYNC_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 아바타 이미지 추가 2배 확대(130px) 및 마이크로 인터랙션 개선. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
