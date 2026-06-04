@@ -44,6 +44,10 @@ class ChronicleApp {
         // Offline Branching Story Tree (Fallback Simulation Mode)
         this.initOfflineStories();
         
+        // Sync State variables
+        this.pushDebounceTimer = null;
+        this.isSyncing = false;
+        
         // Bind DOM Elements
         this.initDOM();
 
@@ -252,6 +256,17 @@ class ChronicleApp {
 
         // Load saved persona presets
         this.loadPersonaPresets();
+
+        // 탭 포커스 및 Visibilitychange 기반 동기화 이벤트 바인딩
+        window.addEventListener('focus', () => this.handleVisibilitySync());
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                this.handleVisibilitySync();
+            }
+        });
+        if (this.chatTextarea) {
+            this.chatTextarea.addEventListener('focus', () => this.handleVisibilitySync());
+        }
     }
 
     async fetchUserInfo() {
@@ -695,7 +710,7 @@ class ChronicleApp {
             // Detect and resume saved chat session
             if (this.storyHistory.length === 0) {
                 const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                const targetPreset = this.selectPersonaPreset.value || this.chatCharName;
+                const targetPreset = this.selectPersonaPreset.value || localStorage.getItem('recent_persona_preset') || this.chatCharName;
                 const presetData = presets[targetPreset];
                 if (presetData) {
                     // Restore character images for active session (Only if not already populated)
@@ -1975,6 +1990,35 @@ JSON Schema:
                 // Render Choices
                 this.renderChoiceCards(result.choices);
 
+                // 1차 즉각 자동 저장 수행 (임베딩 수신 전 로컬스토리지 및 서버 백업 안전 확보)
+                const activePreset = this.selectPersonaPreset.value || `_temp_anonymous_${this.chatCharName}`;
+                try {
+                    const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                    if (!presets[activePreset]) {
+                        // 기존 사용자 정의 프리셋 덮어쓰기 방지를 위한 임시 익명 프리셋 격리 생성
+                        presets[activePreset] = {
+                            charName: this.chatCharName,
+                            relation: this.chatRelation,
+                            charDesc: this.chatCharDesc,
+                            level: this.chatLevel,
+                            userName: this.characterName,
+                            characterImages: this.characterImages || {},
+                            savedSession: {}
+                        };
+                    }
+                    presets[activePreset].savedSession = presets[activePreset].savedSession || {};
+                    presets[activePreset].savedSession.affinityValue = this.affinityValue;
+                    presets[activePreset].savedSession.memoryList = [...this.memoryList];
+                    presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
+                    presets[activePreset].savedSession.dialogueVectors = [...(this.dialogueVectors || [])];
+
+                    localStorage.setItem('persona_presets', JSON.stringify(presets));
+                    this.pushPersonasToServer(); // 디바운싱 전송
+                    console.log(`[Auto-save 1차] 로컬 및 서버 백업 완료 (대화 수: ${this.storyHistory.length})`);
+                } catch (e) {
+                    console.error("1차 실시간 자동 저장 실패:", e);
+                }
+
                 // 2단계: 백그라운드 RAG 대화 임베딩 저장 (비동기 수행)
                 if (this.apiKey && actionText !== "대화를 시작하자.") {
                     const embedText = `유저: ${actionText}\n${this.chatCharName}: ${result.dialogue}`;
@@ -1988,28 +2032,22 @@ JSON Schema:
                                 vector: vector
                             });
 
-                            // 활성화된 프리셋이 있다면 로컬스토리지에 실시간 자동 동기화
-                            const activePreset = this.selectPersonaPreset.value;
-                            if (activePreset) {
-                                try {
-                                    const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                                    if (presets[activePreset]) {
-                                        presets[activePreset].savedSession = presets[activePreset].savedSession || {};
-                                        presets[activePreset].savedSession.dialogueVectors = [...this.dialogueVectors];
-                                        
-                                        // 무정전 동기화 (기존 세션 정보와 동기화 유지, 대화창 HTML은 용량 절약을 위해 비저장)
-                                        presets[activePreset].savedSession.affinityValue = this.affinityValue;
-                                        presets[activePreset].savedSession.memoryList = [...this.memoryList];
-                                        presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
+                            // 2차 자동 저장 (RAG 벡터 추가 업데이트)
+                            try {
+                                const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                                if (presets[activePreset]) {
+                                    presets[activePreset].savedSession = presets[activePreset].savedSession || {};
+                                    presets[activePreset].savedSession.dialogueVectors = [...this.dialogueVectors];
+                                    presets[activePreset].savedSession.affinityValue = this.affinityValue;
+                                    presets[activePreset].savedSession.memoryList = [...this.memoryList];
+                                    presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
 
-                                        localStorage.setItem('persona_presets', JSON.stringify(presets));
-                                        
-                                        // 실시간 자동 저장을 서버에도 백그라운드로 전송
-                                        this.pushPersonasToServer();
-                                    }
-                                } catch (e) {
-                                    console.error("Auto-syncing dialogue vector failed", e);
+                                    localStorage.setItem('persona_presets', JSON.stringify(presets));
+                                    this.pushPersonasToServer(); // 디바운싱 전송
+                                    console.log("[Auto-save 2차] RAG 벡터 백그라운드 동기화 완료");
                                 }
+                            } catch (e) {
+                                console.error("2차 RAG 자동 저장 실패:", e);
                             }
                         }
                     });
@@ -3077,25 +3115,77 @@ JSON Schema:
 
     // Push local persona presets to backend server
     async pushPersonasToServer() {
-        try {
-            const presets = localStorage.getItem('persona_presets');
-            if (!presets) return;
-            const res = await fetch('/api/personas', {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: presets
-            });
-            if (!res.ok) {
-                console.error("Failed to push personas to server, status:", res.status);
-                if (res.status === 401) {
-                    alert('세션이 만료되었거나 인증되지 않았습니다. 원활한 동기화를 위해 다시 로그인해 주세요.');
+        if (this.pushDebounceTimer) {
+            clearTimeout(this.pushDebounceTimer);
+        }
+        this.pushDebounceTimer = setTimeout(async () => {
+            try {
+                const presets = localStorage.getItem('persona_presets');
+                if (!presets) return;
+                const res = await fetch('/api/personas', {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: presets
+                });
+                if (!res.ok) {
+                    console.error("Failed to push personas to server, status:", res.status);
+                    if (res.status === 401) {
+                        alert('세션이 만료되었거나 인증되지 않았습니다. 원활한 동기화를 위해 다시 로그인해 주세요.');
+                    }
+                } else {
+                    console.log("[Sync] Persona presets successfully pushed to server (Debounced).");
                 }
+            } catch (e) {
+                console.error("Failed to push personas to server:", e);
             }
-        } catch (e) {
-            console.error("Failed to push personas to server:", e);
+        }, 500);
+    }
+
+    // Handle tab focus or visibility changes to pull latest data from server
+    async handleVisibilitySync() {
+        if (this.isSyncing) return;
+        
+        // 대화 진행 중(active) 상태일 때만 서버로부터 최신 페르소나 정보를 머지
+        if (localStorage.getItem('studio_active_state') === 'active') {
+            this.isSyncing = true;
+            console.log("[Sync] Tab focused or Input clicked. Syncing with server...");
+            
+            const previousHistoryLen = this.storyHistory.length;
+            
+            try {
+                // 서버와 동기화 실행 (기존 메서드 재활용)
+                await this.syncPersonaPresetsWithServer();
+
+                // 동기화 후, 만약 대화 내역이 변경(서버에 새 대화가 있음)되었다면 현재 대화 화면 즉각 리렌더링
+                const activePreset = this.selectPersonaPreset.value || `_temp_anonymous_${this.chatCharName}`;
+                const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                if (presets[activePreset] && presets[activePreset].savedSession) {
+                    const session = presets[activePreset].savedSession;
+                    const newHistory = session.storyHistory || [];
+                    if (newHistory.length !== previousHistoryLen) {
+                        console.log(`[Sync] Dialogue updated via server sync (${previousHistoryLen} -> ${newHistory.length}). Re-rendering feed...`);
+                        
+                        this.storyHistory = [...newHistory];
+                        this.currentChapterIndex = this.storyHistory.length;
+                        this.affinityValue = session.affinityValue || 50;
+                        this.memoryList = [...(session.memoryList || [])];
+                        this.dialogueVectors = [...(session.dialogueVectors || [])];
+                        
+                        // 챗 피드 다시 그리기
+                        this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
+                        if (this.storyHistory.length > 0) {
+                            this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error("[Sync] Background sync failed:", err);
+            } finally {
+                this.isSyncing = false;
+            }
         }
     }
 
