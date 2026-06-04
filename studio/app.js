@@ -215,6 +215,17 @@ class ChronicleApp {
             });
         }
 
+        // AI 말풍선 클릭 시 상단 프로필 감정 이미지 동기화
+        if (this.storyScrollArea) {
+            this.storyScrollArea.addEventListener('click', (e) => {
+                const aiMsg = e.target.closest('.ai-message');
+                if (aiMsg) {
+                    const emotion = aiMsg.getAttribute('data-emotion') || 'normal';
+                    this.renderChatProfile(emotion);
+                }
+            });
+        }
+
         // Auto-close sidebar on menu item click (specifically for mobile responsiveness)
         setTimeout(() => {
             const sidebarMenuItems = document.querySelectorAll('.sidebar-menu-item');
@@ -1138,6 +1149,9 @@ JSON Schema:
         msgEl.className = `${sender}-message chat-bubble-wrapper`;
         
         if (sender === 'ai') {
+            msgEl.setAttribute('data-emotion', emotion);
+            msgEl.style.cursor = 'pointer';
+            msgEl.setAttribute('title', '이 대화 시점의 표정으로 상단 프로필을 동기화합니다.');
             const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
             let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
             if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;

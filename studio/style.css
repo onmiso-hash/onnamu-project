@@ -386,8 +386,8 @@ select {
 }
 
 .profile-avatar-wrapper {
-    width: 60px;
-    height: 60px;
+    width: 120px;
+    height: 120px;
     border-radius: 50%;
     overflow: hidden;
     border: 2px solid #a855f7; /* Purple Border */
@@ -395,8 +395,13 @@ select {
     align-items: center;
     justify-content: center;
     background: rgba(0, 0, 0, 0.3);
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
     flex-shrink: 0;
+    transition: transform 0.2s ease;
+}
+
+.profile-avatar-wrapper:hover {
+    transform: scale(1.05);
 }
 
 .profile-avatar-img {
@@ -406,9 +411,9 @@ select {
 }
 
 .character-profile-card .profile-avatar {
-    font-size: 2rem;
-    width: 60px;
-    height: 60px;
+    font-size: 3.8rem;
+    width: 120px;
+    height: 120px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1129,20 +1134,20 @@ select {
     }
     
     .profile-avatar-wrapper {
-        width: 36px;
-        height: 36px;
-        border-width: 1px;
+        width: 72px;
+        height: 72px;
+        border-width: 1.5px;
     }
     
     .character-profile-card .profile-avatar {
-        font-size: 1.2rem;
-        width: 36px;
-        height: 36px;
+        font-size: 2.2rem;
+        width: 72px;
+        height: 72px;
     }
     
     .profile-meta h3 {
-        font-size: 0.88rem;
-        margin-bottom: 0.05rem;
+        font-size: 1.05rem;
+        margin-bottom: 0.1rem;
     }
     
     .profile-meta p {
