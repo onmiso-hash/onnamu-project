@@ -254,6 +254,9 @@ class ChronicleApp {
 
                 // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
                 this.loadPersonaPresets();
+                
+                // 서버와 페르소나 데이터 동기화
+                await this.syncPersonaPresetsWithServer();
             } else if (res.status === 401) {
                 // API 인증 실패 (로그인 안 됨) -> 로그인 페이지로 강제 연동 리다이렉트
                 this.redirectToLogin();
@@ -1210,6 +1213,8 @@ JSON Schema:
                 this.loadPersonaPresets();
                 this.selectPersonaPreset.value = presetName;
                 alert(`'${presetName}' 캐릭터와의 교감 상태(호감도 및 메모리)가 안전하게 저장되었습니다.`);
+                // 비동기로 서버에 동기화 백업
+                this.pushPersonasToServer();
             } catch (e) {
                 console.error("Failed to save chat session", e);
                 alert("세션 저장 중 용량 초과 또는 브라우저 오류가 발생했습니다.");
@@ -1861,6 +1866,9 @@ JSON Schema:
                                         presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
 
                                         localStorage.setItem('persona_presets', JSON.stringify(presets));
+                                        
+                                        // 실시간 자동 저장을 서버에도 백그라운드로 전송
+                                        this.pushPersonasToServer();
                                     }
                                 } catch (e) {
                                     console.error("Auto-syncing dialogue vector failed", e);
@@ -2604,6 +2612,9 @@ JSON Schema:
             alert(`'${trimmedPresetName}' 페르소나 프리셋이 저장되었습니다.`);
             this.loadPersonaPresets();
             this.selectPersonaPreset.value = trimmedPresetName;
+            
+            // 비동기로 서버에 동기화 백업
+            this.pushPersonasToServer();
         } catch (e) {
             console.error("Error saving persona preset:", e);
             alert("페르소나 저장 중 오류가 발생했습니다.");
@@ -2627,6 +2638,9 @@ JSON Schema:
                 this.playSelectionSwell();
                 alert(`'${selected}' 프리셋이 삭제되었습니다.`);
                 this.loadPersonaPresets();
+                
+                // 비동기로 서버에 프리셋 삭제 상태 반영
+                this.pushPersonasToServer();
             } catch (e) {
                 console.error("Error deleting persona preset:", e);
                 alert("페르소나 삭제 중 오류가 발생했습니다.");
@@ -2891,6 +2905,8 @@ JSON Schema:
                             presets[selected].characterImages = this.characterImages;
                             localStorage.setItem('persona_presets', JSON.stringify(presets));
                             console.log(`[Auto-save] Image for '${emotion}' saved to preset '${selected}'.`);
+                            // 비동기로 서버에 동기화 백업
+                            await this.pushPersonasToServer();
                         }
                     } catch (err) {
                         console.error("Auto-saving uploaded image to preset failed:", err);
@@ -2920,6 +2936,92 @@ JSON Schema:
         };
 
         reader.readAsDataURL(file);
+    }
+
+    // Push local persona presets to backend server
+    async pushPersonasToServer() {
+        try {
+            const presets = localStorage.getItem('persona_presets');
+            if (!presets) return;
+            const res = await fetch('/api/personas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: presets
+            });
+            if (!res.ok) {
+                console.error("Failed to push personas to server, status:", res.status);
+            }
+        } catch (e) {
+            console.error("Failed to push personas to server:", e);
+        }
+    }
+
+    // Fetch server personas and merge with local storage
+    async syncPersonaPresetsWithServer() {
+        try {
+            const res = await fetch('/api/personas');
+            if (!res.ok) {
+                console.error("Failed to fetch personas from server, status:", res.status);
+                return;
+            }
+            const serverPresets = await res.json();
+            
+            // If server returned empty and no error, but we have local presets, push them to server
+            const localPresetsStr = localStorage.getItem('persona_presets');
+            const localPresets = localPresetsStr ? JSON.parse(localPresetsStr) : {};
+
+            if (Object.keys(serverPresets).length === 0) {
+                if (Object.keys(localPresets).length > 0) {
+                    console.log("Server presets empty. Pushing local presets to server...");
+                    await this.pushPersonasToServer();
+                }
+                return;
+            }
+
+            let hasChanges = false;
+            const mergedPresets = { ...localPresets };
+
+            // 1. Merge server presets into local
+            Object.keys(serverPresets).forEach(name => {
+                const serverPreset = serverPresets[name];
+                const localPreset = localPresets[name];
+
+                if (!localPreset) {
+                    mergedPresets[name] = serverPreset;
+                    hasChanges = true;
+                } else {
+                    // Compare dialogue length or properties to pick the fresher one
+                    const serverSession = serverPreset.savedSession;
+                    const localSession = localPreset.savedSession;
+
+                    const serverLen = (serverSession && serverSession.storyHistory) ? serverSession.storyHistory.length : 0;
+                    const localLen = (localSession && localSession.storyHistory) ? localSession.storyHistory.length : 0;
+
+                    if (serverLen > localLen) {
+                        mergedPresets[name] = serverPreset;
+                        hasChanges = true;
+                    }
+                }
+            });
+
+            // 2. Push local-only presets to server by marking hasChanges
+            Object.keys(localPresets).forEach(name => {
+                if (!serverPresets[name]) {
+                    hasChanges = true;
+                }
+            });
+
+            if (hasChanges) {
+                localStorage.setItem('persona_presets', JSON.stringify(mergedPresets));
+                this.loadPersonaPresets();
+                console.log("Persona presets synced & updated from server.");
+                await this.pushPersonasToServer();
+            }
+        } catch (e) {
+            console.error("Error syncing personas with server:", e);
+        }
     }
 }
 
