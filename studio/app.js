@@ -202,8 +202,8 @@ class ChronicleApp {
         if (this.btnToggleMemoryAccordion) {
             this.btnToggleMemoryAccordion.addEventListener('click', () => {
                 if (this.memoryAccordionContent) {
-                    const isHidden = this.memoryAccordionContent.classList.toggle('hidden');
-                    this.btnToggleMemoryAccordion.classList.toggle('active', !isHidden);
+                    const isCollapsed = this.memoryAccordionContent.classList.toggle('collapsed');
+                    this.btnToggleMemoryAccordion.classList.toggle('active', !isCollapsed);
                 }
             });
         }
@@ -2045,7 +2045,7 @@ JSON Schema:
 
         // 3. Keep standard fallback rendering in charProfileContainer for safety / backward compatibility
         if (this.charProfileContainer) {
-            this.charProfileContainer.style.display = 'block';
+            this.charProfileContainer.style.display = 'none'; // 중복 노출 차단
             let profileCard = this.charProfileContainer.querySelector('.character-profile-card');
             if (!profileCard) {
                 this.charProfileContainer.innerHTML = '';
