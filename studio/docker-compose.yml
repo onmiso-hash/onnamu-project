@@ -7,3 +7,8 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY}
     restart: always
+    volumes:
+      - studio_data:/app/data
+
+volumes:
+  studio_data:

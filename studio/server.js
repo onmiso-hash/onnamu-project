@@ -154,7 +154,7 @@ app.get('/api/user-info', (req, res) => {
 
 // Proxy endpoint to bypass browser CORS limits when calling Gemini API
 app.post('/api/generate', async (req, res) => {
-    const { apiKey, prompt, systemInstruction, model } = req.body;
+    const { apiKey, prompt, systemInstruction, model, responseSchema } = req.body;
 
     if (!apiKey) {
         return res.status(400).json({ error: 'API Key가 누락되었습니다.' });
@@ -163,6 +163,14 @@ app.post('/api/generate', async (req, res) => {
     try {
         const selectedModel = model || 'gemini-3.5-flash';
         const apiURL = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:generateContent?key=${apiKey}`;
+
+        const generationConfig = {
+            responseMimeType: "application/json",
+            temperature: 0.85
+        };
+        if (responseSchema) {
+            generationConfig.responseSchema = responseSchema;
+        }
 
         const requestBody = {
             contents: [
@@ -174,10 +182,7 @@ app.post('/api/generate', async (req, res) => {
             systemInstruction: {
                 parts: [{ text: systemInstruction }]
             },
-            generationConfig: {
-                responseMimeType: "application/json",
-                temperature: 0.85
-            },
+            generationConfig: generationConfig,
             safetySettings: [
                 {
                     category: "HARM_CATEGORY_HARASSMENT",
@@ -393,6 +398,55 @@ app.post('/api/upload-image', (req, res) => {
     } catch (error) {
         console.error("[Upload Image Error]:", error);
         res.status(500).json({ error: '이미지 저장에 실패했습니다.' });
+    }
+});
+
+// GET API to fetch user's personas from server
+app.get('/api/personas', (req, res) => {
+    if (!req.user || !req.user.username) {
+        return res.status(401).json({ error: '인증되지 않은 사용자입니다.' });
+    }
+    const username = req.user.username;
+    const userPersonaFile = path.join(__dirname, 'data', `personas_${username}.json`);
+    
+    try {
+        if (fs.existsSync(userPersonaFile)) {
+            let data = fs.readFileSync(userPersonaFile, 'utf8');
+            // Remove UTF-8 BOM if present
+            if (data.startsWith('\ufeff')) {
+                data = data.slice(1);
+            }
+            return res.json(JSON.parse(data));
+        }
+        res.json({}); // 파일이 없으면 빈 프리셋 반환
+    } catch (error) {
+        console.error("[Get Personas Error]:", error);
+        res.status(500).json({ error: '페르소나 데이터를 불러오는데 실패했습니다.' });
+    }
+});
+
+// POST API to save user's personas to server
+app.post('/api/personas', (req, res) => {
+    if (!req.user || !req.user.username) {
+        return res.status(401).json({ error: '인증되지 않은 사용자입니다.' });
+    }
+    const username = req.user.username;
+    const userPersonaFile = path.join(__dirname, 'data', `personas_${username}.json`);
+    
+    try {
+        const personasData = req.body;
+        const dataDir = path.join(__dirname, 'data');
+        if (!fs.existsSync(dataDir)) {
+            fs.mkdirSync(dataDir, { recursive: true });
+        }
+        
+        // UTF-8 BOM 포함하여 파일 쓰기 (한글 깨짐 방지)
+        const jsonString = JSON.stringify(personasData, null, 2);
+        fs.writeFileSync(userPersonaFile, '\ufeff' + jsonString, 'utf8');
+        res.json({ success: true });
+    } catch (error) {
+        console.error("[Save Personas Error]:", error);
+        res.status(500).json({ error: '페르소나 데이터를 저장하는데 실패했습니다.' });
     }
 });
 

@@ -510,6 +510,11 @@ class ChronicleApp {
         this.model = this.selectModel.value;
         this.modeType = this.selectModeType.value;
 
+        // API Key 누락 시 경고 메시지 띄우기 (오프라인 모드 안내)
+        if (!this.apiKey) {
+            alert('⚠️ Gemini API Key가 입력되지 않았습니다.\n현재 오프라인 시뮬레이션(체험) 모드로 시작합니다.\n가상 캐릭터와 자유롭고 실감 나는 AI 대화를 나누시려면 설정창에 API Key를 꼭 등록해 주세요.');
+        }
+
         if (this.modeType === 'chat') {
             const inputName = this.inputChatCharName.value.trim();
             const inputRelation = this.inputChatRelation.value.trim();
@@ -875,6 +880,19 @@ JSON Schema:
 }`;
 
         const prompt = `[이전 줄거리 히스토리]\n${historyText || "아직 없음"}\n\n[주인공의 최신 결단/행동]\n${actionText}\n\n위 행동에 이어서 다음 챕터를 완전한 JSON 형태로 출력하세요.`;
+        const storySchema = {
+            type: "OBJECT",
+            properties: {
+                chapterTitle: { type: "STRING" },
+                story: { type: "STRING" },
+                choices: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                }
+            },
+            required: ["chapterTitle", "story", "choices"]
+        };
+
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -882,7 +900,8 @@ JSON Schema:
                 apiKey: this.apiKey,
                 prompt: prompt,
                 systemInstruction: systemInstruction,
-                model: this.model
+                model: this.model,
+                responseSchema: storySchema
             })
         });
 
@@ -2078,6 +2097,24 @@ JSON Schema:
 }`;
 
         const prompt = `[이전 대화 기록]\n${historyText || "아직 없음"}\n\n[유저의 최신 대화 및 행동]\n${actionText}\n\n위 입력에 이어서 [${this.chatCharName}]의 롤플레이 반응을 완전한 JSON 형태로 출력하세요.`;
+        const chatSchema = {
+            type: "OBJECT",
+            properties: {
+                dialogue: { type: "STRING" },
+                emotion: { 
+                    type: "STRING", 
+                    enum: ["normal", "happy", "sad", "angry", "blush"] 
+                },
+                affinityChange: { type: "INTEGER" },
+                memoryNotes: { type: "STRING" },
+                choices: {
+                    type: "ARRAY",
+                    items: { type: "STRING" }
+                }
+            },
+            required: ["dialogue", "emotion", "affinityChange", "memoryNotes", "choices"]
+        };
+
         const response = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2085,7 +2122,8 @@ JSON Schema:
                 apiKey: this.apiKey,
                 prompt: prompt,
                 systemInstruction: systemInstruction,
-                model: this.model
+                model: this.model,
+                responseSchema: chatSchema
             })
         });
 
@@ -2104,6 +2142,7 @@ JSON Schema:
                 const depth = this.storyHistory.length;
                 let node = null;
                 
+                // 1. 릴리스 트리 (19금 또는 릴리스 이름 매칭)
                 const lilithChatTree = {
                     start: {
                         dialogue: `*검붉은 안개 속에서 고고하게 허공을 밟고 내려온 릴리스가 그녀의 가죽 날개를 접으며 입을 엽니다.* "어머, 또 어리석은 거래를 하러 온 인간이네? 내 손을 잡고 영혼을 넘기면 네 소원은 다 이루어질 텐데... 후후, 어디 말해봐. 오늘 밤 나에게 무슨 쾌락을 안겨주고 어떤 계약을 맺고 싶은 거야?"`,
@@ -2181,25 +2220,287 @@ JSON Schema:
                     }
                 };
 
+                // 2. 서아 트리 (대학 후배)
+                const seoaChatTree = {
+                    start: {
+                        dialogue: `*양손으로 전공 서적을 꼭 껴안은 서아가 가벼운 발걸음으로 다가옵니다. 그녀의 맑고 큰 눈망울이 당신을 향해 반짝이며 애교 섞인 하이톤으로 인사합니다.* "선배! 드디어 오셨네요! 오늘도 도서관에 안 나오시는 줄 알고 제가 얼마나 조마조마했다고요. 헤헤, 오늘 같이 과제도 도와주시고 맛있는 것도 사주실 거죠?"`,
+                        affinityChange: 0,
+                        memoryNotes: "주인공과 대학 후배 서아가 도서관에서 반갑게 마주함.",
+                        choices: [
+                            "서아의 머리를 장난스럽게 쓰다듬으며 미소 짓는다.",
+                            "공부하러 온 거라며 선배로서 엄격하게 선을 긋는다.",
+                            "도서관 구석의 조용한 자리를 가리키며 어서 공부나 시작하자고 재촉한다."
+                        ]
+                    },
+                    1: {
+                        branch_1: {
+                            dialogue: `*갑자기 머리를 부드럽게 쓰다듬자, 서아는 양손으로 책을 더 세게 껴안으며 고개를 푹 숙입니다. 상기된 양 볼이 붉게 물든 채 힐끗 당신을 올려다봅니다.* "치이... 맨날 저를 어린애처럼 대하시면서... 근데 손길이 은근히 따뜻해서 싫지만은 않네요. 그럼 오늘 저녁 메뉴는 선배가 사주시는 파스타 맛집 맞죠? 무조건 가야 해요!"`,
+                            affinityChange: 7,
+                            memoryNotes: "주인공이 머리를 쓰다듬자 볼을 붉히며 기뻐함.",
+                            choices: [
+                                "서아의 어깨를 슬쩍 감싸 당기며 장난스럽게 가깝게 밀착한다.",
+                                "어린애가 맞다며 볼을 가볍게 꼬집는다.",
+                                "알겠다며 서아가 좋아하는 맛집으로 가자고 시원하게 수락한다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*선배로서 엄격히 대하자 서아가 아랫입술을 삐죽 내밀며 뾰로통하게 쳐다봅니다.* "선배는 진짜 차갑다니까요... 제가 공부에 방해만 되는 존재인가요? 흥, 그래도 저 쉽게 포기 안 해요! 선배가 마지못해 제 어리광을 다 받아주실 때까지 찰떡처럼 계속 붙어 다닐 테니까 각오하세요!"`,
+                            affinityChange: -2,
+                            memoryNotes: "주인공의 냉정한 태도에 토라졌으나 승부욕을 불태움.",
+                            choices: [
+                                "네가 아무리 장난쳐도 내 학구열은 방해할 수 없다고 비웃는다.",
+                                "사실은 너랑 단둘이 공부해서 좋은데 부끄러워서 그렇다고 털어놓는다.",
+                                "대답 없이 공부할 페이지를 책상 위에 크게 펼친다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*도서관 구석 자리를 잡자 서아가 쪼르르 따라와 가방을 내려놓으며 키득키득 웃습니다.* "선배, 조용하고 아무도 없는 구석 자리를 고르시다니... 은근히 영악하신데요? 헤헤, 농담이에요! 자, 전공책 펼쳤으니까 모르는 건 선배가 책임지고 전부 1대1로 밀착 지도해 주셔야 해요?"`,
+                            affinityChange: 3,
+                            memoryNotes: "조용한 구석 자리에서 단둘이 공부를 시작함.",
+                            choices: [
+                                "서아의 전공책을 뺏어 덮으며, 대담하게 얼굴을 가까이 가져다 댄다.",
+                                "열심히 가르쳐줄 테니 딴짓하지 말라며 손가락을 걸어 약속한다.",
+                                "진지한 표정으로 조용히 책을 짚으며 강의를 시작한다."
+                            ]
+                        }
+                    },
+                    2: {
+                        branch_1: {
+                            dialogue: `*서아의 어깨를 감싸 밀착하자, 항상 장난스럽던 그녀의 몸이 일순간 굳어지며 눈을 동그랗게 뜹니다. 서로의 숨결이 닿을 만큼의 가까운 거리에서 서아의 심장이 엄청나게 쿵쾅거리는 소리가 옷깃 너머로 들려옵니다.* "선배... 갑자기 이렇게 가까이 오시면... 저 심장 터질 것 같단 말이에요. 선배 손길이 닿은 어깨가 너무 뜨거워요. 이제 장난 아니라고 생각해도 되는 거죠...?"`,
+                            affinityChange: 9,
+                            memoryNotes: "어깨를 밀착하자 서아가 심장 터질 듯 부끄러워하며 진심을 물어옴.",
+                            choices: [
+                                "대답 대신 수줍어하는 그녀의 이마에 살포시 입술을 맞춘다.",
+                                "귓가에 대고 나도 널 단순한 후배로 생각하지 않는다고 고백한다.",
+                                "일부러 얼굴을 붉힌 서아가 더 귀엽다며 장난스레 밀쳐내고 웃는다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*볼을 꼬집자 서아가 꼬집힌 뺨을 감싸 쥐고 눈물을 찔끔 흘리는 시늉을 합니다. 하지만 곧 당신을 향해 살포시 미소 지으며 애교 넘치는 목소리로 쫑알댑니다.* "아얏! 선배 힘이 너무 세요! 제 예쁜 볼이 빨갛게 부어오르면 선배가 책임지실 건가요? 뭐, 밤마다 제 볼을 쓰다듬어 주신다면 용서해 드릴 용의는 있어요. 헤헤..."`,
+                            affinityChange: 5,
+                            memoryNotes: "볼을 꼬집어 붉어졌으나 지속적으로 스킨십해주기를 바람.",
+                            choices: [
+                                "약속하겠다며 그녀의 볼을 다시 부드럽게 쓰다듬어 준다.",
+                                "더 이상 받아주지 않겠다며 차갑게 공부나 하자고 다그친다.",
+                                "밤마다 만나는 건 더 진한 사이가 되어야만 가능하다고 주의를 준다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*시원하게 파스타 약속을 수락하자 서아가 양손으로 박수를 치며 기뻐 날뜁니다.* "와! 선배 만세! 역시 선배는 겉으로만 퉁명스럽지 속은 아주 태평양처럼 넓다니까요? 그럼 퀴즈나 과제 1개 풀 때마다 한 조각씩 얻어먹는 거예요? 대신 공부 끝날 때까지 딴청 안 피우고 집중할게요!"`,
+                            affinityChange: 6,
+                            memoryNotes: "파스타 식사 약속을 맺고 기뻐하며 공부 열의를 다짐.",
+                            choices: [
+                                "공부에 집중하는 그녀의 옆모습을 물끄러미 바라본다.",
+                                "집중 안 하면 밥값을 네가 내야 한다며 가볍게 도발한다.",
+                                "공부가 끝난 뒤 그녀와 나란히 어깨를 스치며 식당으로 걸어간다."
+                            ]
+                        }
+                    }
+                };
+
+                // 3. 혜린 트리 (츤데레 소꿉친구)
+                const hyerinChatTree = {
+                    start: {
+                        dialogue: `*팔짱을 낀 채 다리를 톡톡 두드리며 당신을 기다리던 혜린이가 당신의 얼굴을 보자마자 새침하게 고개를 홱 돌립니다. 뺨을 약간 붉힌 채 퉁명스럽게 쏘아붙입니다.* "어머, 이제야 오시는 거야? 사람을 30분이나 기다리게 만들어 놓고 얼굴이 참 뻔뻔하네! 뭐, 네가 늦는 거야 늘 있던 일이니까 특별히 봐주겠지만... 오늘 나 기분 안 좋으니까 나를 어떻게 달래줄지 똑똑히 보여줘 봐."`,
+                        affinityChange: 0,
+                        memoryNotes: "소꿉친구 혜린이가 약속 장소에서 퉁명스럽게 기다림.",
+                        choices: [
+                            "혜린의 손을 와락 맞잡으며 늦어서 미안하다고 다정한 눈빛으로 사과한다.",
+                            "늦은 건 미안하지만 그렇게 쌀쌀맞게 굴 필요는 없지 않냐고 따진다.",
+                            "사과의 의미로 혜린이 가장 가고 싶어 했던 달콤한 디저트 카페로 이끈다."
+                        ]
+                    },
+                    1: {
+                        branch_1: {
+                            dialogue: `*손을 덜컥 맞잡자 혜린이의 어깨가 움찔하고 튀어 오릅니다. 뺨이 순식간에 불꽃처럼 빨갛게 변하더니 맞잡은 손을 억지로 빼내려 흔들지만 힘을 강하게 주지는 않습니다.* "바, 바보야! 갑자기 손은 왜 잡는 거야?! 사람들 다 보잖아... 늦은 건 미안한데... 손잡았다고 기분이 다 풀린 거 아니니까 착각하지 마! 다음엔 더 성의 있게 사과해..."`,
+                            affinityChange: 6,
+                            memoryNotes: "주인공이 손을 잡자 볼을 붉히며 당황하였으나 내심 좋아함.",
+                            choices: [
+                                "손을 더 꽉 쥐며 놓지 않겠다고 장난스럽게 웃는다.",
+                                "손이 차갑다며 주머니에 함께 집어넣는다.",
+                                "진지한 눈빛으로 '보고 싶어서 그랬다'고 나직하게 고백한다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*당신이 반박하자 혜린이의 붉은 입술이 살짝 삐져나옵니다. 발끈하여 날카롭게 눈을 홉뜹니다.* "하! 내가 쌀쌀맞다고? 바보! 진짜 아무것도 모르는 둔탱이잖아. 내가 누구 때문에 약속시간 1시간 전부터 화장 고치고 옷 고르느라 진땀 흘렸는지 전혀 모르는 거지? 흥, 바보랑은 더 대화하고 싶지도 않아!"`,
+                            affinityChange: -3,
+                            memoryNotes: "주인공이 자신의 숨겨진 노력을 몰라주자 크게 서운해함.",
+                            choices: [
+                                "오늘 입은 옷이랑 화장이 정말 예쁘다고 뒤늦게 칭찬한다.",
+                                "내가 늦은 건 정말 잘못했다며 어깨를 가볍게 토닥여 달랜다.",
+                                "그렇게 화만 낼 거면 그냥 집에 가겠다고 냉정하게 응수한다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*달콤한 디저트 카페로 이끌자, 혜린이의 굳어 있던 뺨이 아주 미세하게 풀립니다. 하지만 여전히 팔짱을 낀 채 도도하게 카페 안으로 걸어 들어갑니다.* "치이... 디저트로 대충 때우려 하다니 얄팍하네. 하지만 내가 먹고 싶었던 초코 수플레랑 딸기 밀크티는 꼭 네 돈으로 사야 해. 그리고 먹는 내내 내 잔소리 다 들을 준비나 해두라고!"`,
+                            affinityChange: 4,
+                            memoryNotes: "디저트 카페로 이동하며 잔소리를 늘어놓지만 기분이 풀림.",
+                            choices: [
+                                "카페 구석 자리에서 턱을 괴고 혜린이 주문하는 모습을 흐뭇하게 바라본다.",
+                                "잔소리는 초코 수플레로 입막음하면 되는 거냐고 장난친다.",
+                                "주문한 음료가 나왔을 때 빨대를 입에 물려주며 장난친다."
+                            ]
+                        }
+                    },
+                    2: {
+                        branch_1: {
+                            dialogue: `*혜린이의 손을 잡은 채 외투 주머니 속에 함께 밀착해 넣자, 그녀는 완전히 굳어 움직이지 못합니다. 주머니 속에서 당신의 거칠고 큰 손이 자신의 작은 손을 감싸고 손가락을 깍지 끼는 것이 고스란히 느껴지자, 혜린이는 뺨을 손등으로 가리며 웅얼거립니다.* "너, 너 진짜 미쳤어...? 주머니 안에서 손가락을 깍지 끼다니... 손바닥이 너무 뜨겁고 어깨가 스쳐서 더워 죽겠단 말이야... 절대로 놓지 말아줘..."`,
+                            affinityChange: 9,
+                            memoryNotes: "주머니 속에서 손가락 깍지를 끼며 엄청난 긴장감과 애정을 나눔.",
+                            choices: [
+                                "귓가에 속삭이듯 '절대 놓지 않겠다'고 다정하게 속삭인다.",
+                                "주머니 속에서 장난스럽게 손을 꼼지락거리며 혜린의 반응을 즐긴다.",
+                                "주변 사람들을 보며, 이제 연인처럼 보일 것 같다고 말한다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*화장과 옷이 정말 예쁘다고 칭찬하자, 혜린이의 눈동자가 흔들리며 팔짱이 서서히 풀립니다. 귀밑까지 붉어진 채 헛기침을 하며 딴청을 부립니다.* "주, 죽을래? 이제 와서 그런 뻔한 아부를 떨다니... 하지만 그렇게 말해주니까... 아주 쪼금은 화가 풀렸어. 그럼 내 옷 태가 망가지지 않게 조심히 네 가방이라도 들려줄게. 고맙다고 해!"`,
+                            affinityChange: 7,
+                            memoryNotes: "의상 칭찬을 듣고 크게 부끄러워하며 화가 대부분 풀림.",
+                            choices: [
+                                "가방을 대신 메고, 혜린의 손을 조심스럽게 감싸 안는다.",
+                                "소꿉친구치고 너무 귀엽다고 계속 놀려본다.",
+                                "이제 기분 풀렸으니 얼른 밥 먹으러 가자고 잡아끈다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*혜린이의 입에 초코 수플레 한 입을 직접 쏙 밀어 넣어주자, 볼을 빵빵하게 부풀린 채 오물거립니다. 입가에 묻은 초콜릿 크림을 훔쳐내지 못한 채 그녀가 눈을 세모나게 뜹니다.* "음... 달콤해... 아니, 기습적으로 뭘 먹이는 거야! 바보 같으니... 입가에 크림 다 묻었잖아! 책임지고 직접 닦아주든지 해!"`,
+                            affinityChange: 5,
+                            memoryNotes: "직접 디저트를 먹여주고 크림이 입가에 묻어 부끄러워함.",
+                            choices: [
+                                "부드럽게 손끝으로 그녀의 아랫입술 크림을 닦아주고 손가락을 빤다.",
+                                "휴지를 건네며 직접 칠칠치 못하게 흘렸다며 놀려준다.",
+                                "입가에 묻은 크림이 꼭 아기 고양이 같다며 뺨에 가볍게 키스한다."
+                            ]
+                        }
+                    }
+                };
+
+                // 4. 범용 커스텀 트리 (이름, 특징, 관계 동적 치환)
+                const genericChatTree = {
+                    start: {
+                        dialogue: `*눈빛에 {desc} 특징이 서려 있는 {name}(이)가 천천히 당신 앞으로 걸어옵니다. 당신과는 {relation} 관계인 그녀는 잠시 어색한 듯 눈길을 비껴 두었다가, 이내 따뜻한 눈빛으로 당신을 똑바로 바라보며 먼저 첫 인사를 건넵니다.* "{user}, 드디어 찾아왔네... 오늘 무슨 이야기를 나누러 온 거야? 평소 하지 못했던 진솔한 이야기를 나눌 수 있다면 기쁘겠어."`,
+                        affinityChange: 0,
+                        memoryNotes: "주인공과 {name}의 첫 교감 및 대화가 조용히 시작됨.",
+                        choices: [
+                            `{name}의 손을 따뜻하게 감싸 쥐며 다정한 인사를 건넨다.`,
+                            `아직은 서먹서먹하다는 듯 가볍게 목례만 나누며 거리를 둔다.`,
+                            `마주 앉을 수 있는 의자를 정성스레 끌어주며 편하게 이야기하자고 권유한다.`
+                        ]
+                    },
+                    1: {
+                        branch_1: {
+                            dialogue: `*당신이 그녀의 고운 손을 쥐어주자, {name}의 뺨이 붉게 상기되더니 미세한 떨림이 당신의 손바닥으로 고스란히 전해집니다. {desc} 모습 속에 숨어 있던 수줍음이 그녀의 나직한 음성으로 조심스레 새어 나옵니다.* "어머... {user}, 갑자기 손을 잡아줄 줄은 몰랐는데... 하지만 싫지 않아. 아니, 뺨이 더워질 정도로 기분 좋고 뜨거워. 이 손... 대화가 끝날 때까지는 놓지 않아 주면 안 돼...?"`,
+                            affinityChange: 7,
+                            memoryNotes: "주인공이 손을 따뜻하게 잡아주자 볼을 붉히며 기뻐함.",
+                            choices: [
+                                "손을 더 꽉 쥐며 어깨를 끌어당겨 가슴이 밀착되도록 안아준다.",
+                                "부끄러워하는 모습이 너무 매력적이라며 슬며시 칭찬한다.",
+                                "손바닥에 닿는 그녀의 숨결이 부드럽다며 부드럽게 쓰다듬는다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*당신이 거리를 두고 눈인사만 건네자, {name}의 눈동자에 약간의 아쉬움และ 쓸쓸함이 스쳐 지나갑니다. {desc} 특징에 어울리는 차분한 목소리로 한숨을 짧게 내쉽니다.* "{user}... 여전히 나와의 사이에 벽을 두는구나. 하지만 우린 {relation} 사이잖아. 나한테 조금 더 편하게 다가와 줘도 괜찮은데... 아직 내가 서먹한 거야?"`,
+                            affinityChange: -2,
+                            memoryNotes: "주인공의 다소 어색하고 차가운 거리에 아쉬움을 표현함.",
+                            choices: [
+                                "사실은 나도 다가가고 싶지만 너무 두근거려서 서툰 것뿐이라고 고백한다.",
+                                "천천히 서로를 더 알아가자며 그녀의 눈동자를 똑바로 쳐다본다.",
+                                "이게 나와의 적당한 안전거리라며 선을 긋는다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*의자를 정중하게 끌어주자, {name}가 고마워하며 조심스럽게 자리에 걸터앉습니다. {desc} 매력을 뽐내며 턱을 괴고 당신을 빤히 바라봅니다.* "고마워, {user}... 참 신사적이네. 마주 앉아서 네 얼굴을 똑바로 보니까... 왠지 마음이 더 차분해지는 것 같아. 자, 그럼 무슨 이야기부터 털어놓을 생각이야? 네 눈빛 속에 담긴 이야기를 들려줘."`,
+                            affinityChange: 4,
+                            memoryNotes: "의자를 끌어주어 서로 편안하게 마주 앉아 대화를 나눔.",
+                            choices: [
+                                "테이블 아래로 몰래 그녀의 손가락을 찾아내어 깍지를 낀다.",
+                                "너에 대한 생각으로 가득 찬 내 마음을 다정하게 들려준다.",
+                                "일상적인 소소한 이야기를 풀어놓으며 분위기를 편안하게 이끈다."
+                            ]
+                        }
+                    },
+                    2: {
+                        branch_1: {
+                            dialogue: `*당신이 품으로 와락 당겨 밀착하자, {name}는 순간 흐릿한 신음을 내쉬며 당신의 옷깃을 두 손으로 세게 움켜쥡니다. 서로의 숨결이 고스란히 얽히고, {desc} 눈동자에 오롯이 당신의 얼굴만이 담겨 파르르 떨립니다.* "하아... {user}... 갑자기 안아버리는 건 반칙이야. 심장 터지는 소리가 너한테 다 들릴 텐데... 부끄럽지만 피하고 싶지 않아. 내 손을 잡은 네 숨결이 너무 뜨거워..."`,
+                            affinityChange: 10,
+                            memoryNotes: "가까이 감싸 안아 숨결이 밀착되고 심장 소리를 나누며 매우 설레함.",
+                            choices: [
+                                "가까워진 틈을 타 그녀의 목덜미를 파고들며 뜨거운 입맞춤을 건넨다.",
+                                "귓가에 대고 '너와 함께 있는 순간이 제일 행복하다'고 속삭인다.",
+                                "서로의 따뜻한 온기가 스며들 때까지 한참 동안 조용히 안고 있는다."
+                            ]
+                        },
+                        branch_2: {
+                            dialogue: `*부끄러워하는 모습을 예쁘다고 칭찬하자, {name}가 고개를 살짝 돌려 붉어진 볼을 감추려 합니다. 하지만 입꼬리를 실룩이며 기쁨을 주체하지 못합니다.* "바보... 그런 낯간지러운 칭찬을 그렇게 아무렇지 않게 하다니... 하지만 네가 예쁘다고 해주니까... 조금 용기가 생겨. 다음에도 꼭 그렇게 칭찬해 주기야?"`,
+                            affinityChange: 8,
+                            memoryNotes: "수줍음 칭찬을 듣고 매우 고마워하며 애정을 표현함.",
+                            choices: [
+                                "앞으로도 매일 칭찬해주겠다며 손끝으로 뺨을 어루만져 준다.",
+                                "부끄러워하는 모습이 너무 귀여워서 일부러 더 놀려본다.",
+                                "약속하겠다며 엄지손가락을 가볍게 내밀어 건넨다."
+                            ]
+                        },
+                        branch_3: {
+                            dialogue: `*주머니 속에서 손가락 깍지를 끼자, {name}의 손바닥이 일순 차갑게 식었다가 이내 뜨겁게 열을 띱니다. 깍지 낀 손을 절대 풀지 않겠다는 듯 그녀도 손아귀에 힘을 조심스레 꽉 쥐어옵니다.* "주머니 안에서 깍지를 끼는 건... 꽤 긴장되고 낯설어. 하지만 손바닥으로 네 숨결이 전해져서 놓치고 싶지 않아. {user}, 우리 이대로 조금만 더 손잡고 걷자."`,
+                            affinityChange: 8,
+                            memoryNotes: "깍지 낀 손바닥 온기를 나누며 함께 조용히 걷길 원함.",
+                            choices: [
+                                "놓지 않겠다며 고개를 끄덕이고 그녀의 보폭에 맞추어 걷는다.",
+                                "잡은 손을 주머니 밖으로 꺼내어 사람들에게 대놓고 자랑한다.",
+                                "앞으로도 평생 이렇게 손잡고 걸어달라고 부드럽게 약속한다."
+                            ]
+                        }
+                    }
+                };
+
+                // 5. 트리 선택
+                let selectedTree = genericChatTree;
+                const normName = this.chatCharName ? this.chatCharName.trim() : '';
+
+                if (this.chatLevel === 'adult-19' || normName === '릴리스') {
+                    selectedTree = lilithChatTree;
+                } else if (normName === '서아' || normName.includes('서아')) {
+                    selectedTree = seoaChatTree;
+                } else if (normName === '혜린' || normName.includes('혜린')) {
+                    selectedTree = hyerinChatTree;
+                }
+
+                // 6. 데이터 추출
                 if (depth === 0) {
-                    node = lilithChatTree.start;
+                    node = selectedTree.start;
                 } else if (depth === 1) {
                     const currentNode = this.storyHistory[0];
                     const choiceIdx = currentNode.choices.indexOf(actionText);
                     const branchKey = choiceIdx >= 0 ? `branch_${choiceIdx + 1}` : 'branch_1';
-                    node = lilithChatTree[1][branchKey] || lilithChatTree.start;
+                    node = selectedTree[1][branchKey] || selectedTree.start;
                 } else {
                     const currentNode = this.storyHistory[depth - 1];
                     const choiceIdx = currentNode.choices.indexOf(actionText);
                     const branchKey = choiceIdx >= 0 ? `branch_${choiceIdx + 1}` : 'branch_1';
-                    node = lilithChatTree[2][branchKey] || lilithChatTree.start;
+                    node = selectedTree[2][branchKey] || selectedTree.start;
                 }
 
+                // 7. 템플릿 토큰 치환 함수 (Generic 트리를 위함 및 전체 치환 보조)
+                const replaceTokens = (str) => {
+                    if (!str) return '';
+                    return str
+                        .replace(/{name}/g, this.chatCharName)
+                        .replace(/{relation}/g, this.chatRelation)
+                        .replace(/{desc}/g, this.chatCharDesc)
+                        .replace(/{user}/g, this.characterName || '알렉스');
+                };
+
+                // 치환 적용
+                const finalDialogue = replaceTokens(node.dialogue);
+                const finalMemoryNotes = replaceTokens(node.memoryNotes);
+                const finalChoices = node.choices.map(c => replaceTokens(c));
+
                 resolve({
-                    dialogue: node.dialogue,
+                    dialogue: finalDialogue,
                     affinityChange: node.affinityChange,
-                    memoryNotes: node.memoryNotes,
-                    choices: [...node.choices]
+                    memoryNotes: finalMemoryNotes,
+                    choices: finalChoices
                 });
             }, 1000);
         });
