@@ -91,10 +91,17 @@ class ChronicleApp {
 
         // Scroll & Canvas Area
         this.storyScrollArea = document.getElementById('story-scroll-area');
-        this.chatLogArea = document.getElementById('oracle-chat-log');
+        this.chatLogArea = this.storyScrollArea; // 단일 피드로 통합
         this.choicesContainer = document.getElementById('choices-container');
         this.chatTextarea = document.getElementById('chat-input-textarea');
         this.btnSubmitAction = document.getElementById('btn-submit-action');
+
+        // New Unified Header Elements
+        this.btnToggleInfoPanel = document.getElementById('btn-toggle-info-panel');
+        this.headerDetailPanel = document.getElementById('header-detail-panel');
+        this.charProfileSummaryPill = document.getElementById('char-profile-summary-pill');
+        this.hudMemoryList = document.getElementById('hud-memory-list');
+        this.btnLogoHome = document.getElementById('btn-logo-home');
 
         // Toggle Setup Fields
         this.selectModeType.addEventListener('change', () => {
@@ -161,14 +168,34 @@ class ChronicleApp {
             }
         });
 
+        // Toggle dropdown detail panel
+        if (this.btnToggleInfoPanel) {
+            this.btnToggleInfoPanel.addEventListener('click', () => {
+                if (this.headerDetailPanel) {
+                    this.headerDetailPanel.classList.toggle('hidden');
+                    this.btnToggleInfoPanel.classList.toggle('active');
+                }
+            });
+        }
+
+        // Back to settings via Logo
+        if (this.btnLogoHome) {
+            this.btnLogoHome.addEventListener('click', () => {
+                this.goHomeSettings();
+            });
+        }
+
+        // Textarea height auto-adjust
+        if (this.chatTextarea) {
+            this.chatTextarea.addEventListener('input', () => {
+                this.chatTextarea.style.height = '32px';
+                this.chatTextarea.style.height = this.chatTextarea.scrollHeight + 'px';
+            });
+        }
+
         // Set up particle background (Canvas rendering disabled for performance optimization)
         window.addEventListener('resize', () => this.resizeCanvas());
         this.resizeCanvas();
-        // this.generateAmbientStars();
-        // this.animateBackground();
-
-        // Setup Oracle layout resizer
-        this.initResizer();
 
         // Load saved persona presets
         this.loadPersonaPresets();
@@ -603,29 +630,15 @@ class ChronicleApp {
                         this.storyHistory = [...(session.storyHistory || [])];
                         this.dialogueVectors = [...(session.dialogueVectors || [])]; // RAG 벡터 복원 (2단계)
                         this.currentChapterIndex = this.storyHistory.length;
-                        
-                        // Dynamically reconstruct chat log UI from history to save localStorage space
-                        this.chatLogArea.innerHTML = '';
-                        this.storyHistory.forEach(item => {
-                            if (item.actionText && item.actionText !== "대화를 시작하자.") {
-                                this.appendChatMessage("user", item.actionText);
-                            }
-                            this.appendChatMessage("ai", item.dialogue, item.emotion || 'normal');
-                        });
-                        
+                        this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
                         if (this.storyHistory.length > 0) {
-                            setTimeout(() => {
-                                this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
-                                this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
-                            }, 900);
+                            this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
                         }
                     }
                 }
             }
 
-            if (this.charProfileContainer) {
-                this.charProfileContainer.style.display = 'block';
-            }
+            this.renderChatProfile('normal');
 
             // Set HUD
             this.hudGenre.textContent = "가상 인물 Sim";
@@ -715,6 +728,7 @@ class ChronicleApp {
                 this.charProfileContainer.style.display = 'none';
                 this.charProfileContainer.innerHTML = '';
             }
+            this.renderChatProfile();
 
             // Set HUD
             this.hudGenre.textContent = this.selectGenre.options[this.selectGenre.selectedIndex].text;
@@ -1949,121 +1963,120 @@ JSON Schema:
 
     // Render character profile in the fixed top container
     renderChatProfile(emotion = 'normal') {
-        if (!this.charProfileContainer) return;
-        this.charProfileContainer.style.display = 'block';
+        // Toggle pill display depending on mode
+        if (this.modeType === 'chat') {
+            if (this.charProfileSummaryPill) {
+                this.charProfileSummaryPill.classList.remove('hidden');
+            }
+        } else {
+            if (this.charProfileSummaryPill) {
+                this.charProfileSummaryPill.classList.add('hidden');
+            }
+            if (this.charProfileContainer) {
+                this.charProfileContainer.style.display = 'none';
+                this.charProfileContainer.innerHTML = '';
+            }
+            return;
+        }
 
         const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
         let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
         let avatarHtml = '';
+        let pillAvatarHtml = '';
         if (imgUrl) {
             avatarHtml = `<img src="${imgUrl}" class="profile-avatar-img" alt="${this.chatCharName}" />`;
+            pillAvatarHtml = `<img src="${imgUrl}" class="profile-avatar-pill-img" alt="${this.chatCharName}" style="width:100%; height:100%; object-fit:cover;" />`;
         } else {
             let avatarIcon = '🔮';
             if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
             else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
             else avatarIcon = '👤';
             avatarHtml = `<span class="profile-avatar">${avatarIcon}</span>`;
+            pillAvatarHtml = `<span class="profile-avatar" style="font-size:0.85rem;">${avatarIcon}</span>`;
         }
 
-        const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
+        // Update Summary Pill (HUD)
+        const avatarSummaryWrapper = document.getElementById('char-avatar-summary-wrapper');
+        const pillName = document.getElementById('char-pill-name');
+        const pillAffinity = document.getElementById('char-pill-affinity');
+        if (avatarSummaryWrapper) avatarSummaryWrapper.innerHTML = pillAvatarHtml;
+        if (pillName) pillName.textContent = this.chatCharName;
+        if (pillAffinity) pillAffinity.textContent = `💖 ${this.affinityValue}`;
 
-        let profileCard = this.charProfileContainer.querySelector('.character-profile-card');
-        if (!profileCard) {
-            this.charProfileContainer.innerHTML = '';
-            profileCard = document.createElement('div');
-            profileCard.className = 'character-profile-card';
-            profileCard.innerHTML = `
-                <div class="profile-header">
-                    <div class="profile-avatar-wrapper">${avatarHtml}</div>
-                    <div class="profile-meta">
-                        <h3 class="char-name-el">${this.chatCharName}</h3>
-                        <p class="char-relation-el">${this.chatRelation}</p>
-                    </div>
-                </div>
-                <div class="affection-section">
-                    <div class="affection-label">
-                        <span>💖 호감도</span>
-                        <span class="affinity-text-el">${this.affinityValue} / 100</span>
-                    </div>
-                    <div class="affection-bar-bg">
-                        <div class="affection-bar-fill affinity-bar-el" style="width: ${this.affinityValue}%;"></div>
-                    </div>
-                </div>
-                <div class="memory-vault">
-                    <h4>🧠 주요 기억 메모리</h4>
-                    <ul class="memory-list-el">
-                        ${memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>'}
-                    </ul>
-                </div>
-            `;
-            this.charProfileContainer.appendChild(profileCard);
-        } else {
-            const avatarWrapper = profileCard.querySelector('.profile-avatar-wrapper');
-            const nameEl = profileCard.querySelector('.char-name-el');
-            const relationEl = profileCard.querySelector('.char-relation-el');
-            const affinityTextEl = profileCard.querySelector('.affinity-text-el');
-            const affinityBarEl = profileCard.querySelector('.affinity-bar-el');
-            const memoryListEl = profileCard.querySelector('.memory-list-el');
+        // Render Memory list inside collapsible vault
+        if (this.hudMemoryList) {
+            const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
+            this.hudMemoryList.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
+        }
 
-            if (avatarWrapper) avatarWrapper.innerHTML = avatarHtml;
-            if (nameEl) nameEl.textContent = this.chatCharName;
-            if (relationEl) relationEl.textContent = this.chatRelation;
-            
-            if (affinityTextEl) affinityTextEl.textContent = `${this.affinityValue} / 100`;
-            if (affinityBarEl) {
-                affinityBarEl.style.width = `${this.affinityValue}%`;
-            }
-            if (memoryListEl) {
-                memoryListEl.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
+        // Render Detail profile card inside dropdown
+        if (this.charProfileContainer) {
+            this.charProfileContainer.style.display = 'block';
+            let profileCard = this.charProfileContainer.querySelector('.character-profile-card');
+            if (!profileCard) {
+                this.charProfileContainer.innerHTML = '';
+                profileCard = document.createElement('div');
+                profileCard.className = 'character-profile-card';
+                profileCard.innerHTML = `
+                    <div class="profile-header">
+                        <div class="profile-avatar-wrapper">${avatarHtml}</div>
+                        <div class="profile-meta">
+                            <h3 class="char-name-el">${this.chatCharName}</h3>
+                            <p class="char-relation-el">${this.chatRelation}</p>
+                        </div>
+                    </div>
+                    <div class="affection-section">
+                        <div class="affection-label">
+                            <span>💖 호감도</span>
+                            <span class="affinity-text-el">${this.affinityValue} / 100</span>
+                        </div>
+                        <div class="affection-bar-bg">
+                            <div class="affection-bar-fill affinity-bar-el" style="width: ${this.affinityValue}%;"></div>
+                        </div>
+                    </div>
+                `;
+                this.charProfileContainer.appendChild(profileCard);
+            } else {
+                const avatarWrapper = profileCard.querySelector('.profile-avatar-wrapper');
+                const nameEl = profileCard.querySelector('.char-name-el');
+                const relationEl = profileCard.querySelector('.char-relation-el');
+                const affinityTextEl = profileCard.querySelector('.affinity-text-el');
+                const affinityBarEl = profileCard.querySelector('.affinity-bar-el');
+
+                if (avatarWrapper) avatarWrapper.innerHTML = avatarHtml;
+                if (nameEl) nameEl.textContent = this.chatCharName;
+                if (relationEl) relationEl.textContent = this.chatRelation;
+                if (affinityTextEl) affinityTextEl.textContent = `${this.affinityValue} / 100`;
+                if (affinityBarEl) {
+                    affinityBarEl.style.width = `${this.affinityValue}%`;
+                }
             }
         }
     }
 
     // Render left panel info box for character chat
     renderChatLeftPanel(latestResult) {
+        // If generating in real-time, just update top status info to prevent flickering
+        if (this.isGenerating && latestResult) {
+            this.renderChatProfile(latestResult.emotion || 'normal');
+            return;
+        }
+
+        // Clear and rebuild dialogue feed on restore / preset loading / undo
         this.storyScrollArea.innerHTML = '';
-
-        // Render Profile Card in its fixed container with the current emotion
         this.renderChatProfile(latestResult ? (latestResult.emotion || 'normal') : 'normal');
-
-        // Render Dialogue Logs in scrollable area
-        const logContainer = document.createElement('div');
-        logContainer.className = 'chat-dialogue-transcript';
-        logContainer.style.display = 'flex';
-        logContainer.style.flexDirection = 'column';
-        logContainer.style.gap = '1.5rem';
 
         this.storyHistory.forEach((item, index) => {
             const num = index + 1;
-            const logBlock = document.createElement('article');
-            logBlock.className = 'chapter-block';
-            logBlock.style.opacity = 1;
-
-            const headerEl = document.createElement('div');
-            headerEl.className = 'chapter-header';
-            headerEl.innerHTML = `<span>Turn ${num}</span> <span>${this.chatCharName}의 독백과 교감</span>`;
-            logBlock.appendChild(headerEl);
-
-            if (num > 1) {
-                const decisionEl = document.createElement('div');
-                decisionEl.className = 'user-decision-marker';
-                decisionEl.textContent = `"${item.actionText || '대화'}"`;
-                logBlock.appendChild(decisionEl);
+            if (item.actionText && item.actionText !== "대화를 시작하자.") {
+                this.appendChatMessage("user", item.actionText);
             }
-
-            const contentEl = document.createElement('p');
-            contentEl.className = 'chapter-content';
-            contentEl.innerHTML = item.dialogue;
-            logBlock.appendChild(contentEl);
-
-            logContainer.appendChild(logBlock);
+            this.appendChatMessage("ai", item.dialogue, item.emotion || 'normal');
         });
 
-        this.storyScrollArea.appendChild(logContainer);
-        
-        // Scroll to bottom
+        // Auto-scroll
         setTimeout(() => {
             this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
         }, 50);

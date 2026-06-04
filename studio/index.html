@@ -213,111 +213,111 @@
 
     <!-- Main Workspace Container -->
     <main id="app-container" class="hidden">
-        <!-- Top HUD Banner -->
-        <header id="hud-header" class="glass-panel">
-            <div class="logo">
-                <span class="feather-icon">✍️</span>
-                <h1>Chronicle Studio</h1>
-            </div>
-            <div class="story-meta">
-                <div class="meta-item">
-                    <span class="label">장르</span>
-                    <span id="hud-genre" class="value">다크 판타지</span>
+        <!-- Top Unified Header Panel (설정 정보 & 캐릭터 프로필 & 메모리가 하나로 결합된 상단 고정 영역) -->
+        <div id="studio-fixed-header" class="glass-panel">
+            <div class="header-main-row">
+                <div class="logo-area" id="btn-logo-home" style="cursor: pointer;">
+                    <span class="logo-icon">✍️</span>
+                    <span class="logo-title">Chronicle AI</span>
                 </div>
-                <div class="meta-item">
-                    <span class="label">서사 분위기</span>
-                    <span id="hud-tone" class="value">시네마틱</span>
+                
+                <!-- HUD Metadata Info -->
+                <div class="hud-meta-summary">
+                    <span class="hud-badge"><span class="label">장르</span> <span id="hud-genre" class="value">다크 판타지</span></span>
+                    <span class="hud-badge"><span class="label">분위기</span> <span id="hud-tone" class="value">시네마틱</span></span>
+                    <span class="hud-badge mobile-hide"><span class="label">주인공</span> <span id="hud-character" class="value"></span></span>
+                    <span class="hud-badge mobile-hide"><span class="label">모델</span> <span id="hud-model" class="value">Gemini 1.5 Flash</span></span>
                 </div>
-                <div class="meta-item">
-                    <span class="label">주인공</span>
-                    <span id="hud-character" class="value"></span>
-                </div>
-                <div class="meta-item">
-                    <span class="label">AI 모델</span>
-                    <span id="hud-model" class="value">Gemini 1.5 Flash</span>
-                </div>
-            </div>
-            <div class="hud-buttons">
-                <button id="btn-home-settings" class="hud-btn" title="설정 화면(홈)으로 돌아가기">⚙️ 설정</button>
-                <button id="btn-toggle-sound" class="hud-btn active" title="사운드 토글">🔊 ON</button>
-                <button id="btn-save-session" class="hud-btn" title="현재 교감 및 진행 상태 저장">💾 저장</button>
-                <button id="btn-undo-story" class="hud-btn" title="이전 선택 취소 (Undo)">↩️ 실행 취소</button>
-                <button id="btn-reset-story" class="hud-btn" title="처음부터 다시 쓰기">🔄 리셋</button>
-                <button id="btn-export-text" class="hud-btn" title="텍스트 파일로 내보내기">💾 다운로드</button>
-                <button id="btn-logout" class="hud-btn" title="로그아웃" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35);">🚪 로그아웃</button>
-            </div>
-        </header>
 
-        <!-- Dynamic Split Workspace Grid -->
-        <div class="workspace-grid">
-            <!-- Left Side: Story Book Ledger (Serif Typography) -->
-            <section class="story-ledger-container glass-panel">
-                <div class="section-title">
-                    <span>📖</span>
-                    <h2>Story Codex (성장 기록 일지)</h2>
-                </div>
-                
-                <!-- Fixed Profile panel in Chat Mode -->
-                <div id="char-profile-container"></div>
-                
-                <div id="story-scroll-area" class="story-book-canvas">
-                    <!-- Dynamic Chapters will be appended here -->
-                    <div class="cover-page">
-                        <div class="crown-ornament">✨</div>
-                        <h2 id="book-title">새로운 서사시가 곧 기록됩니다</h2>
-                        <p class="book-intro">오른쪽의 예언서 대화창을 통해 이야기를 움직이고 AI와 함께 가상 세계를 조율해 나가세요.</p>
+                <!-- Active Character Profile Summary (Chat mode only) -->
+                <div id="char-profile-summary-pill" class="profile-summary-pill hidden">
+                    <div id="char-avatar-summary-wrapper" class="avatar-pill-img-wrapper">
+                        <!-- Dynamic avatar image or icon loaded by app.js -->
                     </div>
-                </div>
-            </section>
-
-            <!-- Right Side: AI Oracle Console (Chat & Interaction) -->
-            <section class="oracle-console-container glass-panel">
-                <div class="section-title">
-                    <span>🔮</span>
-                    <h2>AI Oracle (운명의 선택)</h2>
-                </div>
-
-                <!-- Chat History / Messages Log -->
-                <div id="oracle-chat-log" class="chat-log-area">
-                    <div class="system-message">
-                        <p><strong>오라클 예언자:</strong> 반갑습니다, 창조자님. 당신의 결단에 따라 세계의 운명이 흘러갈 것입니다. 원하시는 이야기 전개를 하단의 3가지 추천 행동 카드나 텍스트창을 통해 들려주십시오.</p>
+                    <div class="char-pill-info">
+                        <span id="char-pill-name" class="char-pill-name-el">-</span>
+                        <span id="char-pill-affinity" class="char-pill-affinity-el">💖 50</span>
                     </div>
                 </div>
 
-                <!-- Resize handle -->
-                <div id="oracle-resizer" class="resizer-y"></div>
+                <!-- Control Buttons -->
+                <div class="hud-action-buttons">
+                    <button id="btn-toggle-info-panel" class="hud-btn" title="상세 정보 열기/접기">ℹ️ 정보</button>
+                    <button id="btn-toggle-sound" class="hud-btn active" title="사운드 토글">🔊 ON</button>
+                    <button id="btn-save-session" class="hud-btn mobile-hide" title="현재 세션 저장">💾 저장</button>
+                    <button id="btn-undo-story" class="hud-btn" title="이전 선택 취소 (Undo)">↩️ 취소</button>
+                    <button id="btn-reset-story" class="hud-btn" title="처음부터 다시 쓰기">🔄 리셋</button>
+                    <button id="btn-home-settings" class="hud-btn" title="설정 화면(홈)으로 돌아가기">⚙️ 설정</button>
+                    <button id="btn-export-text" class="hud-btn mobile-hide" title="텍스트 다운로드">💾 다운로드</button>
+                    <button id="btn-logout" class="hud-btn" title="로그아웃" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35);">🚪 로그아웃</button>
+                </div>
+            </div>
 
-                <!-- Wrapped Bottom Controls -->
-                <div id="oracle-bottom-controls" class="oracle-bottom-container">
-                    <!-- Interactive Choices Row (Action cards) -->
-                    <div class="interactive-choices-wrapper">
-                        <h3>💡 운명의 선택지 (추천 행동)</h3>
-                        <div id="choices-container" class="choices-grid">
-                            <div class="choice-card disabled">
-                                <span class="card-num">I</span>
-                                <p>첫 챕터 작성을 시작하면 선택지가 활성화됩니다.</p>
-                            </div>
-                            <div class="choice-card disabled">
-                                <span class="card-num">II</span>
-                                <p>선택지를 눌러 방향을 조율할 수 있습니다.</p>
-                            </div>
-                            <div class="choice-card disabled">
-                                <span class="card-num">III</span>
-                                <p>원하는 방향이 없으면 대화창에 직접 지시하세요.</p>
-                            </div>
+            <!-- Detail Collapsible Dropdown (Contains Full Profile & Memory Vault) -->
+            <div id="header-detail-panel" class="header-detail-dropdown hidden">
+                <div class="detail-panel-grid">
+                    <!-- Left: Character profile info (Chat mode only) -->
+                    <div id="char-profile-container" class="profile-details-column">
+                        <!-- Dynamically filled with character profile or fallback message -->
+                    </div>
+                    <!-- Right: Major Memory Vault -->
+                    <div class="story-details-column">
+                        <div class="memory-vault">
+                            <h4>🧠 주요 기억 메모리</h4>
+                            <ul id="hud-memory-list" class="memory-list-el">
+                                <li>기억된 대화가 아직 없습니다.</li>
+                            </ul>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <!-- Direct Input Section -->
-                    <div class="chat-input-wrapper">
-                        <textarea id="chat-input-textarea" placeholder="선택지에 없는 독창적인 운명을 직접 묘사하고 지시하세요... (예: 갑자기 숲속에서 붉은 용의 포효가 들렸다.)" rows="2"></textarea>
-                        <button id="btn-submit-action" class="send-btn">
-                            <span>전송</span>
-                            <span class="send-arrow">➔</span>
+        <!-- Central Unified Feed Stream (scrollable area, like gemini.google.com) -->
+        <div id="studio-unified-feed" class="unified-feed-container">
+            <div id="story-scroll-area" class="feed-scroll-wrapper">
+                <!-- Dynamic Chapters & Messages will be appended here -->
+                <div class="cover-page">
+                    <div class="crown-ornament">✨</div>
+                    <h2 id="book-title">새로운 서사시가 곧 기록됩니다</h2>
+                    <p class="book-intro">하단의 예언서 대화창을 통해 이야기를 움직이고 AI와 함께 가상 세계를 조율해 나가세요.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Fixed Controls (sticky at the bottom) -->
+        <div id="studio-bottom-controls" class="bottom-controls-panel">
+            <div class="bottom-panel-inner">
+                <!-- Interactive Choice Cards (Floating chips) -->
+                <div class="choices-outer-wrapper">
+                    <div id="choices-container" class="choices-chips-grid">
+                        <div class="choice-card disabled">
+                            <span class="card-num">I</span>
+                            <p>첫 챕터 작성을 시작하면 선택지가 활성화됩니다.</p>
+                        </div>
+                        <div class="choice-card disabled">
+                            <span class="card-num">II</span>
+                            <p>선택지를 눌러 방향을 조율할 수 있습니다.</p>
+                        </div>
+                        <div class="choice-card disabled">
+                            <span class="card-num">III</span>
+                            <p>원하는 방향이 없으면 대화창에 직접 지시하세요.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Input box resembling Gemini.google.com -->
+                <div class="chat-input-container-wrapper">
+                    <div class="chat-input-box-field">
+                        <textarea id="chat-input-textarea" placeholder="선택지에 없는 독창적인 운명을 직접 묘사하고 지시하세요..." rows="1"></textarea>
+                        <button id="btn-submit-action" class="send-action-btn" title="운명 전송">
+                            <svg class="send-icon-svg" viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px; transform: rotate(0deg); fill: var(--primary-light);">
+                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
                         </button>
                     </div>
                 </div>
-            </section>
+            </div>
         </div>
     </main>
 
