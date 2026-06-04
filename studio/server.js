@@ -115,6 +115,18 @@ app.use((req, res, next) => {
     next();
 });
 
+// Disable caching for HTML and JS files to ensure immediate updates
+app.use((req, res, next) => {
+    const ext = path.extname(req.path);
+    if (ext === '.html' || ext === '.js' || req.path === '/' || req.path === '') {
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+        res.setHeader('Surrogate-Control', 'no-store');
+    }
+    next();
+});
+
 // Serve static frontend files from the current folder
 app.use(express.static(path.join(__dirname)));
 

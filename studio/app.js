@@ -11,13 +11,13 @@ class ChronicleApp {
         this.model = localStorage.getItem('gemini_api_model') || 'gemini-3.5-flash';
         this.genre = 'dark-fantasy';
         this.tone = 'cinematic';
-        this.characterName = '알렉스';
+        this.characterName = '';
         
         // Character Chat Simulation State
         this.modeType = 'story'; // 'story' or 'chat'
-        this.chatCharName = '릴리스';
-        this.chatRelation = '치명적인 거래 관계의 계약 악마';
-        this.chatCharDesc = '매혹적이고 도도함';
+        this.chatCharName = '';
+        this.chatRelation = '';
+        this.chatCharDesc = '';
         this.chatLevel = 'normal';
         this.affinityValue = 50;
         this.memoryList = [];
@@ -205,20 +205,23 @@ class ChronicleApp {
                 }
 
                 // 최근 저장된 설정 읽기
-                const recentChatName = localStorage.getItem('recent_chat_char_name') || '';
-                const recentChatRelation = localStorage.getItem('recent_chat_relation') || '';
-                const recentChatDesc = localStorage.getItem('recent_chat_char_desc') || '';
-                const recentChatLevel = localStorage.getItem('recent_chat_level') || 'normal';
-                const recentChatUserName = localStorage.getItem('recent_chat_user_name') || '알렉스';
+                const recentChatUserName = localStorage.getItem('recent_chat_user_name') || '';
                 const recentStoryGenre = localStorage.getItem('recent_story_genre') || 'fantasy';
                 const recentStoryTone = localStorage.getItem('recent_story_tone') || 'normal';
-                const recentStoryChar = localStorage.getItem('recent_story_character') || '';
 
-                if (this.inputChatUserName) this.inputChatUserName.value = recentChatUserName;
+                // 주인공 이름은 로컬스토리지에 저장된 값이 없거나 '알렉스'이면 로그인한 유저 닉네임(data.username)을 디폴트로 사용
+                let defaultUserName = recentChatUserName;
+                if (!defaultUserName || defaultUserName === '알렉스') {
+                    defaultUserName = data.username || '';
+                }
+
+                if (this.inputChatUserName) this.inputChatUserName.value = defaultUserName;
+                this.characterName = defaultUserName;
+
                 if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
                 if (this.selectTone) this.selectTone.value = recentStoryTone;
 
-                // 관리자가 아닐 때 19금 방지 및 최근 설정 자동 복구 방어 (폼 필드 일괄 비우기)
+                // 관리자가 아닐 때 19금 방지 및 최근 설정 자동 복구 방어
                 if (!this.isAdmin) {
                     const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
                     if (adultGenre) adultGenre.remove();
@@ -229,28 +232,50 @@ class ChronicleApp {
                     const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
                     if (adultLevel) adultLevel.remove();
 
-                    // 일반 계정은 로그인 시 디폴트 입력값들을 그냥 비웁니다.
+                    // 19금 상태였던 설정 복구 방어 (드롭다운 최종 검증)
+                    if (this.selectGenre) this.selectGenre.value = 'fantasy';
+                    if (this.selectTone) this.selectTone.value = 'normal';
+                }
+
+                // 처음 진입 시(어드민/일반 유저 공통) 가상 인물의 정보는 무조건 빈값으로 설정
+                if (this.inputChatCharName) this.inputChatCharName.value = '';
+                if (this.inputChatRelation) this.inputChatRelation.value = '';
+                if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
+                if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
+                if (this.inputCharacter) this.inputCharacter.value = '';
+                if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
+                this.characterImages = {};
+
+                // 이미지 미리보기 영역 초기화
+                const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
+                emotions.forEach(emotion => {
+                    const imgEl = document.getElementById(`img-preview-${emotion}`);
+                    const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+                    if (imgEl) {
+                        imgEl.src = '';
+                        imgEl.style.display = 'none';
+                    }
+                    if (placeholderEl) {
+                        placeholderEl.style.display = 'flex';
+                    }
+                });
+                if (this.charImagesPreview) {
+                    this.charImagesPreview.style.display = 'grid';
+                }
+
+                if (this.hudCharacter) {
+                    this.hudCharacter.textContent = '';
+                }
+
+                // 브라우저의 강제 자동완성(Auto-fill) 우회 방어를 위해 200ms 후 2차로 한번 더 강제 클리어 수행
+                setTimeout(() => {
                     if (this.inputChatCharName) this.inputChatCharName.value = '';
                     if (this.inputChatRelation) this.inputChatRelation.value = '';
                     if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
                     if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
                     if (this.inputCharacter) this.inputCharacter.value = '';
-                    if (this.inputChatUserName) this.inputChatUserName.value = '';
-                    this.characterName = '';
-                    if (this.hudCharacter) this.hudCharacter.textContent = '';
-
-                    // 19금 상태였던 설정 복구 방어 (드롭다운 최종 검증)
-                    if (this.selectGenre) this.selectGenre.value = 'fantasy';
-                    if (this.selectTone) this.selectTone.value = 'normal';
-
-                } else {
-                    // 어드민인 경우는 제한 없이 로컬스토리지 최근 세션 정보로 채웁니다.
-                    if (this.inputChatCharName) this.inputChatCharName.value = recentChatName;
-                    if (this.inputChatRelation) this.inputChatRelation.value = recentChatRelation;
-                    if (this.inputChatCharDesc) this.inputChatCharDesc.value = recentChatDesc;
-                    if (this.selectChatLevel) this.selectChatLevel.value = recentChatLevel;
-                    if (this.inputCharacter) this.inputCharacter.value = recentStoryChar;
-                }
+                    if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
+                }, 200);
 
                 // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
                 this.loadPersonaPresets();
@@ -2584,14 +2609,15 @@ JSON Schema:
         const relation = this.inputChatRelation.value.trim();
         const desc = this.inputChatCharDesc.value.trim();
         const level = this.selectChatLevel.value;
-        const userName = this.inputChatUserName.value.trim() || '알렉스';
+        const userName = this.inputChatUserName.value.trim() || (this.characterName ? this.characterName : '');
 
         if (!charName) {
             alert("가상 인물의 이름을 입력해야 저장할 수 있습니다.");
             return;
         }
 
-        const presetName = prompt("저장할 페르소나 프리셋 이름을 입력해 주세요:", charName);
+        const defaultPresetName = this.selectPersonaPreset.value || charName;
+        const presetName = prompt("저장할 페르소나 프리셋 이름을 입력해 주세요:", defaultPresetName);
         if (presetName === null) return; // Cancelled
         const trimmedPresetName = presetName.trim();
         if (!trimmedPresetName) {
@@ -2718,7 +2744,7 @@ JSON Schema:
                 this.inputChatRelation.value = data.relation || '';
                 this.inputChatCharDesc.value = data.desc || '';
                 this.selectChatLevel.value = data.level || 'normal';
-                this.inputChatUserName.value = data.userName || '알렉스';
+                this.inputChatUserName.value = data.userName || (this.characterName ? this.characterName : '');
 
                 // 캐릭터 이미지 및 프롬프트 복원
                 this.inputCharImagePrompt.value = data.imagePrompt || '';
