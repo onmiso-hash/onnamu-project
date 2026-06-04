@@ -209,14 +209,9 @@ class ChronicleApp {
                 const recentStoryGenre = localStorage.getItem('recent_story_genre') || 'fantasy';
                 const recentStoryTone = localStorage.getItem('recent_story_tone') || 'normal';
 
-                // 주인공 이름은 로컬스토리지에 저장된 값이 없거나 '알렉스'이면 로그인한 유저 닉네임(data.username)을 디폴트로 사용
-                let defaultUserName = recentChatUserName;
-                if (!defaultUserName || defaultUserName === '알렉스') {
-                    defaultUserName = data.username || '';
-                }
-
-                if (this.inputChatUserName) this.inputChatUserName.value = defaultUserName;
-                this.characterName = defaultUserName;
+                // 처음 진입 시 주인공(본인) 이름도 무조건 빈값으로 초기화
+                if (this.inputChatUserName) this.inputChatUserName.value = '';
+                this.characterName = '';
 
                 if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
                 if (this.selectTone) this.selectTone.value = recentStoryTone;
