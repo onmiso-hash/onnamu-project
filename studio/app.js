@@ -149,6 +149,7 @@ class ChronicleApp {
         if (this.btnLogout) {
             this.btnLogout.addEventListener('click', () => {
                 if (confirm('로그아웃 하시겠습니까?')) {
+                    localStorage.removeItem('studio_active_state');
                     window.location.href = '/logout';
                 }
             });
@@ -270,89 +271,117 @@ class ChronicleApp {
                     profileBarEl.style.display = 'flex';
                 }
 
-                // 권한 정보 확인 후 로컬스토리지 복구(Autofill) 실행
+                // 유저 정보 수신 완료 후 페르소나 프리셋 로드
+                this.loadPersonaPresets();
+
+                const activeState = localStorage.getItem('studio_active_state');
                 const recentMode = localStorage.getItem('recent_mode_type');
-                if (recentMode) {
-                    this.selectModeType.value = recentMode;
-                    if (recentMode === 'chat') {
-                        this.setupStoryFields.style.display = 'none';
-                        this.setupChatFields.style.display = 'block';
-                    } else {
-                        this.setupStoryFields.style.display = 'block';
-                        this.setupChatFields.style.display = 'none';
+                
+                if (activeState === 'active') {
+                    // 1. 대화 진행 중 새로고침 등 활성화 상태인 경우 자동 복원 기동
+                    if (recentMode) {
+                        this.selectModeType.value = recentMode;
+                        if (recentMode === 'chat') {
+                            this.setupStoryFields.style.display = 'none';
+                            this.setupChatFields.style.display = 'block';
+
+                            this.inputChatCharName.value = localStorage.getItem('recent_chat_char_name') || '';
+                            this.inputChatRelation.value = localStorage.getItem('recent_chat_relation') || '';
+                            this.inputChatCharDesc.value = localStorage.getItem('recent_chat_char_desc') || '';
+                            this.selectChatLevel.value = localStorage.getItem('recent_chat_level') || 'normal';
+                            this.inputChatUserName.value = localStorage.getItem('recent_chat_user_name') || '';
+                        } else {
+                            this.setupStoryFields.style.display = 'block';
+                            this.setupChatFields.style.display = 'none';
+
+                            this.selectGenre.value = localStorage.getItem('recent_story_genre') || 'dark-fantasy';
+                            this.selectTone.value = localStorage.getItem('recent_story_tone') || 'cinematic';
+                            this.inputCharacter.value = localStorage.getItem('recent_story_character') || '';
+                        }
                     }
-                }
 
-                // 최근 저장된 설정 읽기
-                const recentChatUserName = localStorage.getItem('recent_chat_user_name') || '';
-                const recentStoryGenre = localStorage.getItem('recent_story_genre') || 'fantasy';
-                const recentStoryTone = localStorage.getItem('recent_story_tone') || 'normal';
-
-                // 처음 진입 시 주인공(본인) 이름도 무조건 빈값으로 초기화
-                if (this.inputChatUserName) this.inputChatUserName.value = '';
-                this.characterName = '';
-
-                if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
-                if (this.selectTone) this.selectTone.value = recentStoryTone;
-
-                // 관리자가 아닐 때 19금 방지 및 최근 설정 자동 복구 방어
-                if (!this.isAdmin) {
-                    const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
-                    if (adultGenre) adultGenre.remove();
-                    
-                    const adultTone = document.querySelector('#select-tone option[value="sensual"]');
-                    if (adultTone) adultTone.remove();
-                    
-                    const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
-                    if (adultLevel) adultLevel.remove();
-
-                    // 19금 상태였던 설정 복구 방어 (드롭다운 최종 검증)
-                    if (this.selectGenre) this.selectGenre.value = 'fantasy';
-                    if (this.selectTone) this.selectTone.value = 'normal';
-                }
-
-                // 처음 진입 시(어드민/일반 유저 공통) 가상 인물의 정보는 무조건 빈값으로 설정
-                if (this.inputChatCharName) this.inputChatCharName.value = '';
-                if (this.inputChatRelation) this.inputChatRelation.value = '';
-                if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
-                if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
-                if (this.inputCharacter) this.inputCharacter.value = '';
-                if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
-                this.characterImages = {};
-
-                // 이미지 미리보기 영역 초기화
-                const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
-                emotions.forEach(emotion => {
-                    const imgEl = document.getElementById(`img-preview-${emotion}`);
-                    const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-                    if (imgEl) {
-                        imgEl.src = '';
-                        imgEl.style.display = 'none';
+                    const recentPreset = localStorage.getItem('recent_persona_preset') || '';
+                    if (recentPreset && this.selectPersonaPreset) {
+                        this.selectPersonaPreset.value = recentPreset;
                     }
-                    if (placeholderEl) {
-                        placeholderEl.style.display = 'flex';
+
+                    // 오버레이 및 셋업 건너뛰고 스튜디오 화면 바로 띄우기
+                    this.startStudio();
+
+                } else {
+                    // 2. 최초 로그인 진입 또는 설정창 오버레이 상태인 경우 강제 클리어 로직 기동
+                    if (recentMode) {
+                        this.selectModeType.value = recentMode;
+                        if (recentMode === 'chat') {
+                            this.setupStoryFields.style.display = 'none';
+                            this.setupChatFields.style.display = 'block';
+                        } else {
+                            this.setupStoryFields.style.display = 'block';
+                            this.setupChatFields.style.display = 'none';
+                        }
                     }
-                });
-                if (this.charImagesPreview) {
-                    this.charImagesPreview.style.display = 'grid';
-                }
 
-                if (this.hudCharacter) {
-                    this.hudCharacter.textContent = '';
-                }
+                    const recentStoryGenre = localStorage.getItem('recent_story_genre') || 'fantasy';
+                    const recentStoryTone = localStorage.getItem('recent_story_tone') || 'normal';
 
-                // 브라우저의 강제 자동완성(Auto-fill) 우회 방어를 위해 200ms 후 2차로 한번 더 강제 클리어 수행
-                setTimeout(() => {
+                    if (this.inputChatUserName) this.inputChatUserName.value = '';
+                    this.characterName = '';
+
+                    if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
+                    if (this.selectTone) this.selectTone.value = recentStoryTone;
+
+                    if (!this.isAdmin) {
+                        const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
+                        if (adultGenre) adultGenre.remove();
+                        const adultTone = document.querySelector('#select-tone option[value="sensual"]');
+                        if (adultTone) adultTone.remove();
+                        const adultLevel = document.querySelector('#select-chat-level option[value="adult-19"]');
+                        if (adultLevel) adultLevel.remove();
+
+                        if (this.selectGenre) this.selectGenre.value = 'fantasy';
+                        if (this.selectTone) this.selectTone.value = 'normal';
+                    }
+
                     if (this.inputChatCharName) this.inputChatCharName.value = '';
                     if (this.inputChatRelation) this.inputChatRelation.value = '';
                     if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
                     if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
                     if (this.inputCharacter) this.inputCharacter.value = '';
                     if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
-                }, 200);
+                    this.characterImages = {};
 
-                // 유저 정보 수신 완료 후 페르소나 프리셋 다시 로드 (필터링 적용됨)
-                this.loadPersonaPresets();
+                    const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
+                    emotions.forEach(emotion => {
+                        const imgEl = document.getElementById(`img-preview-${emotion}`);
+                        const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+                        if (imgEl) {
+                            imgEl.src = '';
+                            imgEl.style.display = 'none';
+                        }
+                        if (placeholderEl) {
+                            placeholderEl.style.display = 'flex';
+                        }
+                    });
+                    if (this.charImagesPreview) {
+                        this.charImagesPreview.style.display = 'grid';
+                    }
+
+                    if (this.hudCharacter) {
+                        this.hudCharacter.textContent = '';
+                    }
+
+                    // 브라우저의 강제 자동완성 우회 방어 2차 강제 클리어
+                    setTimeout(() => {
+                        if (localStorage.getItem('studio_active_state') === 'active') return;
+
+                        if (this.inputChatCharName) this.inputChatCharName.value = '';
+                        if (this.inputChatRelation) this.inputChatRelation.value = '';
+                        if (this.inputChatCharDesc) this.inputChatCharDesc.value = '';
+                        if (this.selectChatLevel) this.selectChatLevel.value = 'normal';
+                        if (this.inputCharacter) this.inputCharacter.value = '';
+                        if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
+                    }, 200);
+                }
                 
                 // 서버와 페르소나 데이터 동기화
                 await this.syncPersonaPresetsWithServer();
@@ -808,6 +837,10 @@ class ChronicleApp {
             localStorage.setItem('recent_story_character', this.characterName);
         }
         localStorage.setItem('recent_mode_type', this.modeType);
+        localStorage.setItem('studio_active_state', 'active');
+        if (this.selectPersonaPreset) {
+            localStorage.setItem('recent_persona_preset', this.selectPersonaPreset.value);
+        }
 
         // Save key locally
         if (this.apiKey) {
@@ -856,6 +889,8 @@ class ChronicleApp {
         
         this.appContainer.classList.add('hidden');
         this.appContainer.classList.remove('visible');
+
+        localStorage.setItem('studio_active_state', 'setup');
     }
 
     // Generate story next segment

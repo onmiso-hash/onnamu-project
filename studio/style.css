@@ -1134,15 +1134,15 @@ select {
     }
     
     .profile-avatar-wrapper {
-        width: 72px;
-        height: 72px;
+        width: 144px;
+        height: 144px;
         border-width: 1.5px;
     }
     
     .character-profile-card .profile-avatar {
-        font-size: 2.2rem;
-        width: 72px;
-        height: 72px;
+        font-size: 4.4rem;
+        width: 144px;
+        height: 144px;
     }
     
     .profile-meta h3 {
