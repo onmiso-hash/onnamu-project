@@ -1053,7 +1053,8 @@ JSON Schema:
         
         if (sender === 'ai') {
             const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
-            const imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+            let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+            if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
             
             let avatarHtml = '';
             if (imgUrl) {
@@ -1920,7 +1921,8 @@ JSON Schema:
         this.charProfileContainer.style.display = 'block';
 
         const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
-        const imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+        let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+        if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
         let avatarHtml = '';
         if (imgUrl) {
@@ -2715,7 +2717,9 @@ JSON Schema:
                     const placeholderEl = document.getElementById(`placeholder-${emotion}`);
                     if (this.characterImages[emotion]) {
                         if (imgEl) {
-                            imgEl.src = this.characterImages[emotion];
+                            let rawUrl = this.characterImages[emotion];
+                            if (rawUrl && rawUrl.startsWith('/data/uploads/')) rawUrl = '.' + rawUrl;
+                            imgEl.src = rawUrl;
                             imgEl.style.display = 'block';
                         }
                         if (placeholderEl) {
@@ -2889,7 +2893,9 @@ JSON Schema:
                 // Update UI preview
                 const imgEl = document.getElementById(`img-preview-${emotion}`);
                 if (imgEl) {
-                    imgEl.src = fileUrl;
+                    let rawUrl = fileUrl;
+                    if (rawUrl && rawUrl.startsWith('/data/uploads/')) rawUrl = '.' + rawUrl;
+                    imgEl.src = rawUrl;
                     imgEl.style.display = 'block';
                 }
                 if (placeholderEl) {
@@ -2945,6 +2951,7 @@ JSON Schema:
             if (!presets) return;
             const res = await fetch('/api/personas', {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -2952,6 +2959,9 @@ JSON Schema:
             });
             if (!res.ok) {
                 console.error("Failed to push personas to server, status:", res.status);
+                if (res.status === 401) {
+                    alert('세션이 만료되었거나 인증되지 않았습니다. 원활한 동기화를 위해 다시 로그인해 주세요.');
+                }
             }
         } catch (e) {
             console.error("Failed to push personas to server:", e);
@@ -2961,9 +2971,15 @@ JSON Schema:
     // Fetch server personas and merge with local storage
     async syncPersonaPresetsWithServer() {
         try {
-            const res = await fetch('/api/personas');
+            const res = await fetch('/api/personas', {
+                method: 'GET',
+                credentials: 'include'
+            });
             if (!res.ok) {
                 console.error("Failed to fetch personas from server, status:", res.status);
+                if (res.status === 401) {
+                    alert('데이터 동기화 실패: 세션이 만료되었습니다. 최신 기록을 불러오려면 다시 로그인해 주세요.');
+                }
                 return;
             }
             const serverPresets = await res.json();
