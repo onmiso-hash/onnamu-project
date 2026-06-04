@@ -161,11 +161,11 @@ class ChronicleApp {
             }
         });
 
-        // Set up particle background
+        // Set up particle background (Canvas rendering disabled for performance optimization)
         window.addEventListener('resize', () => this.resizeCanvas());
         this.resizeCanvas();
-        this.generateAmbientStars();
-        this.animateBackground();
+        // this.generateAmbientStars();
+        // this.animateBackground();
 
         // Setup Oracle layout resizer
         this.initResizer();
@@ -334,22 +334,33 @@ class ChronicleApp {
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
                 localStorage.setItem('oracle_bottom_height', bottomControls.offsetHeight);
+                document.removeEventListener('mousemove', onMoveHandler);
+                document.removeEventListener('mouseup', onEnd);
+                document.removeEventListener('touchmove', onTouchMoveHandler);
+                document.removeEventListener('touchend', onEnd);
             }
         };
 
+        const onMoveHandler = (e) => onMove(e.clientY);
+        const onTouchMoveHandler = (e) => {
+            if (e.touches.length > 0) onMove(e.touches[0].clientY);
+        };
+
+        const onStartHandler = (clientY) => {
+            onStart(clientY);
+            document.addEventListener('mousemove', onMoveHandler, { passive: true });
+            document.addEventListener('mouseup', onEnd);
+            document.addEventListener('touchmove', onTouchMoveHandler, { passive: true });
+            document.addEventListener('touchend', onEnd);
+        };
+
         // Mouse Events
-        resizer.addEventListener('mousedown', (e) => onStart(e.clientY));
-        document.addEventListener('mousemove', (e) => onMove(e.clientY));
-        document.addEventListener('mouseup', onEnd);
+        resizer.addEventListener('mousedown', (e) => onStartHandler(e.clientY));
 
         // Touch Events
         resizer.addEventListener('touchstart', (e) => {
-            if (e.touches.length > 0) onStart(e.touches[0].clientY);
-        });
-        document.addEventListener('touchmove', (e) => {
-            if (e.touches.length > 0) onMove(e.touches[0].clientY);
-        });
-        document.addEventListener('touchend', onEnd);
+            if (e.touches.length > 0) onStartHandler(e.touches[0].clientY);
+        }, { passive: true });
     }
 
     // Initialize Procedural Audio Engine
@@ -1539,6 +1550,7 @@ JSON Schema:
     }
 
     animateBackground() {
+        return; // Disabled for performance
         requestAnimationFrame(() => this.animateBackground());
 
         this.ctx.fillStyle = '#faf9f6';
