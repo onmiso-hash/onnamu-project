@@ -96,12 +96,22 @@ class ChronicleApp {
         this.chatTextarea = document.getElementById('chat-input-textarea');
         this.btnSubmitAction = document.getElementById('btn-submit-action');
 
-        // New Unified Header Elements
-        this.btnToggleInfoPanel = document.getElementById('btn-toggle-info-panel');
-        this.headerDetailPanel = document.getElementById('header-detail-panel');
-        this.charProfileSummaryPill = document.getElementById('char-profile-summary-pill');
+        // New Unified Header & Sidebar Elements
+        this.btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+        this.btnCloseSidebar = document.getElementById('btn-close-sidebar');
+        this.studioSidebar = document.getElementById('studio-sidebar');
+        this.sidebarOverlay = document.getElementById('sidebar-overlay');
+
+        this.charProfileLayer = document.getElementById('studio-char-profile-layer');
+        this.charProfileLayerBar = document.getElementById('char-profile-layer-bar');
+        this.charPillName = document.getElementById('char-pill-name');
+        this.charPillAffinity = document.getElementById('char-pill-affinity');
+        this.charAvatarSummaryWrapper = document.getElementById('char-avatar-summary-wrapper');
+
+        this.memoryAccordionLayer = document.getElementById('studio-memory-accordion-layer');
+        this.btnToggleMemoryAccordion = document.getElementById('btn-toggle-memory-accordion');
+        this.memoryAccordionContent = document.getElementById('memory-accordion-content');
         this.hudMemoryList = document.getElementById('hud-memory-list');
-        this.btnLogoHome = document.getElementById('btn-logo-home');
 
         // Toggle Setup Fields
         this.selectModeType.addEventListener('change', () => {
@@ -168,22 +178,46 @@ class ChronicleApp {
             }
         });
 
-        // Toggle dropdown detail panel
-        if (this.btnToggleInfoPanel) {
-            this.btnToggleInfoPanel.addEventListener('click', () => {
-                if (this.headerDetailPanel) {
-                    this.headerDetailPanel.classList.toggle('hidden');
-                    this.btnToggleInfoPanel.classList.toggle('active');
+        // Sidebar opening/closing listeners
+        if (this.btnToggleSidebar) {
+            this.btnToggleSidebar.addEventListener('click', () => {
+                if (this.studioSidebar) this.studioSidebar.classList.remove('closed');
+                if (this.sidebarOverlay) this.sidebarOverlay.classList.remove('hidden');
+            });
+        }
+        if (this.btnCloseSidebar) {
+            this.btnCloseSidebar.addEventListener('click', () => {
+                if (this.studioSidebar) this.studioSidebar.classList.add('closed');
+                if (this.sidebarOverlay) this.sidebarOverlay.classList.add('hidden');
+            });
+        }
+        if (this.sidebarOverlay) {
+            this.sidebarOverlay.addEventListener('click', () => {
+                if (this.studioSidebar) this.studioSidebar.classList.add('closed');
+                if (this.sidebarOverlay) this.sidebarOverlay.classList.add('hidden');
+            });
+        }
+
+        // Toggle Memory Accordion
+        if (this.btnToggleMemoryAccordion) {
+            this.btnToggleMemoryAccordion.addEventListener('click', () => {
+                if (this.memoryAccordionContent) {
+                    const isHidden = this.memoryAccordionContent.classList.toggle('hidden');
+                    this.btnToggleMemoryAccordion.classList.toggle('active', !isHidden);
                 }
             });
         }
 
-        // Back to settings via Logo
-        if (this.btnLogoHome) {
-            this.btnLogoHome.addEventListener('click', () => {
-                this.goHomeSettings();
+        // Auto-close sidebar on menu item click (specifically for mobile responsiveness)
+        setTimeout(() => {
+            const sidebarMenuItems = document.querySelectorAll('.sidebar-menu-item');
+            sidebarMenuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    if (this.studioSidebar) this.studioSidebar.classList.add('closed');
+                    if (this.sidebarOverlay) this.sidebarOverlay.classList.add('hidden');
+                });
             });
-        }
+        }, 500);
 
         // Textarea height auto-adjust
         if (this.chatTextarea) {
@@ -1963,15 +1997,13 @@ JSON Schema:
 
     // Render character profile in the fixed top container
     renderChatProfile(emotion = 'normal') {
-        // Toggle pill display depending on mode
+        // Toggle visibility of the 2nd and 3rd HUD layers based on mode
         if (this.modeType === 'chat') {
-            if (this.charProfileSummaryPill) {
-                this.charProfileSummaryPill.classList.remove('hidden');
-            }
+            if (this.charProfileLayer) this.charProfileLayer.classList.remove('hidden');
+            if (this.memoryAccordionLayer) this.memoryAccordionLayer.classList.remove('hidden');
         } else {
-            if (this.charProfileSummaryPill) {
-                this.charProfileSummaryPill.classList.add('hidden');
-            }
+            if (this.charProfileLayer) this.charProfileLayer.classList.add('hidden');
+            if (this.memoryAccordionLayer) this.memoryAccordionLayer.classList.add('hidden');
             if (this.charProfileContainer) {
                 this.charProfileContainer.style.display = 'none';
                 this.charProfileContainer.innerHTML = '';
@@ -1984,34 +2016,34 @@ JSON Schema:
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
         let avatarHtml = '';
-        let pillAvatarHtml = '';
+        let layerAvatarHtml = '';
         if (imgUrl) {
             avatarHtml = `<img src="${imgUrl}" class="profile-avatar-img" alt="${this.chatCharName}" />`;
-            pillAvatarHtml = `<img src="${imgUrl}" class="profile-avatar-pill-img" alt="${this.chatCharName}" style="width:100%; height:100%; object-fit:cover;" />`;
+            layerAvatarHtml = `<img src="${imgUrl}" class="profile-avatar-layer-img" alt="${this.chatCharName}" style="width:100%; height:100%; object-fit:cover;" />`;
         } else {
             let avatarIcon = '🔮';
             if (this.chatCharName.includes('릴리스') || this.chatCharName.includes('악마')) avatarIcon = '😈';
             else if (this.chatLevel === 'adult-19') avatarIcon = '💋';
             else avatarIcon = '👤';
             avatarHtml = `<span class="profile-avatar">${avatarIcon}</span>`;
-            pillAvatarHtml = `<span class="profile-avatar" style="font-size:0.85rem;">${avatarIcon}</span>`;
+            layerAvatarHtml = `<span class="profile-avatar" style="font-size:1.1rem;">${avatarIcon}</span>`;
         }
 
-        // Update Summary Pill (HUD)
-        const avatarSummaryWrapper = document.getElementById('char-avatar-summary-wrapper');
-        const pillName = document.getElementById('char-pill-name');
-        const pillAffinity = document.getElementById('char-pill-affinity');
-        if (avatarSummaryWrapper) avatarSummaryWrapper.innerHTML = pillAvatarHtml;
-        if (pillName) pillName.textContent = this.chatCharName;
-        if (pillAffinity) pillAffinity.textContent = `💖 ${this.affinityValue}`;
+        // 1. Update 2nd layer (Character profile Layer)
+        if (this.charAvatarSummaryWrapper) this.charAvatarSummaryWrapper.innerHTML = layerAvatarHtml;
+        if (this.charPillName) this.charPillName.textContent = this.chatCharName;
+        if (this.charPillAffinity) this.charPillAffinity.textContent = this.affinityValue;
+        if (this.charProfileLayerBar) {
+            this.charProfileLayerBar.style.width = `${this.affinityValue}%`;
+        }
 
-        // Render Memory list inside collapsible vault
+        // 2. Update 3rd layer memory list inside accordion
         if (this.hudMemoryList) {
             const memoryItemsHtml = this.memoryList.map(m => `<li>${m}</li>`).join('');
             this.hudMemoryList.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
         }
 
-        // Render Detail profile card inside dropdown
+        // 3. Keep standard fallback rendering in charProfileContainer for safety / backward compatibility
         if (this.charProfileContainer) {
             this.charProfileContainer.style.display = 'block';
             let profileCard = this.charProfileContainer.querySelector('.character-profile-card');

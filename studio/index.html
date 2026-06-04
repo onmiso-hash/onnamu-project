@@ -213,108 +213,152 @@
 
     <!-- Main Workspace Container -->
     <main id="app-container" class="hidden">
-        <!-- Top Unified Header Panel (설정 정보 & 캐릭터 프로필 & 메모리가 하나로 결합된 상단 고정 영역) -->
-        <div id="studio-fixed-header" class="glass-panel">
-            <div class="header-main-row">
-                <div class="logo-area" id="btn-logo-home" style="cursor: pointer;">
+        <!-- 1. Left Slide Sidebar Navigation (Gemini Style) -->
+        <aside id="studio-sidebar" class="sidebar-panel closed">
+            <div class="sidebar-header">
+                <div class="logo-area">
                     <span class="logo-icon">✍️</span>
                     <span class="logo-title">Chronicle AI</span>
                 </div>
+                <button id="btn-close-sidebar" class="sidebar-close-btn" title="메뉴 닫기">✕</button>
+            </div>
+            <nav class="sidebar-menu">
+                <div class="menu-section-title">🔮 시나리오 제어</div>
+                <button id="btn-toggle-sound" class="sidebar-menu-item active">
+                    <span class="icon">🔊</span> <span class="text">사운드 ON</span>
+                </button>
+                <button id="btn-save-session" class="sidebar-menu-item">
+                    <span class="icon">💾</span> <span class="text">진행 상태 저장</span>
+                </button>
+                <button id="btn-undo-story" class="sidebar-menu-item">
+                    <span class="icon">↩️</span> <span class="text">이전 선택 취소</span>
+                </button>
+                <button id="btn-reset-story" class="sidebar-menu-item">
+                    <span class="icon">🔄</span> <span class="text">처음부터 다시 쓰기</span>
+                </button>
                 
-                <!-- HUD Metadata Info -->
-                <div class="hud-meta-summary">
-                    <span class="hud-badge"><span class="label">장르</span> <span id="hud-genre" class="value">다크 판타지</span></span>
-                    <span class="hud-badge"><span class="label">분위기</span> <span id="hud-tone" class="value">시네마틱</span></span>
-                    <span class="hud-badge mobile-hide"><span class="label">주인공</span> <span id="hud-character" class="value"></span></span>
-                    <span class="hud-badge mobile-hide"><span class="label">모델</span> <span id="hud-model" class="value">Gemini 1.5 Flash</span></span>
+                <div class="menu-section-title" style="margin-top: 1.5rem;">⚙️ 시스템 및 도구</div>
+                <button id="btn-home-settings" class="sidebar-menu-item">
+                    <span class="icon">⚙️</span> <span class="text">설정 화면 (홈)</span>
+                </button>
+                <button id="btn-export-text" class="sidebar-menu-item">
+                    <span class="icon">📥</span> <span class="text">텍스트 다운로드</span>
+                </button>
+                <button id="btn-logout" class="sidebar-menu-item logout-item">
+                    <span class="icon">🚪</span> <span class="text">로그아웃</span>
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Sidebar Overlay Background -->
+        <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+
+        <!-- Main Viewport Layout -->
+        <div class="studio-main-viewport">
+            <!-- 2. Top Unified Fixed Header Panel (수직 3단 고정 구조) -->
+            <div id="studio-fixed-header" class="glass-panel">
+                
+                <!-- [1단] 최상단 헤더: 메뉴 버튼 + 로고 + 설정 정보 배지 -->
+                <div class="header-main-row">
+                    <div style="display: flex; align-items: center; gap: 0.8rem;">
+                        <button id="btn-toggle-sidebar" class="sidebar-hamburger-btn" title="메뉴 열기">☰</button>
+                        <div class="logo-area" onclick="window.app.goHomeSettings()" style="cursor: pointer;">
+                            <span class="logo-icon">✍️</span>
+                            <span class="logo-title">Chronicle AI</span>
+                        </div>
+                    </div>
+                    
+                    <!-- HUD 설정 정보 배지 그룹 -->
+                    <div class="hud-meta-summary">
+                        <span class="hud-badge"><span class="label">장르</span> <span id="hud-genre" class="value">다크 판타지</span></span>
+                        <span class="hud-badge"><span class="label">분위기</span> <span id="hud-tone" class="value">시네마틱</span></span>
+                        <span class="hud-badge mobile-hide"><span class="label">주인공</span> <span id="hud-character" class="value">-</span></span>
+                        <span class="hud-badge mobile-hide"><span class="label">모델</span> <span id="hud-model" class="value">-</span></span>
+                    </div>
                 </div>
 
-                <!-- Active Character Profile Summary (Chat mode only) -->
-                <div id="char-profile-summary-pill" class="profile-summary-pill hidden">
-                    <div id="char-avatar-summary-wrapper" class="avatar-pill-img-wrapper">
-                        <!-- Dynamic avatar image or icon loaded by app.js -->
-                    </div>
-                    <div class="char-pill-info">
-                        <span id="char-pill-name" class="char-pill-name-el">-</span>
-                        <span id="char-pill-affinity" class="char-pill-affinity-el">💖 50</span>
+                <!-- [2단] 캐릭터 정보 레이어 (Chat mode 전용) -->
+                <div id="studio-char-profile-layer" class="char-profile-layer hidden">
+                    <div class="profile-layer-inner">
+                        <div id="char-avatar-summary-wrapper" class="avatar-layer-wrapper">
+                            <!-- Dynamic avatar loaded by app.js -->
+                        </div>
+                        <div class="profile-layer-meta">
+                            <div class="meta-row">
+                                <h3 id="char-pill-name" class="char-layer-name">-</h3>
+                                <div class="layer-affection">
+                                    <span class="affinity-icon">💖</span>
+                                    <span id="char-pill-affinity" class="affinity-value-text">50</span>
+                                </div>
+                            </div>
+                            <div class="affection-progress-bar-bg">
+                                <div id="char-profile-layer-bar" class="affection-progress-bar-fill" style="width: 50%;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Control Buttons -->
-                <div class="hud-action-buttons">
-                    <button id="btn-toggle-info-panel" class="hud-btn" title="상세 정보 열기/접기">ℹ️ 정보</button>
-                    <button id="btn-toggle-sound" class="hud-btn active" title="사운드 토글">🔊 ON</button>
-                    <button id="btn-save-session" class="hud-btn mobile-hide" title="현재 세션 저장">💾 저장</button>
-                    <button id="btn-undo-story" class="hud-btn" title="이전 선택 취소 (Undo)">↩️ 취소</button>
-                    <button id="btn-reset-story" class="hud-btn" title="처음부터 다시 쓰기">🔄 리셋</button>
-                    <button id="btn-home-settings" class="hud-btn" title="설정 화면(홈)으로 돌아가기">⚙️ 설정</button>
-                    <button id="btn-export-text" class="hud-btn mobile-hide" title="텍스트 다운로드">💾 다운로드</button>
-                    <button id="btn-logout" class="hud-btn" title="로그아웃" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.35);">🚪 로그아웃</button>
+                <!-- [3단] 주요 메모리 아코디언 레이어 (Chat mode 전용) -->
+                <div id="studio-memory-accordion-layer" class="memory-accordion-layer hidden">
+                    <button id="btn-toggle-memory-accordion" class="memory-accordion-toggle" title="주요 기억 메모리 확인">
+                        <span class="toggle-icon">🧠</span>
+                        <span class="toggle-text">주요 기억 메모리 (클릭하여 확인)</span>
+                        <span class="arrow-indicator">▼</span>
+                    </button>
+                    <div id="memory-accordion-content" class="memory-accordion-content hidden">
+                        <ul id="hud-memory-list" class="memory-list-el">
+                            <li>기억된 대화가 아직 없습니다.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Full profile card backup in dropdown for data binding safety -->
+                <div id="char-profile-container" style="display: none;"></div>
+            </div>
+
+            <!-- 3. Central Unified Feed Stream (scrollable) -->
+            <div id="studio-unified-feed" class="unified-feed-container">
+                <div id="story-scroll-area" class="feed-scroll-wrapper">
+                    <!-- Dynamic Chapters & Messages will be appended here -->
+                    <div class="cover-page">
+                        <div class="crown-ornament">✨</div>
+                        <h2 id="book-title">새로운 서사시가 곧 기록됩니다</h2>
+                        <p class="book-intro">하단의 예언서 대화창을 통해 이야기를 움직이고 AI와 함께 가상 세계를 조율해 나가세요.</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- Detail Collapsible Dropdown (Contains Full Profile & Memory Vault) -->
-            <div id="header-detail-panel" class="header-detail-dropdown hidden">
-                <div class="detail-panel-grid">
-                    <!-- Left: Character profile info (Chat mode only) -->
-                    <div id="char-profile-container" class="profile-details-column">
-                        <!-- Dynamically filled with character profile or fallback message -->
-                    </div>
-                    <!-- Right: Major Memory Vault -->
-                    <div class="story-details-column">
-                        <div class="memory-vault">
-                            <h4>🧠 주요 기억 메모리</h4>
-                            <ul id="hud-memory-list" class="memory-list-el">
-                                <li>기억된 대화가 아직 없습니다.</li>
-                            </ul>
+            <!-- 4. Bottom Fixed Controls (sticky) -->
+            <div id="studio-bottom-controls" class="bottom-controls-panel">
+                <div class="bottom-panel-inner">
+                    <!-- Interactive Choice Cards (Floating chips) -->
+                    <div class="choices-outer-wrapper">
+                        <div id="choices-container" class="choices-chips-grid">
+                            <div class="choice-card disabled">
+                                <span class="card-num">I</span>
+                                <p>첫 챕터 작성을 시작하면 선택지가 활성화됩니다.</p>
+                            </div>
+                            <div class="choice-card disabled">
+                                <span class="card-num">II</span>
+                                <p>선택지를 눌러 방향을 조율할 수 있습니다.</p>
+                            </div>
+                            <div class="choice-card disabled">
+                                <span class="card-num">III</span>
+                                <p>원하는 방향이 없으면 대화창에 직접 지시하세요.</p>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Central Unified Feed Stream (scrollable area, like gemini.google.com) -->
-        <div id="studio-unified-feed" class="unified-feed-container">
-            <div id="story-scroll-area" class="feed-scroll-wrapper">
-                <!-- Dynamic Chapters & Messages will be appended here -->
-                <div class="cover-page">
-                    <div class="crown-ornament">✨</div>
-                    <h2 id="book-title">새로운 서사시가 곧 기록됩니다</h2>
-                    <p class="book-intro">하단의 예언서 대화창을 통해 이야기를 움직이고 AI와 함께 가상 세계를 조율해 나가세요.</p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Fixed Controls (sticky at the bottom) -->
-        <div id="studio-bottom-controls" class="bottom-controls-panel">
-            <div class="bottom-panel-inner">
-                <!-- Interactive Choice Cards (Floating chips) -->
-                <div class="choices-outer-wrapper">
-                    <div id="choices-container" class="choices-chips-grid">
-                        <div class="choice-card disabled">
-                            <span class="card-num">I</span>
-                            <p>첫 챕터 작성을 시작하면 선택지가 활성화됩니다.</p>
+                    <!-- Input box resembling Gemini.google.com -->
+                    <div class="chat-input-container-wrapper">
+                        <div class="chat-input-box-field">
+                            <textarea id="chat-input-textarea" placeholder="선택지에 없는 독창적인 운명을 직접 묘사하고 지시하세요..." rows="1"></textarea>
+                            <button id="btn-submit-action" class="send-action-btn" title="운명 전송">
+                                <svg class="send-icon-svg" viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px; transform: rotate(0deg); fill: var(--primary-light);">
+                                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                                </svg>
+                            </button>
                         </div>
-                        <div class="choice-card disabled">
-                            <span class="card-num">II</span>
-                            <p>선택지를 눌러 방향을 조율할 수 있습니다.</p>
-                        </div>
-                        <div class="choice-card disabled">
-                            <span class="card-num">III</span>
-                            <p>원하는 방향이 없으면 대화창에 직접 지시하세요.</p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Input box resembling Gemini.google.com -->
-                <div class="chat-input-container-wrapper">
-                    <div class="chat-input-box-field">
-                        <textarea id="chat-input-textarea" placeholder="선택지에 없는 독창적인 운명을 직접 묘사하고 지시하세요..." rows="1"></textarea>
-                        <button id="btn-submit-action" class="send-action-btn" title="운명 전송">
-                            <svg class="send-icon-svg" viewBox="0 0 24 24" fill="currentColor" style="width: 20px; height: 20px; transform: rotate(0deg); fill: var(--primary-light);">
-                                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                            </svg>
-                        </button>
                     </div>
                 </div>
             </div>
