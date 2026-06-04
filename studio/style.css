@@ -1181,6 +1181,50 @@ select {
     .memory-vault li {
         font-size: 0.7rem;
     }
+
+    /* 모바일 대화 피드 내 캐릭터 아바타+말풍선 세로 정렬 (1안) */
+    .ai-message.chat-bubble-wrapper {
+        display: grid;
+        grid-template-areas: 
+            "avatar name"
+            "bubble bubble";
+        grid-template-columns: 44px 1fr;
+        column-gap: 0.6rem;
+        row-gap: 0.4rem;
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .ai-message .chat-avatar-container {
+        grid-area: avatar;
+        width: 40px !important;
+        height: 40px !important;
+        box-shadow: 0 0 6px rgba(217, 119, 6, 0.2);
+    }
+
+    .ai-message .chat-avatar-icon {
+        font-size: 1.1rem !important;
+    }
+
+    .ai-message .chat-message-content {
+        display: contents; /* 자식들이 직접 grid-area 레이아웃에 참여하도록 해제 */
+    }
+
+    .ai-message .chat-sender-name {
+        grid-area: name;
+        align-self: center;
+        margin-left: 0;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--gold);
+    }
+
+    .ai-message .chat-bubble {
+        grid-area: bubble;
+        border-radius: 4px 16px 16px 16px;
+        width: 100%;
+        box-sizing: border-box;
+    }
 }
 
 /* Legacy styles removed */
