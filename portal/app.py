@@ -38,6 +38,10 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   category TEXT, title TEXT, content TEXT, 
                   published_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # 기존에 누적된 무거운 디버그(배포 로그) 데이터 청소
+    c.execute("DELETE FROM work_history WHERE category = '디버그'")
+    
     conn.commit()
     conn.close()
 
