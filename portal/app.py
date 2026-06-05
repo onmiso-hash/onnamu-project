@@ -1,9 +1,12 @@
-from flask import Flask, jsonify, render_template_string, render_template, request
+from flask import Flask, jsonify, render_template_string, render_template, request, redirect, url_for, make_response
 import psutil
 import sqlite3
 import os
+import json
+from auth_helper import generate_auth_token, login_required, verify_token
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
@@ -17,6 +20,7 @@ def add_header(response):
 
 # --- 데이터베이스 경로 설정 (영구 저장을 위해 data 폴더 지정) ---
 DB_PATH = 'data/news.db'
+USERS_CONF_PATH = os.environ.get("USERS_CONF_PATH", "users.json")
 
 def init_db():
     if not os.path.exists('data'):
@@ -36,7 +40,28 @@ def init_db():
     conn.commit()
     conn.close()
 
-# --- 통합 HTML 템플릿 (모든 서비스 링크 복구 완료) ---
+def load_users_from_file():
+    if os.path.exists(USERS_CONF_PATH):
+        try:
+            with open(USERS_CONF_PATH, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"❌ JSON 로드 에러: {e}")
+    # 파일이 없는 경우를 위한 로컬 개발용 폴백 계정 제공
+    return {
+        "admin": {
+            "password": "admin",
+            "folders": ["public", "private", "family"],
+            "is_admin": True
+        },
+        "family": {
+            "password": "family",
+            "folders": ["public", "family"],
+            "is_admin": False
+        }
+    }
+
+# --- 통합 HTML 템플릿 (모든 서비스 링크 및 SSO 정보 탑바 연동) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -113,10 +138,18 @@ HTML_TEMPLATE = """
     <div class="container">
         <div class="topbar glass-card">
             <span style="font-weight:700;">onnamu.kr hub</span>
-            <span id="update-time" style="font-size:0.8rem; color:#94a3b8;">Syncing...</span>
+            <div style="display:flex; align-items:center; gap:12px;">
+                {% if username %}
+                <span style="font-size:0.8rem; color:#cbd5e1;">👤 {{ username }}{% if is_admin %} (관리자){% endif %}</span>
+                <a href="/logout" style="font-size:0.8rem; color:#a855f7; text-decoration:none; font-weight:700;">로그아웃</a>
+                {% else %}
+                <a href="/login" style="font-size:0.8rem; color:#a855f7; text-decoration:none; font-weight:700;">로그인</a>
+                {% endif %}
+                <span id="update-time" style="font-size:0.8rem; color:#94a3b8; margin-left:10px;">Syncing...</span>
+            </div>
         </div>
 
-        <div class="section-label">System Health</div>
+        <div class="section-label">System Health {% if not username %}<span style="font-size:0.65rem; color:#64748b; margin-left:8px; text-transform:none;">(로그인 시 실시간 수치 활성화)</span>{% endif %}</div>
         <div class="stats-grid">
             <div class="glass-card stat-card">
                 <div style="font-size:0.75rem; color:#94a3b8; margin-bottom:8px;">CPU Load</div>
@@ -195,7 +228,7 @@ HTML_TEMPLATE = """
                 <span class="demo-badge">Draft</span>
             </a>
         </div>
-        <footer>Managed by onmiso | onnamu.kr hub v6.2</footer>
+        <footer>Managed by onmiso | onnamu.kr hub v6.3</footer>
     </div>
 
     <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
@@ -206,7 +239,17 @@ HTML_TEMPLATE = """
 
     <script>
         function updateStats() {
-            fetch('/stats').then(r => r.json()).then(d => {
+            {% if username %}
+            fetch('/stats').then(r => {
+                if (r.status === 401) {
+                    document.getElementById('cpu').innerText = 'Locked';
+                    document.getElementById('ram').innerText = 'Locked';
+                    document.getElementById('disk').innerText = 'Locked';
+                    return;
+                }
+                return r.json();
+            }).then(d => {
+                if (!d) return;
                 document.getElementById('cpu').innerText = d.cpu + '%';
                 document.getElementById('ram').innerText = d.ram + '%';
                 document.getElementById('disk').innerText = d.disk_percent + '%';
@@ -216,6 +259,12 @@ HTML_TEMPLATE = """
                 document.getElementById('disk-bar').style.width = d.disk_percent + '%';
                 document.getElementById('update-time').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
             }).catch(() => {});
+            {% else %}
+            document.getElementById('cpu').innerText = 'Locked';
+            document.getElementById('ram').innerText = 'Locked';
+            document.getElementById('disk').innerText = 'Locked';
+            document.getElementById('disk-sub').innerText = '관리자 로그인 필요';
+            {% endif %}
         }
         setInterval(updateStats, 10000); updateStats();
 
@@ -388,8 +437,152 @@ HTML_TEMPLATE = """
 </html>
 """
 
+LOGIN_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | 로그인</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', -apple-system, sans-serif; 
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .login-card { 
+            background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(16px);
+            border-radius: 24px; padding: 40px 30px; border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3); width: 100%; max-width: 400px;
+            text-align: center;
+        }
+        h2 { font-weight: 700; color: #f1f5f9; margin-bottom: 8px; font-size: 1.6rem; letter-spacing: -0.5px; }
+        p.subtitle { font-size: 0.85rem; color: #94a3b8; margin-bottom: 30px; }
+        .input-group { margin-bottom: 20px; text-align: left; }
+        .input-group label { display: block; font-size: 0.75rem; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; margin-left: 4px; }
+        .input-group input { 
+            width: 100%; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.03); color: #f1f5f9; font-size: 0.95rem; outline: none; transition: all 0.2s;
+        }
+        .input-group input:focus { border-color: #a855f7; background: rgba(255, 255, 255, 0.07); box-shadow: 0 0 10px rgba(168, 85, 247, 0.25); }
+        .btn-submit { 
+            width: 100%; padding: 14px; border-radius: 12px; border: none; background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: 10px;
+            box-shadow: 0 4px 15px rgba(168, 85, 247, 0.3);
+        }
+        .btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(168, 85, 247, 0.45); }
+        .btn-submit:active { transform: translateY(1px); }
+        .error-msg { background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; font-size: 0.85rem; padding: 10px 14px; border-radius: 10px; margin-bottom: 20px; text-align: left; display: flex; align-items: center; gap: 8px; }
+        footer { margin-top: 30px; font-size: 0.75rem; color: #64748b; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <h2>onnamu SSO Login</h2>
+        <p class="subtitle">통합 로그인 세션에 로그인합니다.</p>
+        
+        {% if error %}
+        <div class="error-msg">
+            <span>⚠️</span>
+            <span>{{ error }}</span>
+        </div>
+        {% endif %}
+        
+        <form method="POST">
+            <div class="input-group">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" placeholder="아이디를 입력하세요" required autocomplete="username">
+            </div>
+            <div class="input-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="비밀번호를 입력하세요" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn-submit">로그인</button>
+        </form>
+        
+        <footer>Managed by onmiso</footer>
+    </div>
+</body>
+</html>
+"""
+
 @app.route('/')
-def index(): return render_template_string(HTML_TEMPLATE)
+def index():
+    token = request.cookies.get('auth_token')
+    payload = verify_token(token, app.secret_key)
+    username = payload.get('username') if payload else None
+    is_admin = payload.get('is_admin', False) if payload else False
+    return render_template_string(HTML_TEMPLATE, username=username, is_admin=is_admin)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    next_url = request.args.get('next', '')
+    
+    # 이미 유효한 토큰이 있다면 next로 리다이렉트
+    token = request.cookies.get('auth_token')
+    payload = verify_token(token, app.secret_key)
+    if payload:
+        if next_url:
+            return redirect(next_url)
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        
+        users = load_users_from_file()
+        user = users.get(username)
+        
+        if user and user.get('password') == password:
+            is_admin = user.get('is_admin', False)
+            folders = user.get('folders', [])
+            
+            # SSO 토큰 생성 (folders 정보 주입)
+            auth_token = generate_auth_token(username, app.secret_key, is_admin=is_admin, folders=folders)
+            
+            # 리다이렉트 응답 생성
+            resp = redirect(next_url if next_url else url_for('index'))
+            
+            # 쿠키 설정
+            cookie_domain = None
+            host = request.headers.get('Host', '')
+            if 'onnamu.kr' in host:
+                cookie_domain = '.onnamu.kr'
+                
+            resp.set_cookie(
+                'auth_token',
+                auth_token,
+                domain=cookie_domain,
+                httponly=True,
+                samesite='Lax',
+                max_age=30 * 24 * 3600  # 30일
+            )
+            return resp
+        else:
+            error = "아이디 또는 비밀번호가 틀렸습니다."
+            
+    return render_template_string(LOGIN_TEMPLATE, error=error)
+
+@app.route('/logout')
+def logout():
+    next_url = request.args.get('next', '')
+    resp = redirect(next_url if next_url else url_for('login'))
+    
+    # 캐시 무효화 헤더 주입
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    
+    # auth_token 쿠키 만료 처리
+    cookie_domain = None
+    host = request.headers.get('Host', '')
+    if 'onnamu.kr' in host:
+        cookie_domain = '.onnamu.kr'
+        
+    resp.delete_cookie('auth_token', domain=cookie_domain)
+    return resp
 
 @app.route('/v1')
 def renewal_v1(): return render_template('renewal_v1.html')
@@ -398,6 +591,7 @@ def renewal_v1(): return render_template('renewal_v1.html')
 def renewal_v2(): return render_template('renewal_v2.html')
 
 @app.route('/stats')
+@login_required(admin_only=True)
 def stats():
     cpu = psutil.cpu_percent(interval=None); ram = psutil.virtual_memory().percent
     try:
@@ -408,6 +602,7 @@ def stats():
     return jsonify(cpu=cpu, ram=ram, disk_percent=disk_percent, disk_detail=disk_detail)
 
 @app.route('/api/news/save', methods=['POST'])
+@login_required(admin_only=True)
 def save_news():
     data = request.json
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
@@ -432,6 +627,7 @@ def get_news_events():
     return jsonify([{"date": r[0]} for r in rows])
 
 @app.route('/api/work/save', methods=['POST'])
+@login_required(admin_only=True)
 def save_work():
     data = request.json
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
@@ -456,6 +652,7 @@ def get_work_events():
     return jsonify([{"date": r[0]} for r in rows])
 
 @app.route('/api/debug/deploy-log')
+@login_required(admin_only=True)
 def get_deploy_log():
     import os
     log_path = "/host_c/Users/onmis/project/deploy.log"

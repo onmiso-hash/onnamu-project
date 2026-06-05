@@ -19,101 +19,10 @@ if (!fs.existsSync(UPLOAD_DIR)) {
 // Serve uploaded images statically
 app.use('/data/uploads', express.static(UPLOAD_DIR));
 
-// Cookie parsing helper
-function parseCookies(cookieHeader) {
-    const list = {};
-    if (!cookieHeader) return list;
-    cookieHeader.split(';').forEach(cookie => {
-        const parts = cookie.split('=');
-        list[parts.shift().trim()] = decodeURI(parts.join('='));
-    });
-    return list;
-}
-
-// Token verification helper
-function verifyAuthToken(token, secretKey) {
-    try {
-        if (!token) return null;
-        const parts = token.split('.');
-        if (parts.length !== 2) return null;
-        
-        const [payloadB64, signature] = parts;
-        
-        const expectedSignature = crypto
-            .createHmac('sha256', secretKey)
-            .update(payloadB64)
-            .digest('hex');
-            
-        const isSignatureValid = crypto.timingSafeEqual(
-            Buffer.from(signature, 'hex'),
-            Buffer.from(expectedSignature, 'hex')
-        );
-        
-        if (!isSignatureValid) return null;
-        
-        const payloadJson = Buffer.from(payloadB64, 'base64').toString('utf8');
-        const payload = JSON.parse(payloadJson);
-        
-        if (Date.now() / 1000 > payload.exp) {
-            return null;
-        }
-        
-        return payload;
-    } catch (err) {
-        return null;
-    }
-}
+const { authMiddleware } = require('./authHelper');
 
 // Authentication Middleware
-app.use((req, res, next) => {
-    const ext = path.extname(req.path);
-    
-    // Pass verification for favicon & logout
-    if (req.path === '/favicon.ico' || req.path === '/logout') {
-        return next();
-    }
-
-    const cookies = parseCookies(req.headers.cookie);
-    const token = cookies['auth_token'];
-    const secretKey = process.env.SECRET_KEY || 'change-me-in-production';
-    const payload = verifyAuthToken(token, secretKey);
-
-    // 1. API request protection
-    if (req.path.startsWith('/api/')) {
-        if (req.path === '/api/user-info' && !payload) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-        if (!payload) {
-            return res.status(401).json({ error: '인증되지 않은 사용자입니다. 로그인이 필요합니다.' });
-        }
-        req.user = payload;
-        return next();
-    }
-
-    // 2. HTML page request protection
-    if (req.path === '/' || req.path === '/index.html' || ext === '.html' || ext === '') {
-        if (!payload) {
-            const reqHost = req.headers.host || '';
-            let redirectBase = process.env.GALLERY_URL || '';
-            
-            if (!redirectBase) {
-                if (reqHost.includes('localhost') || reqHost.includes('127.0.0.1')) {
-                    const hostIp = reqHost.split(':')[0];
-                    redirectBase = `http://${hostIp}:5002`;
-                } else {
-                    redirectBase = 'https://gallery.onnamu.kr';
-                }
-            }
-            
-            const proto = req.headers['x-forwarded-proto'] || (req.secure ? 'https' : 'http');
-            const nextUrl = `${proto}://${reqHost}${req.originalUrl}`;
-            return res.redirect(`${redirectBase}/login?next=${encodeURIComponent(nextUrl)}`);
-        }
-        req.user = payload;
-    }
-
-    next();
-});
+app.use(authMiddleware());
 
 // Disable caching for HTML and JS files to ensure immediate updates
 app.use((req, res, next) => {
@@ -140,17 +49,17 @@ app.get('/logout', (req, res) => {
     
     res.clearCookie('auth_token', { domain: cookieDomain });
     
-    let redirectBase = process.env.GALLERY_URL || '';
-    if (!redirectBase) {
+    let portalUrl = process.env.PORTAL_URL || '';
+    if (!portalUrl) {
         if (reqHost.includes('localhost') || reqHost.includes('127.0.0.1')) {
             const hostIp = reqHost.split(':')[0];
-            redirectBase = `http://${hostIp}:5002`;
+            portalUrl = `http://${hostIp}:5001`;
         } else {
-            redirectBase = 'https://gallery.onnamu.kr';
+            portalUrl = 'https://onnamu.kr';
         }
     }
     
-    res.redirect(`${redirectBase}/logout`);
+    res.redirect(`${portalUrl}/logout`);
 });
 
 // User Info Route

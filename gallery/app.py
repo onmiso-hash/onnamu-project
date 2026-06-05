@@ -6,31 +6,18 @@ import shutil
 from pathlib import Path
 from PIL import Image
 from flask import (
-    Flask, render_template, request, session,
-    redirect, url_for, send_from_directory, abort, flash, jsonify, Response
+    Flask, render_template, request,
+    redirect, url_for, send_from_directory, abort, flash, jsonify, Response, g
 )
 from werkzeug.utils import secure_filename
+from auth_helper import login_required
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
+app.config['PORTAL_URL'] = os.environ.get("PORTAL_URL", "https://onnamu.kr")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-# ═══════════════════════════════════════════════════════════
-# 사용자 설정 - 외부 파일 로드 방식
-# ═══════════════════════════════════════════════════════════
-USERS_CONF_PATH = os.environ.get("USERS_CONF_PATH", "/app/users.json")
-
-def load_users_from_file():
-    if os.path.exists(USERS_CONF_PATH):
-        try:
-            with open(USERS_CONF_PATH, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"❌ JSON 로드 에러: {e}")
-    return {}
-
-USERS = load_users_from_file()
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", "/media"))
 
 VIDEO_EXTS = {".mp4", ".mov", ".webm", ".mkv", ".avi"}
@@ -103,95 +90,26 @@ def format_size(size_bytes: int) -> str:
         size_bytes /= 1024.0
     return f"{size_bytes:.1f} PB"
 
-def generate_auth_token(username, secret_key, is_admin=False):
-    import hmac
-    import hashlib
-    import base64
-    import time
-    import json
-    # 만료시간: 현재 시간 + 30일
-    exp = int(time.time()) + (30 * 24 * 3600)
-    payload_data = {"username": username, "exp": exp, "is_admin": is_admin}
-    payload_json = json.dumps(payload_data)
-    payload_b64 = base64.urlsafe_b64encode(payload_json.encode('utf-8')).decode('utf-8').rstrip('=')
-    
-    signature = hmac.new(
-        secret_key.encode('utf-8'),
-        payload_b64.encode('utf-8'),
-        hashlib.sha256
-    ).hexdigest()
-    
-    return f"{payload_b64}.{signature}"
-
-def require_login(fn):
-    from functools import wraps
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("logged_in"):
-            return redirect(url_for("login", next=request.url))
-        return fn(*args, **kwargs)
-    return wrapper
-
-def admin_required(fn):
-    from functools import wraps
-    @wraps(fn)
-    def wrapper(*args, **kwargs):
-        if not session.get("is_admin"):
-            flash("⛔ 관리자 권한이 필요합니다.", "error")
-            return redirect(url_for("gallery"))
-        return fn(*args, **kwargs)
-    return wrapper
-
 # ═══════════════════════════════════════════════════════════
 # 인증 및 라우트
 # ═══════════════════════════════════════════════════════════
-@app.route("/login", methods=["GET", "POST"])
+@app.route("/login")
 def login():
-    error = None
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
-        user = USERS.get(username)
-        if user and user["password"] == password:
-            session.permanent = False
-            session["logged_in"] = True
-            session["username"] = username
-            session["folders"] = user["folders"]
-            session["is_admin"] = user.get("is_admin", False)
-            next_url = request.args.get("next") or url_for("gallery")
-            flash(f"✅ {username}님 환영합니다!", "success")
-            
-            response = redirect(next_url)
-            # Chronicle Studio 연동을 위한 공통 쿠키 생성
-            token = generate_auth_token(username, app.secret_key, is_admin=user.get("is_admin", False))
-            cookie_domain = None
-            host = request.headers.get('Host', '')
-            if 'onnamu.kr' in host:
-                cookie_domain = '.onnamu.kr'
-                
-            response.set_cookie(
-                'auth_token',
-                token,
-                domain=cookie_domain,
-                httponly=True,
-                samesite='Lax',
-                max_age=30 * 24 * 3600 # 30일
-            )
-            return response
-        error = "아이디 또는 비밀번호가 틀렸습니다."
-    return render_template("login.html", error=error)
+    portal_url = app.config.get('PORTAL_URL', 'https://onnamu.kr')
+    # 갤러리로 다시 돌아올 수 있도록 next 세팅
+    next_url = request.args.get("next") or url_for("gallery")
+    return redirect(f"{portal_url}/login?next={next_url}")
 
 @app.route("/logout")
 def logout():
-    username = session.get("username", "사용자")
-    session.clear()
-    flash(f"👋 {username}님 로그아웃 되었습니다.", "info")
-    response = redirect(url_for("login"))
+    portal_url = app.config.get('PORTAL_URL', 'https://onnamu.kr')
+    response = redirect(f"{portal_url}/logout?next={url_for('gallery')}")
+    
+    # 캐시 무효화 및 쿠키 만료
     response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     response.headers['Pragma'] = 'no-cache'
     response.headers['Expires'] = '0'
     
-    # auth_token 쿠키 만료
     cookie_domain = None
     host = request.headers.get('Host', '')
     if 'onnamu.kr' in host:
@@ -200,38 +118,45 @@ def logout():
     return response
 
 @app.route("/")
-@require_login
+@login_required()
 def gallery():
     tab = request.args.get("tab", "videos")
     page = int(request.args.get("page", 1))
-    username = session.get("username")
-    folders = session.get("folders", [])
+    
+    # session 대신 g.user 페이로드에서 유효 정보 획득
+    username = g.user.get("username")
+    folders = g.user.get("folders", [])
+    is_admin = g.user.get("is_admin", False)
+    
     if tab == "images":
         all_files = get_all_files(folders, IMAGE_EXTS, "images")
         media_type = "image"
     else:
         all_files = get_all_files(folders, VIDEO_EXTS, "videos")
         media_type = "video"
+        
     total = len(all_files)
     total_pages = max(1, math.ceil(total / PER_PAGE))
     page = max(1, min(page, total_pages))
     start = (page - 1) * PER_PAGE
     files = all_files[start:start + PER_PAGE]
-    return render_template("gallery.html", files=files, media_type=media_type, tab=tab, page=page, total_pages=total_pages, total=total, username=username, is_admin=session.get("is_admin", False), available_folders=folders)
+    
+    return render_template("gallery.html", files=files, media_type=media_type, tab=tab, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, available_folders=folders)
 
 @app.route("/movies")
-@require_login
+@login_required()
 def movies():
-    username = session.get("username")
-    folders = session.get("folders", [])
+    username = g.user.get("username")
+    folders = g.user.get("folders", [])
+    is_admin = g.user.get("is_admin", False)
     all_movies = get_all_files(folders, MOVIE_EXTS, "movies")
-    return render_template("movies.html", movies=all_movies, username=username, is_admin=session.get("is_admin", False), format_size=format_size)
+    return render_template("movies.html", movies=all_movies, username=username, is_admin=is_admin, format_size=format_size)
 
 @app.route("/player/<folder>/<path:filename>")
-@require_login
+@login_required()
 def player(folder, filename):
-    username = session.get("username")
-    folders = session.get("folders", [])
+    username = g.user.get("username")
+    folders = g.user.get("folders", [])
     if folder not in folders:
         abort(403)
     movie_path = MEDIA_ROOT / folder / "movies" / filename
@@ -241,9 +166,9 @@ def player(folder, filename):
     return render_template("player.html", folder=folder, filename=filename, subtitle=subtitle, username=username)
 
 @app.route("/stream/<folder>/<path:filename>")
-@require_login
+@login_required()
 def stream_movie(folder, filename):
-    folders = session.get("folders", [])
+    folders = g.user.get("folders", [])
     if folder not in folders:
         abort(403)
     file_path = MEDIA_ROOT / folder / "movies" / filename
@@ -256,10 +181,10 @@ def stream_movie(folder, filename):
     byte1, byte2 = 0, None
     m = re.search(r'(\d+)-(\d*)', range_header)
     if m:
-        g = m.groups()
-        byte1 = int(g[0])
-        if g[1]:
-            byte2 = int(g[1])
+        g_match = m.groups()
+        byte1 = int(g_match[0])
+        if g_match[1]:
+            byte2 = int(g_match[1])
     if byte2 is None:
         byte2 = size - 1
     length = byte2 - byte1 + 1
@@ -276,22 +201,24 @@ def stream_movie(folder, filename):
     return rv
 
 @app.route("/subtitle/<folder>/<path:filename>")
-@require_login
+@login_required()
 def serve_subtitle(folder, filename):
-    folders = session.get("folders", [])
+    folders = g.user.get("folders", [])
     if folder not in folders:
         abort(403)
     directory = MEDIA_ROOT / folder / "movies"
     return send_from_directory(str(directory), filename)
 
 @app.route("/upload", methods=["GET", "POST"])
-@require_login
+@login_required()
 def upload():
-    username = session.get("username")
-    folders = session.get("folders", [])
-    is_admin_user = session.get("is_admin", False)
+    username = g.user.get("username")
+    folders = g.user.get("folders", [])
+    is_admin_user = g.user.get("is_admin", False)
+    
     if request.method == "GET":
         return render_template("upload.html", is_admin=is_admin_user, available_folders=folders)
+        
     if "file" not in request.files:
         flash("⚠️ 파일이 선택되지 않았습니다.", "warning")
         return redirect(request.url)
@@ -299,11 +226,13 @@ def upload():
     if file.filename == "":
         flash("⚠️ 파일이 선택되지 않았습니다.", "warning")
         return redirect(request.url)
+        
     filename = secure_filename(file.filename)
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_UPLOAD_EXTS:
         flash(f"⚠️ 허용되지 않는 파일 형식입니다: {ext}", "warning")
         return redirect(request.url)
+        
     if is_admin_user:
         target_folder = request.form.get("folder", "public")
         if target_folder not in folders:
@@ -311,6 +240,7 @@ def upload():
     else:
         writable = [f for f in folders if f != "public"]
         target_folder = writable[0] if writable else folders[0]
+        
     media_type = "videos" if ext in VIDEO_EXTS else "images"
     save_dir = MEDIA_ROOT / target_folder / media_type
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -329,12 +259,11 @@ def upload():
     return redirect(url_for("upload"))
 
 @app.route("/manage")
-@require_login
-@admin_required
+@login_required(admin_only=True)
 def manage():
     tab = request.args.get("tab", "videos")
     page = int(request.args.get("page", 1))
-    folders = session.get("folders", [])
+    folders = g.user.get("folders", [])
     
     if tab == "images":
         all_files = get_all_files(folders, IMAGE_EXTS, "images")
@@ -361,8 +290,7 @@ def manage():
     )
 
 @app.route("/api/move", methods=["POST"])
-@require_login
-@admin_required
+@login_required(admin_only=True)
 def move_file():
     data = request.get_json()
     old_folder = data.get("old_folder")
@@ -384,8 +312,7 @@ def move_file():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/delete", methods=["POST"])
-@require_login
-@admin_required
+@login_required(admin_only=True)
 def delete_file():
     data = request.get_json()
     folder = data.get("folder")
@@ -408,9 +335,9 @@ def delete_file():
         return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/thumbnail/<folder>/<media_type>/<path:filename>")
-@require_login
+@login_required()
 def serve_thumbnail(folder, media_type, filename):
-    folders = session.get("folders", [])
+    folders = g.user.get("folders", [])
     if folder not in folders:
         abort(403)
     original_path = MEDIA_ROOT / folder / media_type / filename
@@ -434,9 +361,9 @@ def serve_thumbnail(folder, media_type, filename):
     return send_from_directory(str(thumb_dir), thumb_filename)
 
 @app.route("/media/<folder>/<media_type>/<path:filename>")
-@require_login
+@login_required()
 def serve_media(folder, media_type, filename):
-    folders = session.get("folders", [])
+    folders = g.user.get("folders", [])
     if folder not in folders:
         abort(403)
     directory = MEDIA_ROOT / folder / media_type

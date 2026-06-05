@@ -19,9 +19,6 @@ services:
       - C:/Users/onmis/media/family/videos:/media/family/videos:rw
       - C:/Users/onmis/media/family/images:/media/family/images:rw
       
-      # 사용자 설정 파일 볼륨
-      - ./users.json:/app/users.json:ro
-      
     environment:
       - USERS_CONF_PATH=/app/users.json
       - SECRET_KEY=${SECRET_KEY}

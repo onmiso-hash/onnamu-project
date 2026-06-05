@@ -8,6 +8,10 @@ services:
     volumes:
       - "C:/:/host_c:ro"
       - portal_news_data:/app/data   # 지수가 추가한 뉴스 데이터 영구 보관용 금고!
+      - ./users.json:/app/users.json:ro
+    environment:
+      - SECRET_KEY=${SECRET_KEY}
+      - USERS_CONF_PATH=/app/users.json
 
 # 파일 맨 밑에 아래 두 줄을 꼭 추가해 줘야 해! (네임드 볼륨 선언)
 volumes:
