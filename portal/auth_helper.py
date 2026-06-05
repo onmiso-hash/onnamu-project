@@ -69,9 +69,12 @@ def login_required(admin_only=False):
             secret = current_app.config.get('SECRET_KEY') or 'change-me-in-production'
             payload = verify_token(token, secret)
             
-            # API Key 우회 검증 추가 (배포 자동화 스크립트용)
+            # API Key 우회 검증 추가 (배포 자동화 스크립트용, 따옴표/개행문자 유연화)
             api_key = request.headers.get('X-API-Key')
-            if api_key and api_key == secret:
+            api_key_clean = api_key.strip('"\'- \r\n') if api_key else None
+            secret_clean = secret.strip('"\'- \r\n') if secret else None
+            
+            if api_key_clean and api_key_clean == secret_clean:
                 payload = {
                     "username": "system_deploy",
                     "is_admin": True,
