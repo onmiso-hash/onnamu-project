@@ -6,7 +6,8 @@ import json
 from auth_helper import generate_auth_token, login_required, verify_token
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "change-me-in-production")
+app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
+app.secret_key = app.config['SECRET_KEY']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
