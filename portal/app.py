@@ -41,6 +41,10 @@ def init_db():
     
     # 기존에 누적된 무거운 디버그(배포 로그) 데이터 청소
     c.execute("DELETE FROM work_history WHERE category = '디버그'")
+    # 인코딩이 깨져 물음표(??)로 들어갔거나 배포 로그 키워드가 포함된 지저분한 로그 청소
+    c.execute("DELETE FROM work_history WHERE content LIKE '%--- Git Fetch & Reset ---%'")
+    c.execute("DELETE FROM work_history WHERE title LIKE '%??%'")
+    c.execute("DELETE FROM work_history WHERE category LIKE '%?%'")
     
     conn.commit()
     conn.close()
