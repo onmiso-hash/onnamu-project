@@ -1137,17 +1137,17 @@ select {
     }
     
     .profile-avatar-wrapper {
-        width: 270px;
-        height: 270px;
+        width: 270px !important;
+        height: 270px !important;
         border-width: 1.5px;
-        flex-shrink: 0;
+        flex-shrink: 0 !important;
     }
     
     .character-profile-card .profile-avatar {
-        font-size: 8rem;
-        width: 270px;
-        height: 270px;
-        flex-shrink: 0;
+        font-size: 8rem !important;
+        width: 270px !important;
+        height: 270px !important;
+        flex-shrink: 0 !important;
     }
     
     .profile-meta h3 {
