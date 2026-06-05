@@ -898,6 +898,13 @@ class ChronicleApp {
                 this.renderChatProfile('normal');
             }
             
+            // 대화방에 진입 시 기존 대화가 있다면 스크롤을 맨 아래로 이동시킵니다.
+            if (this.storyHistory.length > 0) {
+                setTimeout(() => {
+                    this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
+                }, 100);
+            }
+            
             // Start writing or chatting ONLY if history is empty
             if (this.storyHistory.length === 0) {
                 if (this.modeType === 'chat') {
@@ -2220,7 +2227,7 @@ JSON Schema:
         // Auto-scroll
         setTimeout(() => {
             this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
-        }, 50);
+        }, 200);
     }
 
     // Call Gemini API for Character Chat Simulation

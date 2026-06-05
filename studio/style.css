@@ -1130,23 +1130,23 @@ select {
     }
     
     .profile-header {
-        flex-direction: column;
+        display: flex;
         align-items: center;
-        text-align: center;
-        gap: 0.8rem;
+        gap: 1rem;
     }
     
     .profile-avatar-wrapper {
-        width: 288px;
-        height: 288px;
+        width: 180px;
+        height: 180px;
         border-width: 1.5px;
-        margin: 0 auto;
+        flex-shrink: 0;
     }
     
     .character-profile-card .profile-avatar {
-        font-size: 8.8rem;
-        width: 288px;
-        height: 288px;
+        font-size: 5.5rem;
+        width: 180px;
+        height: 180px;
+        flex-shrink: 0;
     }
     
     .profile-meta h3 {
