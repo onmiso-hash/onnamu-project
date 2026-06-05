@@ -50,6 +50,7 @@
 - **신중한 보고 및 검증 권유**: 직접 테스트나 런타임 검증을 완벽하게 끝마친 확정적인 사실이 아닌 경우, 단정적으로 "해결되었습니다", "완벽히 수정되었습니다"와 같은 표현의 사용을 전면 금지합니다. 대신 "수정 작업을 완료하였고 확인이 필요합니다"와 같이 사용자에게 정중히 재검증을 권유하는 방식으로 일관되게 보고를 수행합니다.
 
 ## 📅 주요 히스토리
+- 2026-06-05: 통합 로그인 포털 users.json 마운트 경로 수정 및 배포 안정화. 상세 내용은 `history/LOGIN_MOUNT_FIX_20260605.md` 참조.
 - 2026-06-05: Chronicle AI Studio 설정창 내 GEMINI API KEY 확인용 눈 모양 아이콘 추가. 상세 내용은 `history/STUDIO_API_KEY_TOGGLE_20260605.md` 참조.
 - 2026-06-05: Chronicle AI Studio 무부하 이벤트 기반 기기 간 동기화 및 500ms 전송 디바운스 적용. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.
 - 2026-06-04: Chronicle AI Studio 새로고침 시 설정 이탈 현상 제어 및 모바일 프로필 아바타 2배(144px) 확대. 상세 내용은 `history/STUDIO_CHARACTER_IMAGES_20260604.md` 참조.

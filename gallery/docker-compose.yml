@@ -20,7 +20,6 @@ services:
       - C:/Users/onmis/media/family/images:/media/family/images:rw
       
     environment:
-      - USERS_CONF_PATH=/app/users.json
       - SECRET_KEY=${SECRET_KEY}
       - MEDIA_ROOT=/media
       

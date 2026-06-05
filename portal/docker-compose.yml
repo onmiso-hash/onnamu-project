@@ -8,7 +8,7 @@ services:
     volumes:
       - "C:/:/host_c:ro"
       - portal_news_data:/app/data   # 지수가 추가한 뉴스 데이터 영구 보관용 금고!
-      - ../gallery/users.json:/app/users.json:ro
+      - ./users.json:/app/users.json:ro
     environment:
       - SECRET_KEY=${SECRET_KEY}
       - USERS_CONF_PATH=/app/users.json
