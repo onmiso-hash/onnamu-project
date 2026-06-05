@@ -1133,19 +1133,20 @@ select {
         display: flex;
         align-items: center;
         gap: 1rem;
+        flex-wrap: wrap;
     }
     
     .profile-avatar-wrapper {
-        width: 180px;
-        height: 180px;
+        width: 270px;
+        height: 270px;
         border-width: 1.5px;
         flex-shrink: 0;
     }
     
     .character-profile-card .profile-avatar {
-        font-size: 5.5rem;
-        width: 180px;
-        height: 180px;
+        font-size: 8rem;
+        width: 270px;
+        height: 270px;
         flex-shrink: 0;
     }
     
@@ -1251,6 +1252,13 @@ select {
     .preset-controls select {
         grid-column: span 2;
         width: 100%;
+    }
+
+    /* 설정창 5종 이미지 프리뷰 라벨 정렬 보정 */
+    .preview-label {
+        font-size: 0.58rem;
+        white-space: nowrap;
+        letter-spacing: -0.04em;
     }
 }
 
