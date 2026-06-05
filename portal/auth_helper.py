@@ -69,6 +69,15 @@ def login_required(admin_only=False):
             secret = current_app.config.get('SECRET_KEY') or 'change-me-in-production'
             payload = verify_token(token, secret)
             
+            # API Key 우회 검증 추가 (배포 자동화 스크립트용)
+            api_key = request.headers.get('X-API-Key')
+            if api_key and api_key == secret:
+                payload = {
+                    "username": "system_deploy",
+                    "is_admin": True,
+                    "folders": ["public", "private", "family"]
+                }
+            
             if not payload:
                 # 로그인 안 됨 -> 포털 로그인 페이지로 리다이렉트
                 portal_url = current_app.config.get('PORTAL_URL')
