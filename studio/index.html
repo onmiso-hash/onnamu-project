@@ -33,7 +33,20 @@
                 
                 <div class="form-group">
                     <label for="input-api-key">Gemini API Key (선택)</label>
-                    <input type="password" id="input-api-key" placeholder="AI 실시간 생성용 API 키를 입력해 주세요 (미입력 시 시뮬레이션 모드)">
+                    <div class="password-input-container">
+                        <input type="password" id="input-api-key" placeholder="AI 실시간 생성용 API 키를 입력해 주세요 (미입력 시 시뮬레이션 모드)">
+                        <button type="button" class="toggle-password-btn" aria-label="비밀번호 표시 토글">
+                            <!-- eye icon (visible) -->
+                            <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <!-- eye-off icon (hidden) -->
+                            <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 5.656m-5.656-5.656A9.75 9.75 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M12 18.75a9.75 9.75 0 00.942-7.058m-9.458 0A9.75 9.75 0 003 12c0 .896.12 1.764.346 2.587" />
+                            </svg>
+                        </button>
+                    </div>
                     <span class="field-hint"><a href="https://aistudio.google.com/" target="_blank" rel="noopener">여기서 무료로 발급받으실 수 있습니다.</a></span>
                 </div>
 
@@ -334,7 +347,20 @@
     <div id="api-modal" class="modal hidden">
         <div class="modal-content glass-panel">
             <h3>API 키 설정</h3>
-            <input type="password" id="modal-api-key" placeholder="Gemini API Key를 입력하세요">
+            <div class="password-input-container">
+                <input type="password" id="modal-api-key" placeholder="Gemini API Key를 입력하세요">
+                <button type="button" class="toggle-password-btn" aria-label="비밀번호 표시 토글">
+                    <!-- eye icon (visible) -->
+                    <svg class="eye-icon eye-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <!-- eye-off icon (hidden) -->
+                    <svg class="eye-icon eye-closed" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 5.656m-5.656-5.656A9.75 9.75 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21M12 18.75a9.75 9.75 0 00.942-7.058m-9.458 0A9.75 9.75 0 003 12c0 .896.12 1.764.346 2.587" />
+                    </svg>
+                </button>
+            </div>
             <div class="modal-buttons">
                 <button id="btn-save-key" class="glow-btn sm">저장</button>
                 <button id="btn-close-modal" class="glow-btn sm outline">닫기</button>

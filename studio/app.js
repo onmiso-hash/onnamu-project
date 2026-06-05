@@ -148,6 +148,24 @@ class ChronicleApp {
         this.btnExportText.addEventListener('click', () => this.exportStory());
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
+        // Setup Password Visibility Toggle
+        document.querySelectorAll('.toggle-password-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const container = btn.closest('.password-input-container');
+                if (!container) return;
+                const input = container.querySelector('input');
+                if (!input) return;
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    container.classList.add('show-password');
+                } else {
+                    input.type = 'password';
+                    container.classList.remove('show-password');
+                }
+            });
+        });
+
         // Logout Event Listener
         this.btnLogout = document.getElementById('btn-logout');
         if (this.btnLogout) {
