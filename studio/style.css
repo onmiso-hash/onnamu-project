@@ -1137,16 +1137,16 @@ select {
     }
     
     .profile-avatar-wrapper {
-        width: 160px !important;
-        height: 160px !important;
+        width: 150px !important;
+        height: 150px !important;
         border-width: 1.5px;
         flex-shrink: 0 !important;
     }
     
     .character-profile-card .profile-avatar {
         font-size: 6rem !important;
-        width: 160px !important;
-        height: 160px !important;
+        width: 150px !important;
+        height: 150px !important;
         flex-shrink: 0 !important;
     }
     
