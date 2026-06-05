@@ -1234,6 +1234,24 @@ select {
         width: 100%;
         box-sizing: border-box;
     }
+
+    /* 모바일 셋업 입력 그리드 1열화 */
+    .setup-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    /* 페르소나 프리셋 관리 모바일 그리드 정렬 */
+    .preset-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .preset-controls select {
+        grid-column: span 2;
+        width: 100%;
+    }
 }
 
 /* Legacy styles removed */
