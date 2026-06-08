@@ -837,6 +837,12 @@ class ChronicleApp {
                                 this.selectChatLevel.value = restoredLevel;
                             }
                             
+                            // Restore user name from session if available
+                            if (session.userName) {
+                                this.characterName = session.userName;
+                                this.inputChatUserName.value = session.userName;
+                            }
+                            
                             this.affinityValue = session.affinityValue || 50;
                             this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
                             this.storyHistory = [...(session.storyHistory || [])];
@@ -1500,11 +1506,13 @@ JSON Schema:
                 memoryList: [...this.memoryList],
                 storyHistory: [...this.storyHistory],
                 dialogueVectors: [...this.dialogueVectors], // RAG 벡터 스냅샷 추가 (2단계)
-                chatLevel: this.chatLevel // 세션 저장 시 현재 수위값 동시 보관
+                chatLevel: this.chatLevel, // 세션 저장 시 현재 수위값 동시 보관
+                userName: this.characterName // 세션 저장 시 현재 주인공 이름 보관
             };
             
-            // 프리셋 레벨 자체도 현재 설정된 수위로 갱신하여 동기화
+            // 프리셋 레벨 및 주인공 이름 자체도 현재 값으로 동기화
             presets[presetName].level = this.chatLevel;
+            presets[presetName].userName = this.characterName;
             
             // Ensure preset images & prompt are preserved
             presets[presetName].characterImages = this.characterImages || {};
@@ -2163,7 +2171,9 @@ JSON Schema:
                     presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
                     presets[activePreset].savedSession.dialogueVectors = [...(this.dialogueVectors || [])];
                     presets[activePreset].savedSession.chatLevel = this.chatLevel; // 실시간 자동저장 수위 백업
+                    presets[activePreset].savedSession.userName = this.characterName; // 실시간 자동저장 주인공 이름 백업
                     presets[activePreset].level = this.chatLevel; // 프리셋 레벨 동기화
+                    presets[activePreset].userName = this.characterName; // 프리셋 주인공 이름 동기화
 
                     localStorage.setItem('persona_presets', JSON.stringify(presets));
                     this.pushPersonasToServer(); // 디바운싱 전송
@@ -2195,7 +2205,9 @@ JSON Schema:
                                     presets[activePreset].savedSession.memoryList = [...this.memoryList];
                                     presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
                                     presets[activePreset].savedSession.chatLevel = this.chatLevel; // 실시간 RAG 자동저장 수위 백업
+                                    presets[activePreset].savedSession.userName = this.characterName; // 실시간 RAG 자동저장 주인공 이름 백업
                                     presets[activePreset].level = this.chatLevel; // 프리셋 레벨 동기화
+                                    presets[activePreset].userName = this.characterName; // 프리셋 주인공 이름 동기화
 
                                     localStorage.setItem('persona_presets', JSON.stringify(presets));
                                     this.pushPersonasToServer(); // 디바운싱 전송
@@ -3028,6 +3040,8 @@ JSON Schema:
             if (data) {
                 // 세션에 저장된 최종 수위가 있다면 이를 우선 로드, 없으면 프리셋 기본 등급으로 폴백
                 let finalLevel = (data.savedSession && data.savedSession.chatLevel) ? data.savedSession.chatLevel : (data.level || 'normal');
+                // 세션에 저장된 최종 주인공 이름이 있다면 이를 우선 로드, 없으면 프리셋 기본 이름으로 폴백
+                let finalUserName = (data.savedSession && data.savedSession.userName) ? data.savedSession.userName : (data.userName || '');
                 let finalName = data.charName || '';
                 let finalRelation = data.relation || '';
                 let finalDesc = data.desc || '';
@@ -3053,7 +3067,7 @@ JSON Schema:
                 this.inputChatRelation.value = finalRelation;
                 this.inputChatCharDesc.value = finalDesc;
                 this.selectChatLevel.value = finalLevel;
-                this.inputChatUserName.value = data.userName || (this.characterName ? this.characterName : '');
+                this.inputChatUserName.value = finalUserName || (this.characterName ? this.characterName : '');
 
                 // 캐릭터 이미지 및 프롬프트 복원
                 this.inputCharImagePrompt.value = data.imagePrompt || '';
