@@ -22,7 +22,7 @@ app.use('/data/uploads', express.static(UPLOAD_DIR));
 const { authMiddleware } = require('./authHelper');
 
 // Authentication Middleware
-app.use(authMiddleware());
+app.use(authMiddleware({ adminOnly: true }));
 
 // Disable caching for HTML and JS files to ensure immediate updates
 app.use((req, res, next) => {
