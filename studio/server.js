@@ -339,11 +339,13 @@ app.get('/api/personas', (req, res) => {
             }
             let personas = JSON.parse(data);
             
-            // 일반 계정(family 등)인 경우 19금 프리셋은 응답에서 제외
+            // 일반 계정(family 등)인 경우 19금 프리셋 및 19금 세션은 응답에서 제외
             if (!req.user.is_admin && personas && typeof personas === 'object') {
                 Object.keys(personas).forEach(name => {
                     const preset = personas[name];
-                    if (preset && (preset.level === 'adult-19' || name.includes('19금'))) {
+                    const isAdultPreset = preset && (preset.level === 'adult-19' || name.includes('19금'));
+                    const isAdultSession = preset && preset.savedSession && preset.savedSession.chatLevel === 'adult-19';
+                    if (isAdultPreset || isAdultSession) {
                         delete personas[name];
                     }
                 });
@@ -369,12 +371,14 @@ app.post('/api/personas', (req, res) => {
     try {
         let personasData = req.body;
         
-        // 일반 계정(family 등)인 경우 19금 프리셋은 저장하기 전에 차단
+        // 일반 계정(family 등)인 경우 19금 프리셋 및 19금 세션은 저장하기 전에 차단
         if (!req.user.is_admin && personasData && typeof personasData === 'object') {
             personasData = { ...personasData }; // 복사본 생성
             Object.keys(personasData).forEach(name => {
                 const preset = personasData[name];
-                if (preset && (preset.level === 'adult-19' || name.includes('19금'))) {
+                const isAdultPreset = preset && (preset.level === 'adult-19' || name.includes('19금'));
+                const isAdultSession = preset && preset.savedSession && preset.savedSession.chatLevel === 'adult-19';
+                if (isAdultPreset || isAdultSession) {
                     delete personasData[name];
                 }
             });

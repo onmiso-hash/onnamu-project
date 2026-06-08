@@ -2887,8 +2887,8 @@ JSON Schema:
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             Object.keys(presets).forEach(name => {
                 const preset = presets[name];
-                // 관리자가 아니고 19금 설정이 있는 경우 렌더링 스킵
-                if (!this.isAdmin && (preset.level === 'adult-19' || name.includes('19금'))) {
+                // 관리자가 아니고 19금 설정이 있는 경우 렌더링 스킵 (세션 수위 검사 결합)
+                if (!this.isAdmin && (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19'))) {
                     return;
                 }
                 const opt = document.createElement('option');
@@ -3417,7 +3417,25 @@ JSON Schema:
             
             // If server returned empty and no error, but we have local presets, push them to server
             const localPresetsStr = localStorage.getItem('persona_presets');
-            const localPresets = localPresetsStr ? JSON.parse(localPresetsStr) : {};
+            let localPresets = localPresetsStr ? JSON.parse(localPresetsStr) : {};
+
+            let hasChanges = false;
+
+            // [보안 필터 최우선 순위] 일반 계정인 경우 로컬 프리셋에서 19금 요소를 즉각 제거하여 동기화 찌꺼기 원천 방지
+            if (!this.isAdmin) {
+                Object.keys(localPresets).forEach(name => {
+                    const preset = localPresets[name];
+                    if (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19')) {
+                        delete localPresets[name];
+                        hasChanges = true;
+                    }
+                });
+                if (hasChanges) {
+                    localStorage.setItem('persona_presets', JSON.stringify(localPresets));
+                    this.loadPersonaPresets();
+                    console.log("[Sync] Removed local adult presets for family user.");
+                }
+            }
  
             if (Object.keys(serverPresets).length === 0) {
                 if (Object.keys(localPresets).length > 0) {
@@ -3427,26 +3445,14 @@ JSON Schema:
                 return;
             }
  
-            let hasChanges = false;
             const mergedPresets = { ...localPresets };
  
-            // 일반 계정인 경우 로컬 프리셋에서 19금 요소를 미리 지워서 동기화 찌꺼기를 방지
-            if (!this.isAdmin) {
-                Object.keys(mergedPresets).forEach(name => {
-                    const preset = mergedPresets[name];
-                    if (preset.level === 'adult-19' || name.includes('19금')) {
-                        delete mergedPresets[name];
-                        hasChanges = true;
-                    }
-                });
-            }
-
             // 1. Merge server presets into local
             Object.keys(serverPresets).forEach(name => {
                 const serverPreset = serverPresets[name];
                 
                 // 일반 계정인 경우, 서버에서 내려온 19금 프리셋은 아예 병합하지 않음
-                if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금'))) {
+                if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금') || (serverPreset.savedSession && serverPreset.savedSession.chatLevel === 'adult-19'))) {
                     return;
                 }
 
