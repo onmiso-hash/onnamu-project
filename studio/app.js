@@ -826,6 +826,17 @@ class ChronicleApp {
                         if (presetData.savedSession) {
                             // Auto-load previous session without annoying popup
                             const session = presetData.savedSession;
+                            
+                            // Restore chat level from session if available
+                            if (session.chatLevel) {
+                                let restoredLevel = session.chatLevel;
+                                if (!this.isAdmin && restoredLevel === 'adult-19') {
+                                    restoredLevel = 'normal';
+                                }
+                                this.chatLevel = restoredLevel;
+                                this.selectChatLevel.value = restoredLevel;
+                            }
+                            
                             this.affinityValue = session.affinityValue || 50;
                             this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
                             this.storyHistory = [...(session.storyHistory || [])];
@@ -1488,8 +1499,12 @@ JSON Schema:
                 affinityValue: this.affinityValue,
                 memoryList: [...this.memoryList],
                 storyHistory: [...this.storyHistory],
-                dialogueVectors: [...this.dialogueVectors] // RAG 벡터 스냅샷 추가 (2단계)
+                dialogueVectors: [...this.dialogueVectors], // RAG 벡터 스냅샷 추가 (2단계)
+                chatLevel: this.chatLevel // 세션 저장 시 현재 수위값 동시 보관
             };
+            
+            // 프리셋 레벨 자체도 현재 설정된 수위로 갱신하여 동기화
+            presets[presetName].level = this.chatLevel;
             
             // Ensure preset images & prompt are preserved
             presets[presetName].characterImages = this.characterImages || {};
@@ -2147,6 +2162,8 @@ JSON Schema:
                     presets[activePreset].savedSession.memoryList = [...this.memoryList];
                     presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
                     presets[activePreset].savedSession.dialogueVectors = [...(this.dialogueVectors || [])];
+                    presets[activePreset].savedSession.chatLevel = this.chatLevel; // 실시간 자동저장 수위 백업
+                    presets[activePreset].level = this.chatLevel; // 프리셋 레벨 동기화
 
                     localStorage.setItem('persona_presets', JSON.stringify(presets));
                     this.pushPersonasToServer(); // 디바운싱 전송
@@ -2177,6 +2194,8 @@ JSON Schema:
                                     presets[activePreset].savedSession.affinityValue = this.affinityValue;
                                     presets[activePreset].savedSession.memoryList = [...this.memoryList];
                                     presets[activePreset].savedSession.storyHistory = [...this.storyHistory];
+                                    presets[activePreset].savedSession.chatLevel = this.chatLevel; // 실시간 RAG 자동저장 수위 백업
+                                    presets[activePreset].level = this.chatLevel; // 프리셋 레벨 동기화
 
                                     localStorage.setItem('persona_presets', JSON.stringify(presets));
                                     this.pushPersonasToServer(); // 디바운싱 전송
@@ -3007,8 +3026,8 @@ JSON Schema:
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             const data = presets[selected];
             if (data) {
-                // 일반 사용자 19금 프리셋 로드 원천 차단 필터
-                let finalLevel = data.level || 'normal';
+                // 세션에 저장된 최종 수위가 있다면 이를 우선 로드, 없으면 프리셋 기본 등급으로 폴백
+                let finalLevel = (data.savedSession && data.savedSession.chatLevel) ? data.savedSession.chatLevel : (data.level || 'normal');
                 let finalName = data.charName || '';
                 let finalRelation = data.relation || '';
                 let finalDesc = data.desc || '';
