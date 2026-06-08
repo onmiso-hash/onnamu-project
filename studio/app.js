@@ -3007,10 +3007,33 @@ JSON Schema:
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             const data = presets[selected];
             if (data) {
-                this.inputChatCharName.value = data.charName || '';
-                this.inputChatRelation.value = data.relation || '';
-                this.inputChatCharDesc.value = data.desc || '';
-                this.selectChatLevel.value = data.level || 'normal';
+                // 일반 사용자 19금 프리셋 로드 원천 차단 필터
+                let finalLevel = data.level || 'normal';
+                let finalName = data.charName || '';
+                let finalRelation = data.relation || '';
+                let finalDesc = data.desc || '';
+
+                if (!this.isAdmin) {
+                    if (finalLevel === 'adult-19') {
+                        console.warn("[Security] Force normal level on preset load for family user");
+                        finalLevel = 'normal';
+                    }
+                    if (finalName.includes('19금') || selected.includes('19금') || finalName === '릴리스') {
+                        alert('⚠️ 일반 계정은 19금 캐릭터 설정을 로드할 수 없습니다. 전체이용가 기본 캐릭터로 변경됩니다.');
+                        finalName = '서아';
+                        finalRelation = '애교 많고 활기찬 대학교 후배';
+                        finalDesc = '귀엽고 사교적인 성격. 늘 주인공 옆에 꼭 붙어다님.';
+                        finalLevel = 'normal';
+                        
+                        // 드롭다운 선택도 리셋
+                        this.selectPersonaPreset.value = '';
+                    }
+                }
+
+                this.inputChatCharName.value = finalName;
+                this.inputChatRelation.value = finalRelation;
+                this.inputChatCharDesc.value = finalDesc;
+                this.selectChatLevel.value = finalLevel;
                 this.inputChatUserName.value = data.userName || (this.characterName ? this.characterName : '');
 
                 // 캐릭터 이미지 및 프롬프트 복원
