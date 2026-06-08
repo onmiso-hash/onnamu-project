@@ -304,11 +304,64 @@ class ChronicleApp {
                     profileBarEl.style.display = 'flex';
                 }
 
+                // 계정 전환(로그인 유저가 바뀜) 감지 시 로컬 스토리지 초기화
+                const prevUser = localStorage.getItem('logged_in_username');
+                const currentUser = data.username;
+                if (prevUser && prevUser !== currentUser) {
+                    console.log(`[Session] User changed (${prevUser} -> ${currentUser}). Clearing local storage...`);
+                    const keysToRemove = [
+                        'studio_active_state',
+                        'recent_mode_type',
+                        'recent_chat_char_name',
+                        'recent_chat_relation',
+                        'recent_chat_char_desc',
+                        'recent_chat_level',
+                        'recent_chat_user_name',
+                        'recent_story_genre',
+                        'recent_story_tone',
+                        'recent_story_character',
+                        'recent_persona_preset',
+                        'persona_presets',
+                        'saved_story_session'
+                    ];
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+                }
+                localStorage.setItem('logged_in_username', currentUser);
+
                 // 유저 정보 수신 완료 후 페르소나 프리셋 로드
                 this.loadPersonaPresets();
 
-                const activeState = localStorage.getItem('studio_active_state');
+                let activeState = localStorage.getItem('studio_active_state');
                 const recentMode = localStorage.getItem('recent_mode_type');
+                
+                // 일반 사용자 로그인 시 19금 세션 복구 차단 보안 필터
+                if (!this.isAdmin && activeState === 'active') {
+                    const recLevel = localStorage.getItem('recent_chat_level') || '';
+                    const recGenre = localStorage.getItem('recent_story_genre') || '';
+                    const recTone = localStorage.getItem('recent_story_tone') || '';
+                    const recPreset = localStorage.getItem('recent_persona_preset') || '';
+                    
+                    let isAdultSession = (recLevel === 'adult-19' || recGenre === 'adult-19' || recTone === 'sensual' || recPreset.includes('19금'));
+                    
+                    if (!isAdultSession && recPreset) {
+                        try {
+                            const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                            if (presets[recPreset] && presets[recPreset].level === 'adult-19') {
+                                isAdultSession = true;
+                            }
+                        } catch (e) {}
+                    }
+                    
+                    if (isAdultSession) {
+                        alert('⚠️ 일반 계정은 19금 세션으로 진입할 수 없습니다. 전체이용가 설정창으로 이동합니다.');
+                        localStorage.removeItem('studio_active_state');
+                        localStorage.removeItem('recent_chat_level');
+                        localStorage.removeItem('recent_story_genre');
+                        localStorage.removeItem('recent_story_tone');
+                        localStorage.removeItem('recent_persona_preset');
+                        activeState = 'inactive';
+                    }
+                }
                 
                 if (activeState === 'active') {
                     // 1. 대화 진행 중 새로고침 등 활성화 상태인 경우 자동 복원 기동
@@ -718,12 +771,42 @@ class ChronicleApp {
                 return;
             }
 
+            // 일반 사용자 19금 우회 차단 이중 안전장치
+            let finalLevel = inputLevel;
+            let finalName = inputName;
+            let finalRelation = inputRelation;
+            let finalDesc = inputDesc;
+            let finalUserName = inputUserName;
+
+            if (!this.isAdmin) {
+                if (finalLevel === 'adult-19') {
+                    alert('⚠️ 일반 계정은 19금 설정을 사용할 수 없습니다. 일반 등급으로 강제 전환합니다.');
+                    finalLevel = 'normal';
+                    this.selectChatLevel.value = 'normal';
+                }
+                if (finalName.includes('19금') || finalName === '릴리스') {
+                    alert('⚠️ 일반 계정은 해당 캐릭터를 생성하거나 로드할 수 없습니다. 기본 캐릭터로 전환합니다.');
+                    finalName = '서아';
+                    finalRelation = '애교 많고 활기찬 대학교 후배';
+                    finalDesc = '귀엽고 사교적인 성격. 늘 주인공 옆에 꼭 붙어다님.';
+                    finalLevel = 'normal';
+                    this.inputChatCharName.value = '서아';
+                    this.inputChatRelation.value = '애교 많고 활기찬 대학교 후배';
+                    this.inputChatCharDesc.value = '귀엽고 사교적인 성격. 늘 주인공 옆에 꼭 붙어다님.';
+                    this.selectChatLevel.value = 'normal';
+                    if (this.selectPersonaPreset) {
+                        this.selectPersonaPreset.value = '';
+                    }
+                    localStorage.removeItem('recent_persona_preset');
+                }
+            }
+
             // Silently apply all new configuration inputs while fully preserving existing dialogue history and affinity
-            this.chatCharName = inputName;
-            this.chatRelation = inputRelation;
-            this.chatCharDesc = inputDesc;
-            this.chatLevel = inputLevel;
-            this.characterName = inputUserName;
+            this.chatCharName = finalName;
+            this.chatRelation = finalRelation;
+            this.chatCharDesc = finalDesc;
+            this.chatLevel = finalLevel;
+            this.characterName = finalUserName;
 
             // Detect and resume saved chat session
             if (this.storyHistory.length === 0) {
@@ -731,22 +814,27 @@ class ChronicleApp {
                 const targetPreset = this.selectPersonaPreset.value || localStorage.getItem('recent_persona_preset') || this.chatCharName;
                 const presetData = presets[targetPreset];
                 if (presetData) {
-                    // Restore character images for active session (Only if not already populated)
-                    if (!this.characterImages || Object.keys(this.characterImages).length === 0) {
-                        this.characterImages = presetData.characterImages || {};
-                    }
-                    
-                    if (presetData.savedSession) {
-                        // Auto-load previous session without annoying popup
-                        const session = presetData.savedSession;
-                        this.affinityValue = session.affinityValue || 50;
-                        this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
-                        this.storyHistory = [...(session.storyHistory || [])];
-                        this.dialogueVectors = [...(session.dialogueVectors || [])]; // RAG 벡터 복원 (2단계)
-                        this.currentChapterIndex = this.storyHistory.length;
-                        this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
-                        if (this.storyHistory.length > 0) {
-                            this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
+                    // 19금 프리셋 복원 원천 차단
+                    if (!this.isAdmin && (presetData.level === 'adult-19' || targetPreset.includes('19금'))) {
+                        console.warn("[Security] Prevented loading adult-19 preset for family user");
+                    } else {
+                        // Restore character images for active session (Only if not already populated)
+                        if (!this.characterImages || Object.keys(this.characterImages).length === 0) {
+                            this.characterImages = presetData.characterImages || {};
+                        }
+                        
+                        if (presetData.savedSession) {
+                            // Auto-load previous session without annoying popup
+                            const session = presetData.savedSession;
+                            this.affinityValue = session.affinityValue || 50;
+                            this.memoryList = [...(session.memoryList || ["첫 대화가 시작되었습니다."])];
+                            this.storyHistory = [...(session.storyHistory || [])];
+                            this.dialogueVectors = [...(session.dialogueVectors || [])]; // RAG 벡터 복원 (2단계)
+                            this.currentChapterIndex = this.storyHistory.length;
+                            this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
+                            if (this.storyHistory.length > 0) {
+                                this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
+                            }
                         }
                     }
                 }
@@ -772,8 +860,25 @@ class ChronicleApp {
                 this.inputCharacter.focus();
                 return;
             }
-            this.genre = this.selectGenre.value;
-            this.tone = this.selectTone.value;
+            let finalGenre = this.selectGenre.value;
+            let finalTone = this.selectTone.value;
+            
+            // 일반 사용자 소설 모드 19금 우회 차단
+            if (!this.isAdmin) {
+                if (finalGenre === 'adult-19') {
+                    alert('⚠️ 일반 계정은 19금 소설 장르를 사용할 수 없습니다. 판타지 장르로 강제 전환합니다.');
+                    finalGenre = 'fantasy';
+                    this.selectGenre.value = 'fantasy';
+                }
+                if (finalTone === 'sensual') {
+                    alert('⚠️ 일반 계정은 19금 소설 분위기를 사용할 수 없습니다. 보통 분위기로 강제 전환합니다.');
+                    finalTone = 'normal';
+                    this.selectTone.value = 'normal';
+                }
+            }
+            
+            this.genre = finalGenre;
+            this.tone = finalTone;
             this.characterName = inputChar;
 
             // Detect and resume saved story session
@@ -783,16 +888,22 @@ class ChronicleApp {
                     // Auto-load previous session without annoying popup
                     try {
                         const session = JSON.parse(savedStory);
-                        this.storyHistory = [...(session.storyHistory || [])];
-                        this.currentChapterIndex = this.storyHistory.length;
-                        this.genre = session.genre || this.genre;
-                        this.tone = session.tone || this.tone;
-                        this.characterName = session.characterName || this.characterName;
+                        
+                        // 복원 데이터 19금 검증
+                        if (!this.isAdmin && (session.genre === 'adult-19' || session.tone === 'sensual')) {
+                            console.warn("[Security] Prevented loading adult-19 story session for family user");
+                        } else {
+                            this.storyHistory = [...(session.storyHistory || [])];
+                            this.currentChapterIndex = this.storyHistory.length;
+                            this.genre = session.genre || this.genre;
+                            this.tone = session.tone || this.tone;
+                            this.characterName = session.characterName || this.characterName;
 
-                        // Sync HUD select options
-                        this.selectGenre.value = this.genre;
-                        this.selectTone.value = this.tone;
-                        this.inputCharacter.value = this.characterName;
+                            // Sync HUD select options
+                            this.selectGenre.value = this.genre;
+                            this.selectTone.value = this.tone;
+                            this.inputCharacter.value = this.characterName;
+                        }
 
                         setTimeout(() => {
                             // Re-render story pages
@@ -3139,6 +3250,7 @@ JSON Schema:
     }
 
     // Push local persona presets to backend server
+    // Push local persona presets to backend server
     async pushPersonasToServer() {
         if (this.pushDebounceTimer) {
             clearTimeout(this.pushDebounceTimer);
@@ -3147,13 +3259,30 @@ JSON Schema:
             try {
                 const presets = localStorage.getItem('persona_presets');
                 if (!presets) return;
+                
+                let presetsObj = JSON.parse(presets);
+                if (!this.isAdmin) {
+                    let filtered = false;
+                    Object.keys(presetsObj).forEach(name => {
+                        const preset = presetsObj[name];
+                        if (preset.level === 'adult-19' || name.includes('19금')) {
+                            delete presetsObj[name];
+                            filtered = true;
+                        }
+                    });
+                    if (filtered) {
+                        localStorage.setItem('persona_presets', JSON.stringify(presetsObj));
+                        this.loadPersonaPresets();
+                    }
+                }
+
                 const res = await fetch('/api/personas', {
                     method: 'POST',
                     credentials: 'include',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: presets
+                    body: JSON.stringify(presetsObj)
                 });
                 if (!res.ok) {
                     console.error("Failed to push personas to server, status:", res.status);
@@ -3183,7 +3312,7 @@ JSON Schema:
             try {
                 // 서버와 동기화 실행 (기존 메서드 재활용)
                 await this.syncPersonaPresetsWithServer();
-
+ 
                 // 동기화 후, 만약 대화 내역이 변경(서버에 새 대화가 있음)되었다면 현재 대화 화면 즉각 리렌더링
                 const activePreset = this.selectPersonaPreset.value || `_temp_anonymous_${this.chatCharName}`;
                 const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
@@ -3233,7 +3362,7 @@ JSON Schema:
             // If server returned empty and no error, but we have local presets, push them to server
             const localPresetsStr = localStorage.getItem('persona_presets');
             const localPresets = localPresetsStr ? JSON.parse(localPresetsStr) : {};
-
+ 
             if (Object.keys(serverPresets).length === 0) {
                 if (Object.keys(localPresets).length > 0) {
                     console.log("Server presets empty. Pushing local presets to server...");
@@ -3241,15 +3370,32 @@ JSON Schema:
                 }
                 return;
             }
-
+ 
             let hasChanges = false;
             const mergedPresets = { ...localPresets };
+ 
+            // 일반 계정인 경우 로컬 프리셋에서 19금 요소를 미리 지워서 동기화 찌꺼기를 방지
+            if (!this.isAdmin) {
+                Object.keys(mergedPresets).forEach(name => {
+                    const preset = mergedPresets[name];
+                    if (preset.level === 'adult-19' || name.includes('19금')) {
+                        delete mergedPresets[name];
+                        hasChanges = true;
+                    }
+                });
+            }
 
             // 1. Merge server presets into local
             Object.keys(serverPresets).forEach(name => {
                 const serverPreset = serverPresets[name];
-                const localPreset = localPresets[name];
+                
+                // 일반 계정인 경우, 서버에서 내려온 19금 프리셋은 아예 병합하지 않음
+                if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금'))) {
+                    return;
+                }
 
+                const localPreset = mergedPresets[name];
+ 
                 if (!localPreset) {
                     mergedPresets[name] = serverPreset;
                     hasChanges = true;
@@ -3257,24 +3403,24 @@ JSON Schema:
                     // Compare dialogue length or properties to pick the fresher one
                     const serverSession = serverPreset.savedSession;
                     const localSession = localPreset.savedSession;
-
+ 
                     const serverLen = (serverSession && serverSession.storyHistory) ? serverSession.storyHistory.length : 0;
                     const localLen = (localSession && localSession.storyHistory) ? localSession.storyHistory.length : 0;
-
+ 
                     if (serverLen > localLen) {
                         mergedPresets[name] = serverPreset;
                         hasChanges = true;
                     }
                 }
             });
-
+ 
             // 2. Push local-only presets to server by marking hasChanges
-            Object.keys(localPresets).forEach(name => {
+            Object.keys(mergedPresets).forEach(name => {
                 if (!serverPresets[name]) {
                     hasChanges = true;
                 }
             });
-
+ 
             if (hasChanges) {
                 localStorage.setItem('persona_presets', JSON.stringify(mergedPresets));
                 this.loadPersonaPresets();

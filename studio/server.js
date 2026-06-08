@@ -337,7 +337,19 @@ app.get('/api/personas', (req, res) => {
             if (data.startsWith('\ufeff')) {
                 data = data.slice(1);
             }
-            return res.json(JSON.parse(data));
+            let personas = JSON.parse(data);
+            
+            // 일반 계정(family 등)인 경우 19금 프리셋은 응답에서 제외
+            if (!req.user.is_admin && personas && typeof personas === 'object') {
+                Object.keys(personas).forEach(name => {
+                    const preset = personas[name];
+                    if (preset && (preset.level === 'adult-19' || name.includes('19금'))) {
+                        delete personas[name];
+                    }
+                });
+            }
+            
+            return res.json(personas);
         }
         res.json({}); // 파일이 없으면 빈 프리셋 반환
     } catch (error) {
@@ -355,7 +367,19 @@ app.post('/api/personas', (req, res) => {
     const userPersonaFile = path.join(__dirname, 'data', `personas_${username}.json`);
     
     try {
-        const personasData = req.body;
+        let personasData = req.body;
+        
+        // 일반 계정(family 등)인 경우 19금 프리셋은 저장하기 전에 차단
+        if (!req.user.is_admin && personasData && typeof personasData === 'object') {
+            personasData = { ...personasData }; // 복사본 생성
+            Object.keys(personasData).forEach(name => {
+                const preset = personasData[name];
+                if (preset && (preset.level === 'adult-19' || name.includes('19금'))) {
+                    delete personasData[name];
+                }
+            });
+        }
+
         const dataDir = path.join(__dirname, 'data');
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
