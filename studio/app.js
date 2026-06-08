@@ -2886,6 +2886,10 @@ JSON Schema:
 
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             Object.keys(presets).forEach(name => {
+                // _temp 임시 익명 프리셋은 드롭다운 렌더링에서 완전히 제외
+                if (name.startsWith('_temp')) {
+                    return;
+                }
                 const preset = presets[name];
                 // 관리자가 아니고 19금 설정이 있는 경우 렌더링 스킵 (세션 수위 검사 결합)
                 if (!this.isAdmin && (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19'))) {
