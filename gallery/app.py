@@ -20,7 +20,7 @@ from flask import (
     Flask, render_template, request,
     redirect, url_for, send_from_directory, abort, flash, jsonify, Response, g
 )
-from auth_helper import login_required
+from auth_helper import login_required, verify_token
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -277,6 +277,121 @@ def upload():
     except Exception as e:
         flash(f"❌ 업로드 실패: {str(e)}", "error")
     return redirect(url_for("upload"))
+
+@app.route("/upload_chunk", methods=["POST"])
+def upload_chunk():
+    # AJAX 요청에 대한 API 전용 인증 검증 (302 리다이렉트 방지)
+    secret = app.config.get('SECRET_KEY') or 'change-me-in-production'
+    token = request.cookies.get('gallery_auth_token')
+    payload = verify_token(token, secret)
+    if not payload:
+        return jsonify({"success": False, "error": "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}), 401
+        
+    upload_id = request.form.get("upload_id")
+    chunk_index = request.form.get("chunk_index")
+    total_chunks = request.form.get("total_chunks")
+    
+    if not upload_id or chunk_index is None or not total_chunks:
+        return jsonify({"success": False, "error": "필수 파라미터 누락"}), 400
+        
+    if "file" not in request.files:
+        return jsonify({"success": False, "error": "파일 청크가 전송되지 않았습니다."}), 400
+        
+    file = request.files["file"]
+    
+    # NTFS 임시 디렉토리에 chunks 폴더 생성
+    temp_dir = tempfile.gettempdir()
+    chunk_dir = Path(temp_dir) / "chunks" / upload_id
+    chunk_dir.mkdir(parents=True, exist_ok=True)
+    
+    chunk_file_path = chunk_dir / f"chunk_{chunk_index}"
+    
+    try:
+        file.save(str(chunk_file_path))
+        return jsonify({"success": True})
+    except Exception as e:
+        return jsonify({"success": False, "error": f"청크 저장 실패: {str(e)}"}), 500
+
+@app.route("/upload_complete", methods=["POST"])
+def upload_complete():
+    # AJAX 요청에 대한 API 전용 인증 검증 (302 리다이렉트 방지)
+    secret = app.config.get('SECRET_KEY') or 'change-me-in-production'
+    token = request.cookies.get('gallery_auth_token')
+    payload = verify_token(token, secret)
+    if not payload:
+        return jsonify({"success": False, "error": "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}), 401
+        
+    folders = payload.get("folders", [])
+    is_admin_user = payload.get("is_admin", False)
+    
+    # JSON 요청 또는 Form 요청 모두 호환 가능하게 파싱
+    data = request.get_json() or request.form
+    upload_id = data.get("upload_id")
+    raw_filename = data.get("filename")
+    total_chunks = data.get("total_chunks")
+    target_folder = data.get("folder")
+    
+    if not upload_id or not raw_filename or total_chunks is None or not target_folder:
+        return jsonify({"success": False, "error": "필수 파라미터 누락"}), 400
+        
+    try:
+        total_chunks = int(total_chunks)
+    except ValueError:
+        return jsonify({"success": False, "error": "유효하지 않은 total_chunks 값입니다."}), 400
+        
+    if is_admin_user:
+        if target_folder not in folders:
+            target_folder = folders[0]
+    else:
+        writable = [f for f in folders if f != "public"]
+        target_folder = writable[0] if writable else folders[0]
+        
+    filename = get_safe_filename(raw_filename)
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_UPLOAD_EXTS:
+        return jsonify({"success": False, "error": f"허용되지 않는 파일 형식입니다: {ext}"}), 400
+        
+    media_type = "videos" if ext in VIDEO_EXTS else "images"
+    save_dir = MEDIA_ROOT / target_folder / media_type
+    save_dir.mkdir(parents=True, exist_ok=True)
+    
+    save_path = save_dir / filename
+    counter = 1
+    original_stem = Path(filename).stem
+    while save_path.exists():
+        filename = f"{original_stem}_{counter}{ext}"
+        save_path = save_dir / filename
+        counter += 1
+        
+    temp_dir = tempfile.gettempdir()
+    chunk_dir = Path(temp_dir) / "chunks" / upload_id
+    if not chunk_dir.exists():
+        return jsonify({"success": False, "error": "업로드된 청크 임시 디렉토리가 존재하지 않습니다."}), 404
+        
+    # 동일 NTFS 볼륨 내에 임시 병합 파일 생성 (메모리 누수 차단 및 스트리밍 복사)
+    temp_merged_path = Path(temp_dir) / f"merged_{upload_id}{ext}"
+    
+    try:
+        with open(temp_merged_path, 'wb') as merged_file:
+            for idx in range(total_chunks):
+                chunk_file = chunk_dir / f"chunk_{idx}"
+                if not chunk_file.exists():
+                    raise FileNotFoundError(f"순서 {idx}번에 해당하는 파일 조각이 누락되었습니다.")
+                with open(chunk_file, 'rb') as cf:
+                    shutil.copyfileobj(cf, merged_file)
+                    
+        # 병합 완료 후 청크 폴더 삭제
+        shutil.rmtree(chunk_dir, ignore_errors=True)
+        
+        # 임시 파일을 최종 위치로 고속 이동
+        shutil.move(str(temp_merged_path), str(save_path))
+        
+        flash(f"✅ 업로드 완료: {target_folder}/{media_type}/{filename}", "success")
+        return jsonify({"success": True, "redirect_url": url_for("upload")})
+    except Exception as e:
+        if temp_merged_path.exists():
+            temp_merged_path.unlink()
+        return jsonify({"success": False, "error": f"파일 조각 병합 실패: {str(e)}"}), 500
 
 @app.route("/manage")
 @login_required(admin_only=True)
