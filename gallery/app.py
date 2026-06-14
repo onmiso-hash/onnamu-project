@@ -261,7 +261,12 @@ def upload():
         writable = [f for f in folders if f != "public"]
         target_folder = writable[0] if writable else folders[0]
         
-    media_type = "videos" if ext in VIDEO_EXTS else "images"
+    media_type_select = request.form.get("media_type_select", "gallery")
+    if media_type_select == "movies" and ext in VIDEO_EXTS:
+        media_type = "movies"
+    else:
+        media_type = "videos" if ext in VIDEO_EXTS else "images"
+        
     save_dir = MEDIA_ROOT / target_folder / media_type
     save_dir.mkdir(parents=True, exist_ok=True)
     save_path = save_dir / filename
@@ -330,6 +335,7 @@ def upload_complete():
     raw_filename = data.get("filename")
     total_chunks = data.get("total_chunks")
     target_folder = data.get("folder")
+    media_type_select = data.get("media_type_select", "gallery")
     
     if not upload_id or not raw_filename or total_chunks is None or not target_folder:
         return jsonify({"success": False, "error": "필수 파라미터 누락"}), 400
@@ -351,7 +357,11 @@ def upload_complete():
     if ext not in ALLOWED_UPLOAD_EXTS:
         return jsonify({"success": False, "error": f"허용되지 않는 파일 형식입니다: {ext}"}), 400
         
-    media_type = "videos" if ext in VIDEO_EXTS else "images"
+    if media_type_select == "movies" and ext in VIDEO_EXTS:
+        media_type = "movies"
+    else:
+        media_type = "videos" if ext in VIDEO_EXTS else "images"
+        
     save_dir = MEDIA_ROOT / target_folder / media_type
     save_dir.mkdir(parents=True, exist_ok=True)
     

@@ -172,6 +172,14 @@
                 </div>
             </div>
             
+            <div class="folder-select" style="margin-bottom: 20px;">
+                <label for="media_type_select">저장할 미디어 분류</label>
+                <select name="media_type_select" id="media_type_select" required>
+                    <option value="gallery">일반 비디오 / 이미지 (갤러리 노출)</option>
+                    <option value="movies">영화관 동영상 (Movie Theater 노출)</option>
+                </select>
+            </div>
+
             <div class="folder-select">
                 <label for="folder">저장할 프로젝트 폴더</label>
                 <select name="folder" id="folder" required>
@@ -199,6 +207,7 @@
         const submitBtn = document.getElementById('submit-btn');
         const form = document.getElementById('upload-form');
         const folderSelect = document.getElementById('folder');
+        const mediaTypeSelect = document.getElementById('media_type_select');
 
         const progressContainer = document.getElementById('progress-container');
         const progressStatus = document.getElementById('progress-status');
@@ -255,10 +264,14 @@
             const file = fileInput.files[0];
             if (!file) return;
 
+            // 기존 화면에 노출되어 있던 이전 플래시 경고/성공 배너들 즉시 제거
+            document.querySelectorAll('.flash').forEach(el => el.style.display = 'none');
+
             // UI 제어 및 비활성화
             submitBtn.disabled = true;
             fileInput.disabled = true;
             folderSelect.disabled = true;
+            mediaTypeSelect.disabled = true;
             progressContainer.style.display = 'block';
             progressStatus.textContent = '업로드 준비 중...';
             progressPercent.textContent = '0%';
@@ -313,7 +326,7 @@
             progressPercent.textContent = '99%';
 
             try {
-                const response = await completeUpload(uploadId, file.name, totalChunks, folder);
+                const response = await completeUpload(uploadId, file.name, totalChunks, folder, mediaTypeSelect.value);
                 if (response.success) {
                     progressBar.style.width = '100%';
                     progressPercent.textContent = '100%';
@@ -373,7 +386,7 @@
         }
 
         // 병합 요청 비동기 함수
-        function completeUpload(uploadId, filename, totalChunks, folder) {
+        function completeUpload(uploadId, filename, totalChunks, folder, mediaTypeSelectVal) {
             return new Promise((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('POST', '/upload_complete', true);
@@ -402,7 +415,8 @@
                     upload_id: uploadId,
                     filename: filename,
                     total_chunks: totalChunks,
-                    folder: folder
+                    folder: folder,
+                    media_type_select: mediaTypeSelectVal
                 };
                 xhr.send(JSON.stringify(data));
             });
@@ -412,6 +426,7 @@
             submitBtn.disabled = false;
             fileInput.disabled = false;
             folderSelect.disabled = false;
+            mediaTypeSelect.disabled = false;
             progressContainer.style.display = 'none';
         }
     </script>
