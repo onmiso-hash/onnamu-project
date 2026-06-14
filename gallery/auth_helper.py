@@ -77,10 +77,10 @@ def login_required(admin_only=False):
                     clean_url = request.base_url
                     resp = make_response(redirect(clean_url))
                     # HTTP/HTTPS 비보안 환경 간 완벽 동기화를 위해 쿠키 도메인을 지정하지 않고 갤러리 자체 로컬 오리진에 직접 세팅
-                    resp.set_cookie('auth_token', url_token, httponly=True, max_age=30 * 24 * 3600)
+                    resp.set_cookie('gallery_auth_token', url_token, httponly=True, max_age=30 * 24 * 3600)
                     return resp
                     
-            token = request.cookies.get('auth_token')
+            token = request.cookies.get('gallery_auth_token')
             payload = verify_token(token, secret)
             
             if not payload:

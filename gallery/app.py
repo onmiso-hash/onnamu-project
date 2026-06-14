@@ -123,6 +123,7 @@ def logout():
     if 'onnamu.kr' in host:
         cookie_domain = '.onnamu.kr'
     response.delete_cookie('auth_token', domain=cookie_domain)
+    response.delete_cookie('gallery_auth_token')
     return response
 
 @app.route("/")
