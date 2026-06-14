@@ -1,4 +1,15 @@
 import os
+import tempfile
+
+# 윈도우 마운트 대역(NTFS)에 임시 파일을 직접 적재하기 위해 rw 마운트된 public/videos/.temp 경로 강제 지정
+if os.environ.get("MEDIA_ROOT"):
+    temp_dir = os.path.join(os.environ["MEDIA_ROOT"], "public", "videos", ".temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    os.environ["TMPDIR"] = temp_dir
+    os.environ["TEMP"] = temp_dir
+    os.environ["TMP"] = temp_dir
+    # tempfile 모듈이 설정된 임시 경로를 강제 적용하도록 전역 포인터 재설정
+    tempfile.tempdir = temp_dir
 import re
 import json
 import math
