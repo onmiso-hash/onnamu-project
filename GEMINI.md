@@ -4,7 +4,7 @@
 
 ## 🏗️ 시스템 아키텍처 (Architecture)
 
-본 프로젝트는 여러 마이크로서비스 및 웹 어플리케이션으로 구성된 통합 관리 시스템입니다.
+본 프로젝트는 여러 마이크로서비스 및 웹 어플리케이션으로 구성된 통합 관리 시스템입니다. 전체 서버 인프라의 공인/사설 IP 구성, 도커 컨테이너 내부 포트 맵, 외부 공유기 포트포워딩 및 HTTP/HTTPS 크로스 스킴 SSO 연동 규격 등 상세 인프라 사양은 프로젝트 루트의 [server_architecture_specs.md](file:///home/onmiso/project/onnamu-project/server_architecture_specs.md) 사양서에 실시간 관리되고 있으므로 이를 함께 교차 참조하십시오.
 
 ### 1. Home Hub (Portal)
 - **경로**: `/portal`
@@ -87,5 +87,6 @@
 ## 📝 히스토리 기록 규칙
 - **중요 마일스톤**: `GEMINI.md`의 '주요 히스토리' 섹션에 한 줄 요약 기록.
 - **상세 작업 내역**: `history/` 폴더 내에 별도 `.md` 파일을 생성하여 기록 (예: `history/TASK_NAME_YYYYMMDD.md`).
+- **서버 사양서 최신화**: 네트워크 포트 맵, 마운트 볼륨 권한 격리 등 서버 인프라 스펙에 물리적 변화가 생기는 수정을 가할 때는 반드시 프로젝트 루트의 [server_architecture_specs.md](file:///home/onmiso/project/onnamu-project/server_architecture_specs.md) 사양서 정보도 함께 최신화해 두어야 합니다.
 - **기억 참조**: 과거 작업의 구체적인 맥락이 필요할 때 `history/` 폴더의 문서를 우선적으로 참조함.
 
