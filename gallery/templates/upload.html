@@ -161,6 +161,17 @@
                 선택된 파일: <span id="file-name"></span>
             </div>
             
+            <!-- 실시간 업로드 진행률 표시 바 -->
+            <div id="progress-container" style="display: none; margin-bottom: 25px; background: rgba(255, 255, 255, 0.02); padding: 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; color: #a855f7; font-weight: 600;">
+                    <span id="progress-status">업로드 준비 중...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div style="height: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div id="progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, #a855f7 0%, #7e22ce 100%); transition: width 0.1s ease;"></div>
+                </div>
+            </div>
+            
             <div class="folder-select">
                 <label for="folder">저장할 프로젝트 폴더</label>
                 <select name="folder" id="folder" required>
@@ -187,9 +198,19 @@
         const fileName = document.getElementById('file-name');
         const submitBtn = document.getElementById('submit-btn');
         const form = document.getElementById('upload-form');
+        const folderSelect = document.getElementById('folder');
+
+        const progressContainer = document.getElementById('progress-container');
+        const progressStatus = document.getElementById('progress-status');
+        const progressPercent = document.getElementById('progress-percent');
+        const progressBar = document.getElementById('progress-bar');
 
         // 클릭으로 파일 선택
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', () => {
+            if (!submitBtn.disabled || progressContainer.style.display === 'none') {
+                fileInput.click();
+            }
+        });
 
         // 파일 선택 시 UI 업데이트
         fileInput.addEventListener('change', () => {
@@ -203,7 +224,9 @@
         // 드래그 앤 드롭
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            dropZone.classList.add('dragover');
+            if (progressContainer.style.display === 'none') {
+                dropZone.classList.add('dragover');
+            }
         });
 
         ['dragleave', 'dragend'].forEach(type => {
@@ -215,6 +238,7 @@
         dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
+            if (progressContainer.style.display !== 'none') return;
             
             if (e.dataTransfer.files.length > 0) {
                 fileInput.files = e.dataTransfer.files;
@@ -224,9 +248,65 @@
             }
         });
 
-        form.addEventListener('submit', () => {
+        // 비동기 AJAX 업로드 처리
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // UI 제어 및 비활성화
             submitBtn.disabled = true;
-            submitBtn.textContent = '업로드 중... 잠시만 기다려주세요.';
+            fileInput.disabled = true;
+            folderSelect.disabled = true;
+            progressContainer.style.display = 'block';
+            progressStatus.textContent = '업로드 요청 중...';
+            progressPercent.textContent = '0%';
+            progressBar.style.width = '0%';
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', form.action, true);
+
+            // 업로드 상태 진행 이벤트 바인딩
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    const percent = Math.round((event.loaded / event.total) * 100);
+                    progressBar.style.width = percent + '%';
+                    progressPercent.textContent = percent + '%';
+                    
+                    if (percent < 100) {
+                        progressStatus.textContent = '파일 전송 중...';
+                    } else {
+                        progressStatus.textContent = '서버 저장 중... 잠시만 기다려주세요.';
+                    }
+                }
+            });
+
+            // 업로드 완료 시 처리
+            xhr.onload = () => {
+                if (xhr.status === 200) {
+                    // 성공 페이지 갱신
+                    window.location.href = xhr.responseURL || '/upload';
+                } else {
+                    alert('❌ 업로드 중 에러가 발생했습니다. (상태 코드: ' + xhr.status + ')');
+                    submitBtn.disabled = false;
+                    fileInput.disabled = false;
+                    folderSelect.disabled = false;
+                    progressContainer.style.display = 'none';
+                }
+            };
+
+            // 에러 핸들러
+            xhr.onerror = () => {
+                alert('❌ 네트워크 오류로 업로드에 실패했습니다. (서버/프록시 용량 제한 또는 타임아웃 가능성)');
+                submitBtn.disabled = false;
+                fileInput.disabled = false;
+                folderSelect.disabled = false;
+                progressContainer.style.display = 'none';
+            };
+
+            const formData = new FormData(form);
+            xhr.send(formData);
         });
     </script>
 </body>

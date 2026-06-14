@@ -9,8 +9,16 @@ from flask import (
     Flask, render_template, request,
     redirect, url_for, send_from_directory, abort, flash, jsonify, Response, g
 )
-from werkzeug.utils import secure_filename
 from auth_helper import login_required
+
+def get_safe_filename(filename: str) -> str:
+    base = os.path.basename(filename)
+    # \w는 유니코드 단어 문자(한글 포함), 공백은 언더바(_)로 대체
+    cleaned = re.sub(r'[^\w\s\-\.]', '', base)
+    cleaned = cleaned.strip().replace(' ', '_')
+    if not cleaned or cleaned.startswith('.'):
+        cleaned = "uploaded_file" + (Path(base).suffix or ".dat")
+    return cleaned
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -217,7 +225,7 @@ def upload():
     is_admin_user = g.user.get("is_admin", False)
     
     if request.method == "GET":
-        return render_template("upload.html", is_admin=is_admin_user, available_folders=folders)
+        return render_template("upload.html", is_admin=is_admin_user, available_folders=folders, username=username)
         
     if "file" not in request.files:
         flash("⚠️ 파일이 선택되지 않았습니다.", "warning")
@@ -227,7 +235,7 @@ def upload():
         flash("⚠️ 파일이 선택되지 않았습니다.", "warning")
         return redirect(request.url)
         
-    filename = secure_filename(file.filename)
+    filename = get_safe_filename(file.filename)
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_UPLOAD_EXTS:
         flash(f"⚠️ 허용되지 않는 파일 형식입니다: {ext}", "warning")
