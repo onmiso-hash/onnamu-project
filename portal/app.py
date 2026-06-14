@@ -536,7 +536,9 @@ def login():
     payload = verify_token(token, app.secret_key)
     if payload:
         if next_url:
-            return redirect(next_url)
+            # next_url에 token 파라미터 추가하여 스킴 격리 시에도 쿠키 주입 가능하게 함
+            sep = '&' if '?' in next_url else '?'
+            return redirect(f"{next_url}{sep}token={token}")
         return redirect(url_for('index'))
 
     if request.method == 'POST':
@@ -553,8 +555,12 @@ def login():
             # SSO 토큰 생성 (folders 정보 주입)
             auth_token = generate_auth_token(username, app.secret_key, is_admin=is_admin, folders=folders)
             
-            # 리다이렉트 응답 생성
-            resp = redirect(next_url if next_url else url_for('index'))
+            # 리다이렉트 응답 생성 (SSO 토큰 파라미터 추가)
+            target_url = next_url if next_url else url_for('index')
+            if next_url:
+                sep = '&' if '?' in target_url else '?'
+                target_url = f"{target_url}{sep}token={auth_token}"
+            resp = redirect(target_url)
             
             # 쿠키 설정
             cookie_domain = None

@@ -4,7 +4,7 @@ import base64
 import json
 import time
 from functools import wraps
-from flask import request, redirect, session, g, current_app
+from flask import request, redirect, session, g, current_app, make_response
 
 def generate_auth_token(username, secret_key, is_admin=False, folders=None):
     if folders is None:
@@ -65,8 +65,22 @@ def login_required(admin_only=False):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            token = request.cookies.get('auth_token')
             secret = current_app.config.get('SECRET_KEY') or 'change-me-in-production'
+            
+            # (1) URL 파라미터로 넘어온 토큰 우선 검증 및 로컬 쿠키 저장 처리 (SSO 프로토콜)
+            url_token = request.args.get('token')
+            if url_token:
+                payload = verify_token(url_token, secret)
+                if payload:
+                    g.user = payload
+                    # 파라미터가 빠진 깨끗한 원래의 주소로 리다이렉트하여 로그인 루프 파괴
+                    clean_url = request.base_url
+                    resp = make_response(redirect(clean_url))
+                    # HTTP/HTTPS 비보안 환경 간 완벽 동기화를 위해 쿠키 도메인을 지정하지 않고 갤러리 자체 로컬 오리진에 직접 세팅
+                    resp.set_cookie('auth_token', url_token, httponly=True, max_age=30 * 24 * 3600)
+                    return resp
+                    
+            token = request.cookies.get('auth_token')
             payload = verify_token(token, secret)
             
             if not payload:
