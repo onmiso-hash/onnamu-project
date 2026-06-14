@@ -14,10 +14,13 @@ services:
       # 쓰기 가능 경로 (업로드용)
       - C:/Users/onmis/media/public/videos:/media/public/videos:rw
       - C:/Users/onmis/media/public/images:/media/public/images:rw
+      - C:/Users/onmis/media/public/movies:/media/public/movies:rw
       - C:/Users/onmis/media/private/videos:/media/private/videos:rw
       - C:/Users/onmis/media/private/images:/media/private/images:rw
+      - C:/Users/onmis/media/private/movies:/media/private/movies:rw
       - C:/Users/onmis/media/family/videos:/media/family/videos:rw
       - C:/Users/onmis/media/family/images:/media/family/images:rw
+      - C:/Users/onmis/media/family/movies:/media/family/movies:rw
       
     environment:
       - SECRET_KEY=${SECRET_KEY}
