@@ -55,7 +55,7 @@ THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 def add_no_cache(response):
     # 미디어 파일 원본, 썸네일, 자막 등의 정적 미디어 요청은 10배 이상 부드러운 로딩과 서버 보호를 위해 극강의 30일 캐싱을 보장합니다.
     path = request.path.lower()
-    if any(keyword in path for keyword in ['/thumbnail', '/media', '/movies', '/subtitles']) or path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mkv', '.mov', '.vtt', '.srt')):
+    if any(keyword in path for keyword in ['/thumbnail', '/media', '/subtitles']) or path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mkv', '.mov', '.vtt', '.srt')):
         # 썸네일 및 대용량 스트리밍 미디어는 30일(2592000초) 동안 절대 변하지 않는 자원(immutable)으로 강력 캐싱 지시
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
         if 'Pragma' in response.headers: del response.headers['Pragma']
