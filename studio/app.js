@@ -1339,91 +1339,48 @@ JSON Schema:
     healMarkdownTable(text) {
         if (!text || !text.includes('|')) return text;
 
-        // 1. 구분선 패턴(| :--- | 등)을 검색하여 표의 열(Column) 개수를 추정합니다.
-        const sepPattern = /\|\s*(?::?---*:?\s*\|)+/;
-        const match = text.match(sepPattern);
-        let colCount = 0;
-        
-        if (match) {
-            const sepStr = match[0];
-            colCount = (sepStr.match(/\|/g) || []).length - 1;
-        }
+        let healed = text;
 
-        // 구분선이 없거나 열 개수 판별에 실패한 경우 기본 오토 힐링으로 백업
-        if (colCount <= 0) {
-            return text.replace(/\|\s*\|/g, '|\n|');
-        }
+        // 1. 일반 문장 바로 뒤에 표 헤더가 개행 없이 붙어 있는 첫 부분만 정교하게 분리
+        // 예: "어떤 걸 볼까? | 영화명 |" -> "어떤 걸 볼까?\n| 영화명 |"
+        healed = healed.replace(/([^\n|])\s*(\|[^|\n]+\|)/g, '$1\n$2');
 
-        // 2. 파이프(|) 기준으로 데이터를 쪼개어 정밀 재조립 루프 수행
-        const parts = text.split('|');
-        const result = [];
-        let cellBuffer = [];
-        let inTableMode = false;
+        // 2. 뭉친 표(| |)에 줄바꿈 삽입하여 여러 행으로 분리
+        healed = healed.replace(/\|\s*\|/g, '|\n|');
 
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            
-            // 첫 번째와 마지막 토큰은 표 외부의 일반 텍스트
-            if (i === 0) {
-                result.push(part);
-                continue;
-            }
-            if (i === parts.length - 1) {
-                if (inTableMode && cellBuffer.length > 0) {
-                    result.push('\n\n| ' + cellBuffer.join(' | ') + ' |\n\n');
-                }
-                result.push(part);
-                continue;
-            }
+        // 3. 줄 단위로 분석하며 표 영역 앞뒤에만 빈 줄(\n\n) 삽입 (파이프 기호 보존 및 오폭률 0%)
+        const lines = healed.split('\n');
+        const resultLines = [];
 
-            const cleanPart = part.trim();
-            const isSeparator = /^\s*:?---*:?\s*$/.test(cleanPart);
-            
-            // 표 헤더, 구분선, 혹은 데이터 셀이 이어지고 있는 상황
-            if (isSeparator || inTableMode || cellBuffer.length > 0) {
-                if (!inTableMode && !isSeparator) {
-                    // 표 영역이 시작되는 지점에 앞 문장이 있다면 강제 개행(\n\n) 확보
-                    if (result.length > 0 && !result[result.length - 1].endsWith('\n\n')) {
-                        result[result.length - 1] = result[result.length - 1].trim() + '\n\n';
+        for (let i = 0; i < lines.length; i++) {
+            const currentLine = lines[i];
+            // 표의 행 판별 조건: 공백 제외 파이프(|)로 시작해 파이프(|)로 끝나는 온전한 행인지 검증
+            const isCurrentTableRow = /^\s*\|.*\|\s*$/.test(currentLine);
+
+            if (isCurrentTableRow) {
+                if (resultLines.length > 0) {
+                    const prevLine = resultLines[resultLines.length - 1];
+                    const isPrevTableRow = /^\s*\|.*\|\s*$/.test(prevLine);
+                    // 이전 줄이 표가 아니고 빈 줄도 아니었다면 표 시작 전에 빈 줄 삽입
+                    if (!isPrevTableRow && prevLine.trim() !== '') {
+                        resultLines.push('');
                     }
-                    inTableMode = true;
                 }
-                
-                cellBuffer.push(cleanPart);
-                
-                // 구분선이 들어왔는데 이전에 수집된 데이터가 있으면 그것을 헤더 행으로 강제 선조립
-                if (isSeparator && cellBuffer.length > 1) {
-                    const sepIndex = cellBuffer.length - 1;
-                    const headerCells = cellBuffer.slice(0, sepIndex);
-                    result.push('| ' + headerCells.join(' | ') + ' |\n');
-                    cellBuffer = cellBuffer.slice(sepIndex);
-                }
-
-                // 버퍼가 열 개수만큼 차오르면 하나의 온전한 행으로 조립 출력
-                if (cellBuffer.length === colCount) {
-                    result.push('| ' + cellBuffer.join(' | ') + ' |\n');
-                    cellBuffer = [];
-                }
+                resultLines.push(currentLine);
             } else {
-                // 표 영역이 끝났을 때의 처리
-                if (inTableMode) {
-                    if (cellBuffer.length > 0) {
-                        result.push('| ' + cellBuffer.join(' | ') + ' |\n');
-                        cellBuffer = [];
+                if (resultLines.length > 0) {
+                    const prevLine = resultLines[resultLines.length - 1];
+                    const isPrevTableRow = /^\s*\|.*\|\s*$/.test(prevLine);
+                    // 이전 줄이 표였고 현재 줄이 빈 줄이 아니라면 표 종료 후 빈 줄 삽입
+                    if (isPrevTableRow && currentLine.trim() !== '') {
+                        resultLines.push('');
                     }
-                    result.push('\n\n'); // 표 뒤 빈 줄 보장
-                    inTableMode = false;
                 }
-                result.push(part);
+                resultLines.push(currentLine);
             }
         }
 
-        // 루프 종료 후 남은 잔여 버퍼 털기
-        if (cellBuffer.length > 0) {
-            result.push('| ' + cellBuffer.join(' | ') + ' |\n\n');
-        }
-
-        return result.join('');
+        return resultLines.join('\n');
     }
 
     // Action Cards Renderer
