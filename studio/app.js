@@ -1383,7 +1383,8 @@ JSON Schema:
         let firstLineWasSeparator = false;
 
         for (let i = 0; i < lines.length; i++) {
-            let line = lines[i].trim();
+            const originalLine = lines[i];
+            let line = originalLine.trim();
             
             if (!line) {
                 if (inTable) {
@@ -1391,7 +1392,7 @@ JSON Schema:
                     inTable = false;
                     tableRowCount = 0;
                 }
-                resultLines.push('');
+                resultLines.push(originalLine); // 원본의 공백 보존
                 continue;
             }
 
@@ -1405,13 +1406,12 @@ JSON Schema:
 
             if (isTableRow) {
                 if (!inTable) {
-                    if (resultLines.length > 0 && resultLines[resultLines.length - 1] !== '') {
+                    if (resultLines.length > 0 && resultLines[resultLines.length - 1].trim() !== '') {
                         resultLines.push('');
                     }
                     inTable = true;
                     tableRowCount = 1;
                     
-                    // 첫 줄의 경우 파이프 개수 기준 설정
                     expectedPipes = pipeCount;
                     if (!line.startsWith('|')) expectedPipes++;
                     if (!line.endsWith('|')) expectedPipes++;
@@ -1419,7 +1419,6 @@ JSON Schema:
                     expectedCols = expectedPipes - 1;
                     firstLineWasSeparator = /^\|?([\s:\-]*\|)+\s*$/.test(line);
                     
-                    // 뒤에 텍스트가 붙은 경우 분리 (헤더)
                     if (pipeCount >= 2 && !line.endsWith('|')) {
                         let lastIdx = line.lastIndexOf('|');
                         let suffix = line.substring(lastIdx + 1).trim();
@@ -1444,7 +1443,6 @@ JSON Schema:
                     }
                     
                     let suffixText = "";
-                    // 현재 줄의 파이프 개수가 expectedPipes 이상인 경우, 마지막 파이프 뒤의 텍스트는 일반 텍스트(suffix)일 확률이 높음
                     if (!line.endsWith('|')) {
                         let effectivePipes = pipeCount;
                         if (!line.startsWith('|')) effectivePipes++;
@@ -1474,7 +1472,8 @@ JSON Schema:
                     inTable = false;
                     tableRowCount = 0;
                 }
-                resultLines.push(line);
+                // 표가 아닌 일반 줄은 원본을 그대로 추가하여 마크다운 들여쓰기 및 공백 규칙 보존
+                resultLines.push(originalLine);
             }
         }
 
