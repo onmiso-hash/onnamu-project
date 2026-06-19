@@ -947,8 +947,7 @@ class ChronicleApp {
                                 contentEl.className = 'chapter-content';
                                 let storyHtml = chapter.story;
                                 if (window.marked) {
-                                    // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
-                                    let targetText = chapter.story.replace(/\|\s*\|/g, '|\n|');
+                                    let targetText = this.healMarkdownTable(chapter.story);
                                     storyHtml = window.marked.parse(targetText, { breaks: true });
                                     storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                                 }
@@ -1295,8 +1294,7 @@ JSON Schema:
             const hasSpecialFormats = /[#*_\`\[\]!|]/.test(fullText) || /<\/?[a-z][\s\S]*>/i.test(fullText);
             
             if (hasSpecialFormats && window.marked) {
-                // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
-                let targetText = fullText.replace(/\|\s*\|/g, '|\n|');
+                let targetText = this.healMarkdownTable(fullText);
                 let processed = window.marked.parse(targetText, { breaks: true });
                 processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                 contentEl.innerHTML = processed;
@@ -1335,6 +1333,19 @@ JSON Schema:
 
             typeChar();
         });
+    }
+
+    // 마크다운 표 앞뒤 개행 보정 및 한 줄 뭉침 오토 힐링 함수
+    healMarkdownTable(text) {
+        if (!text || !text.includes('|')) return text;
+        let healed = text;
+        // 1. 뭉친 표(| |)에 줄바꿈 삽입
+        healed = healed.replace(/\|\s*\|/g, '|\n|');
+        // 2. 표 시작 부분 앞에 빈 줄(\n\n) 보장 (일반 문자 바로 뒤에 표 헤더가 붙어 있는 경우)
+        healed = healed.replace(/([^\n|])\s*(\|\s*[^\n|]+\s*\|\s*[^\n|]+\s*\|)/g, '$1\n\n$2');
+        // 3. 표 끝부분 뒤에 빈 줄(\n\n) 보장 (표 행 바로 뒤에 일반 문자가 붙어 있는 경우)
+        healed = healed.replace(/(\|\s*[^\n|]+\s*\|\s*[^\n|]+\s*\|)\s*([^\n|])/g, '$1\n\n$2');
+        return healed;
     }
 
     // Action Cards Renderer
@@ -1376,8 +1387,7 @@ JSON Schema:
         
         let processedText = text;
         if (window.marked) {
-            // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
-            let targetText = text.replace(/\|\s*\|/g, '|\n|');
+            let targetText = this.healMarkdownTable(text);
             processedText = window.marked.parse(targetText, { breaks: true });
             processedText = processedText.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
         } else {
@@ -1770,8 +1780,7 @@ JSON Schema:
                     contentEl.className = 'chapter-content';
                     let storyHtml = chapter.story;
                     if (window.marked) {
-                        // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
-                        let targetText = chapter.story.replace(/\|\s*\|/g, '|\n|');
+                        let targetText = this.healMarkdownTable(chapter.story);
                         storyHtml = window.marked.parse(targetText, { breaks: true });
                         storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                     }
