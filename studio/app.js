@@ -1365,71 +1365,119 @@ JSON Schema:
         if (!text || !text.includes('|')) return text;
 
         let healed = text;
-
-        // 0. 표의 마지막 데이터 행 뒤에 개행 없이 일반 지문 문장이 붙어 있는 경우 분리 (유저 스크린샷 케이스 방어)
-        // 예: "| 붉은 달의 약속 | 23:45 | 여유 | 나는 당신의..." -> "| 붉은 달의 약속 | 23:45 | 여유 |\n나는 당신의..."
-        healed = healed.replace(/(^[ \t]*\|.*\|)[ \t]*([^\n|]+)$/gm, '$1\n$2');
-
-        // 1. 일반 문장 바로 뒤에 표 헤더가 개행 없이 붙어 있는 첫 부분만 정교하게 분리 (줄 시작 기준 gm 플래그 사용)
+        
+        // 1. 일반 문장 바로 뒤에 표 헤더가 개행 없이 붙어 있는 첫 부분만 정교하게 분리
         // 예: "어떤 걸 볼까? | 영화명 |" -> "어떤 걸 볼까?\n| 영화명 |"
         healed = healed.replace(/(^[^\n|]+)\s*(\|[^|\n]+\|)/gm, '$1\n$2');
 
-        // 2. 뭉친 표(| |)에 줄바꿈 삽입하여 여러 행으로 분리 (개행 문자 \n 제외를 위해 [ \t] 사용)
-        healed = healed.replace(/\|[ \t]*\|/g, '|\n|');
+        // 2. 뭉친 표(| |)에 줄바꿈 삽입하여 여러 행으로 분리
+        healed = healed.replace(/\|\s*\|/g, '|\n|');
 
-        // 3. 줄 단위로 분석하며 표 영역 앞뒤에만 빈 줄(\n\n) 삽입 및 누락된 구분선 복구
         const lines = healed.split('\n');
         const resultLines = [];
         
         let inTable = false;
-        let tableRowCount = 0;
         let expectedCols = 0;
+        let expectedPipes = 0;
+        let tableRowCount = 0;
         let firstLineWasSeparator = false;
 
         for (let i = 0; i < lines.length; i++) {
-            const currentLine = lines[i];
-            const isCurrentTableRow = /^\s*\|.*\|\s*$/.test(currentLine);
+            let line = lines[i].trim();
+            
+            if (!line) {
+                if (inTable) {
+                    resultLines.push('');
+                    inTable = false;
+                    tableRowCount = 0;
+                }
+                resultLines.push('');
+                continue;
+            }
 
-            if (isCurrentTableRow) {
+            const pipeCount = (line.match(/\|/g) || []).length;
+            
+            // 파이프가 1개 이상 존재하면 기본적으로 표 행으로 의심 (단, 표 내부가 아닌데 양끝에 파이프가 없으면 무시)
+            let isTableRow = pipeCount > 0;
+            if (pipeCount === 1 && !line.startsWith('|') && !line.endsWith('|') && !inTable) {
+                isTableRow = false;
+            }
+
+            if (isTableRow) {
                 if (!inTable) {
-                    // 표 시작 전 빈 줄 삽입
-                    if (resultLines.length > 0 && resultLines[resultLines.length - 1].trim() !== '') {
+                    if (resultLines.length > 0 && resultLines[resultLines.length - 1] !== '') {
                         resultLines.push('');
                     }
                     inTable = true;
                     tableRowCount = 1;
-                    // 첫 줄의 컬럼 개수 파악 (|와 | 사이의 개수)
-                    const cols = currentLine.match(/\|/g);
-                    expectedCols = cols ? cols.length - 1 : 1;
-                    firstLineWasSeparator = /^\s*\|([\s:\-]*\|)+\s*$/.test(currentLine);
-                    resultLines.push(currentLine);
+                    
+                    // 첫 줄의 경우 파이프 개수 기준 설정
+                    expectedPipes = pipeCount;
+                    if (!line.startsWith('|')) expectedPipes++;
+                    if (!line.endsWith('|')) expectedPipes++;
+                    
+                    expectedCols = expectedPipes - 1;
+                    firstLineWasSeparator = /^\|?([\s:\-]*\|)+\s*$/.test(line);
+                    
+                    // 뒤에 텍스트가 붙은 경우 분리 (헤더)
+                    if (pipeCount >= 2 && !line.endsWith('|')) {
+                        let lastIdx = line.lastIndexOf('|');
+                        let suffix = line.substring(lastIdx + 1).trim();
+                        if (suffix) {
+                            line = line.substring(0, lastIdx + 1).trim();
+                        }
+                    }
+
+                    if (!line.startsWith('|')) line = '| ' + line;
+                    if (!line.endsWith('|')) line = line + ' |';
+                    
+                    resultLines.push(line);
                 } else {
                     tableRowCount++;
-                    // 표의 두 번째 줄인데 구분선(|---|)이 아닌 경우 삽입
+                    
                     if (tableRowCount === 2) {
-                        const isSeparator = /^\s*\|([\s:\-]*\|)+\s*$/.test(currentLine);
+                        const isSeparator = /^\|?([\s:\-]*\|)+\s*$/.test(line);
                         if (!firstLineWasSeparator && !isSeparator) {
-                            // 구분선 강제 생성
                             const sepLine = '|' + Array(Math.max(1, expectedCols)).fill('---').join('|') + '|';
                             resultLines.push(sepLine);
                         }
                     }
-                    resultLines.push(currentLine);
+                    
+                    let suffixText = "";
+                    // 현재 줄의 파이프 개수가 expectedPipes 이상인 경우, 마지막 파이프 뒤의 텍스트는 일반 텍스트(suffix)일 확률이 높음
+                    if (!line.endsWith('|')) {
+                        let effectivePipes = pipeCount;
+                        if (!line.startsWith('|')) effectivePipes++;
+                        
+                        if (effectivePipes >= expectedPipes) {
+                            let lastIdx = line.lastIndexOf('|');
+                            suffixText = line.substring(lastIdx + 1).trim();
+                            line = line.substring(0, lastIdx + 1).trim();
+                        }
+                    }
+
+                    if (!line.startsWith('|')) line = '| ' + line;
+                    if (!line.endsWith('|')) line = line + ' |';
+                    
+                    resultLines.push(line);
+                    
+                    if (suffixText) {
+                        resultLines.push('');
+                        resultLines.push(suffixText);
+                        inTable = false;
+                        tableRowCount = 0;
+                    }
                 }
             } else {
                 if (inTable) {
-                    // 표 종료 후 빈 줄 삽입
-                    if (currentLine.trim() !== '') {
-                        resultLines.push('');
-                    }
+                    resultLines.push('');
                     inTable = false;
                     tableRowCount = 0;
                 }
-                resultLines.push(currentLine);
+                resultLines.push(line);
             }
         }
 
-        // 만약 표가 단 1줄로 끝난 경우 (데이터 없이 헤더만 있는 경우) 구분선 추가
         if (inTable && tableRowCount === 1 && !firstLineWasSeparator) {
             const sepLine = '|' + Array(Math.max(1, expectedCols)).fill('---').join('|') + '|';
             resultLines.push(sepLine);
