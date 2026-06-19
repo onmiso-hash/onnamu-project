@@ -53,6 +53,9 @@ class ChronicleApp {
 
         // Fetch User Info
         this.fetchUserInfo();
+        
+        // Ensure Marked library is loaded for Markdown rendering
+        this.ensureMarkedLoaded();
     }
 
     initDOM() {
@@ -285,6 +288,37 @@ class ChronicleApp {
         if (this.chatTextarea) {
             this.chatTextarea.addEventListener('focus', () => this.handleVisibilitySync());
         }
+    }
+
+    async ensureMarkedLoaded() {
+        if (typeof marked !== 'undefined') return true;
+        
+        return new Promise((resolve) => {
+            console.warn("marked.js가 감지되지 않아 동적 로딩을 시도합니다.");
+            const script = document.createElement('script');
+            script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
+            script.onload = () => {
+                console.log("marked.js 동적 로드 완료");
+                resolve(true);
+            };
+            script.onerror = () => {
+                console.error("marked.js 동적 로드 실패");
+                resolve(false);
+            };
+            document.head.appendChild(script);
+        });
+    }
+
+    parseMarkdown(text) {
+        if (!text) return '';
+        const markedParser = typeof marked !== 'undefined' ? marked : (window.marked || null);
+        if (markedParser && typeof markedParser.parse === 'function') {
+            let targetText = this.healMarkdownTable(text);
+            let processed = markedParser.parse(targetText, { breaks: true });
+            processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+            return processed;
+        }
+        return text.replace(/\n/g, '<br>');
     }
 
     async fetchUserInfo() {
@@ -945,13 +979,7 @@ class ChronicleApp {
 
                                 const contentEl = document.createElement('div');
                                 contentEl.className = 'chapter-content';
-                                let storyHtml = chapter.story;
-                                if (window.marked) {
-                                    let targetText = this.healMarkdownTable(chapter.story);
-                                    storyHtml = window.marked.parse(targetText, { breaks: true });
-                                    storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
-                                }
-                                contentEl.innerHTML = storyHtml;
+                                contentEl.innerHTML = this.parseMarkdown(chapter.story);
                                 chapterEl.appendChild(contentEl);
                                 this.storyScrollArea.appendChild(chapterEl);
                             });
@@ -1293,11 +1321,8 @@ JSON Schema:
             // 마크다운 표, 코드블록, 이미지, 리스트 및 HTML 태그 감지용 정규식
             const hasSpecialFormats = /[#*_\`\[\]!|]/.test(fullText) || /<\/?[a-z][\s\S]*>/i.test(fullText);
             
-            if (hasSpecialFormats && window.marked) {
-                let targetText = this.healMarkdownTable(fullText);
-                let processed = window.marked.parse(targetText, { breaks: true });
-                processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
-                contentEl.innerHTML = processed;
+            if (hasSpecialFormats && (typeof marked !== 'undefined' || window.marked)) {
+                contentEl.innerHTML = this.parseMarkdown(fullText);
                 chapterEl.style.opacity = 1;
                 this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
                 resolve();
@@ -1420,14 +1445,7 @@ JSON Schema:
         const msgEl = document.createElement('div');
         msgEl.className = `${sender}-message chat-bubble-wrapper`;
         
-        let processedText = text;
-        if (window.marked) {
-            let targetText = this.healMarkdownTable(text);
-            processedText = window.marked.parse(targetText, { breaks: true });
-            processedText = processedText.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
-        } else {
-            processedText = `<p>${text.replace(/\n/g, '<br>')}</p>`;
-        }
+        let processedText = this.parseMarkdown(text);
         
         if (sender === 'ai') {
             msgEl.setAttribute('data-emotion', emotion);
@@ -1813,13 +1831,7 @@ JSON Schema:
 
                     const contentEl = document.createElement('div');
                     contentEl.className = 'chapter-content';
-                    let storyHtml = chapter.story;
-                    if (window.marked) {
-                        let targetText = this.healMarkdownTable(chapter.story);
-                        storyHtml = window.marked.parse(targetText, { breaks: true });
-                        storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
-                    }
-                    contentEl.innerHTML = storyHtml;
+                    contentEl.innerHTML = this.parseMarkdown(chapter.story);
                     chapterEl.appendChild(contentEl);
                     this.storyScrollArea.appendChild(chapterEl);
                 });
