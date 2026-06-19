@@ -75,10 +75,15 @@ app.get('/api/user-info', (req, res) => {
 
 // Proxy endpoint to bypass browser CORS limits when calling Gemini API
 app.post('/api/generate', async (req, res) => {
-    const { apiKey, prompt, systemInstruction, model, responseSchema } = req.body;
+    let { apiKey, prompt, systemInstruction, model, responseSchema } = req.body;
 
     if (!apiKey) {
         return res.status(400).json({ error: 'API Key가 누락되었습니다.' });
+    }
+
+    // [백엔드 강제 오버라이드] 프론트엔드 캐시에 구애받지 않고 무조건 줄바꿈을 강제하기 위한 시스템 프롬프트 주입
+    if (systemInstruction) {
+        systemInstruction += "\n\n[System Override]: JSON 구조 내의 dialogue 필드를 작성할 때, 가독성을 위해 문단을 나눌 지점에 실제 줄바꿈 문자 대신 특수 기호 [BR]을 반드시 2번 이상 적극적으로 삽입하여 문단을 확실히 나누어 주세요. (예: 안녕.[BR][BR]만나서 반가워.) 한 줄로만 뭉쳐서 대답하는 것을 엄격히 금지합니다. 표를 그릴 때도 각 행의 끝에 [BR]을 넣으세요.";
     }
 
     try {
@@ -167,7 +172,12 @@ app.post('/api/generate', async (req, res) => {
         
         try {
             // Parse and return back the structured story JSON object to the client
-            res.json(JSON.parse(jsonText));
+            let parsedJson = JSON.parse(jsonText);
+            if (parsedJson.dialogue) {
+                // 백엔드 단에서 [BR] 특수 기호를 완벽하게 파싱된 줄바꿈(\n\n)으로 변환
+                parsedJson.dialogue = parsedJson.dialogue.replace(/\[BR\]/g, '\n\n');
+            }
+            res.json(parsedJson);
         } catch (parseError) {
             console.error("[JSON Parse Error Output]:", jsonText);
             throw new Error("AI가 규격화된 JSON 양식을 출력하지 못했습니다. 다시 시도해 주세요.");
