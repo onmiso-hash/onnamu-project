@@ -313,6 +313,9 @@ class ChronicleApp {
         if (!text) return '';
         const markedParser = typeof marked !== 'undefined' ? marked : (window.marked || null);
         if (markedParser && typeof markedParser.parse === 'function') {
+            if (typeof markedParser.use === 'function') {
+                markedParser.use({ breaks: true });
+            }
             let targetText = this.healMarkdownTable(text);
             let processed = markedParser.parse(targetText, { breaks: true });
             processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
@@ -2594,7 +2597,7 @@ JSON Schema:
 
 규칙:
 1. 인물 [${this.chatCharName}]의 말투와 대사, 행동, 눈빛, 숨소리 등을 지문(*행동 지문*)과 대사를 혼합하여 아주 몰입감 있고 매혹적인 롤플레이 스타일로 답변해 주세요. (공백 제외 한글 250~450자 내외)
-2. 가독성을 위해 답변 내에 줄바꿈(개행)을 적극적으로 사용해 주세요. 특히 표(Table)를 그릴 때는 각 행마다 반드시 줄바꿈을 삽입하여 올바른 마크다운 표 규격을 엄격히 지켜야 합니다.
+2. 가독성을 위해 답변 내에 반드시 두 번의 줄바꿈(\\n\\n)을 사용하여 문단을 적극적으로 나누어 주세요. 대사가 길어지면 여러 문단으로 분리해야 합니다. 특히 표(Table)를 그릴 때는 각 행마다 반드시 줄바꿈을 삽입하여 올바른 마크다운 표 규격을 엄격히 지켜야 합니다.
 3. ${adultPromptRules}
 4. 유저의 입력([${actionText}])과 대화 기록을 바탕으로 유저에게 품은 호감도 변화 수치(affinityChange)를 -10에서 +10 사이의 정수로 연산하여 알려주세요. 유저가 무례하거나 냉대하면 마이너스, 다정하거나 자극적인 유혹에 넘어가면 플러스를 줍니다.
 5. 이번 턴의 대화 결과를 인물이 머릿속에 기억할 내용(memoryNotes)을 한 문장으로 간결하게 작성해 주세요 (예: "주인공이 나의 어깨를 감싸 안아서 당황했지만 기뻤음").
