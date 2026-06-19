@@ -943,9 +943,14 @@ class ChronicleApp {
                                     chapterEl.appendChild(decisionEl);
                                 }
 
-                                const contentEl = document.createElement('p');
+                                const contentEl = document.createElement('div');
                                 contentEl.className = 'chapter-content';
-                                contentEl.innerHTML = chapter.story;
+                                let storyHtml = chapter.story;
+                                if (window.marked) {
+                                    storyHtml = window.marked.parse(chapter.story, { breaks: true });
+                                    storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+                                }
+                                contentEl.innerHTML = storyHtml;
                                 chapterEl.appendChild(contentEl);
                                 this.storyScrollArea.appendChild(chapterEl);
                             });
@@ -1273,7 +1278,7 @@ JSON Schema:
                 chapterEl.appendChild(decisionEl);
             }
 
-            const contentEl = document.createElement('p');
+            const contentEl = document.createElement('div');
             contentEl.className = 'chapter-content';
             chapterEl.appendChild(contentEl);
             this.storyScrollArea.appendChild(chapterEl);
@@ -1283,6 +1288,20 @@ JSON Schema:
 
             // Character typewriter loop
             const fullText = chapterObj.story;
+            
+            // 마크다운 표, 코드블록, 이미지, 리스트 및 HTML 태그 감지용 정규식
+            const hasSpecialFormats = /[#*_\`\[\]!|]/.test(fullText) || /<\/?[a-z][\s\S]*>/i.test(fullText);
+            
+            if (hasSpecialFormats && window.marked) {
+                let processed = window.marked.parse(fullText, { breaks: true });
+                processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+                contentEl.innerHTML = processed;
+                chapterEl.style.opacity = 1;
+                this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
+                resolve();
+                return;
+            }
+
             let charIndex = 0;
             const speed = 25; // ms per character
 
@@ -1351,6 +1370,14 @@ JSON Schema:
         const msgEl = document.createElement('div');
         msgEl.className = `${sender}-message chat-bubble-wrapper`;
         
+        let processedText = text;
+        if (window.marked) {
+            processedText = window.marked.parse(text, { breaks: true });
+            processedText = processedText.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+        } else {
+            processedText = `<p>${text.replace(/\n/g, '<br>')}</p>`;
+        }
+        
         if (sender === 'ai') {
             msgEl.setAttribute('data-emotion', emotion);
             msgEl.style.cursor = 'pointer';
@@ -1377,7 +1404,7 @@ JSON Schema:
                 <div class="chat-message-content">
                     <span class="chat-sender-name">${this.chatCharName}</span>
                     <div class="chat-bubble">
-                        <p>${text}</p>
+                        ${processedText}
                     </div>
                 </div>
             `;
@@ -1385,13 +1412,13 @@ JSON Schema:
             msgEl.innerHTML = `
                 <div class="chat-message-content user-content">
                     <div class="chat-bubble user-bubble">
-                        <p>${text}</p>
+                        ${processedText}
                     </div>
                 </div>
             `;
         } else {
             msgEl.className = 'system-message';
-            msgEl.innerHTML = `<p><strong>시스템:</strong> ${text}</p>`;
+            msgEl.innerHTML = `<p><strong>시스템:</strong></p><div>${processedText}</div>`;
         }
         
         this.chatLogArea.appendChild(msgEl);
@@ -1733,9 +1760,14 @@ JSON Schema:
                         chapterEl.appendChild(decisionEl);
                     }
 
-                    const contentEl = document.createElement('p');
+                    const contentEl = document.createElement('div');
                     contentEl.className = 'chapter-content';
-                    contentEl.innerHTML = chapter.story;
+                    let storyHtml = chapter.story;
+                    if (window.marked) {
+                        storyHtml = window.marked.parse(chapter.story, { breaks: true });
+                        storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+                    }
+                    contentEl.innerHTML = storyHtml;
                     chapterEl.appendChild(contentEl);
                     this.storyScrollArea.appendChild(chapterEl);
                 });

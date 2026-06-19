@@ -1746,3 +1746,104 @@ select {
 
 /* End of stylesheet */
 
+/* Markdown rendering custom styles for .chat-bubble and .chapter-content */
+.chat-bubble table, .chapter-content table {
+    width: 100%;
+    min-width: 320px;
+    border-collapse: collapse;
+    margin: 0.8rem 0;
+    font-size: 0.82rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.chat-bubble th, .chat-bubble td,
+.chapter-content th, .chapter-content td {
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 8px 12px;
+    text-align: left;
+    color: inherit;
+}
+
+.chat-bubble th, .chapter-content th {
+    background: rgba(255, 255, 255, 0.08);
+    font-weight: 600;
+    color: var(--gold);
+}
+
+.chat-bubble tr:nth-child(even), .chapter-content tr:nth-child(even) {
+    background: rgba(255, 255, 255, 0.015);
+}
+
+/* AI Message Table Border Contrast (Dark Mode Match) */
+.ai-message .chat-bubble th, .ai-message .chat-bubble td {
+    border-color: rgba(180, 83, 9, 0.15);
+}
+.ai-message .chat-bubble th {
+    background: rgba(180, 83, 9, 0.08);
+}
+
+/* Horizontal scroll wrapper for tables */
+.chat-bubble-table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    margin: 0.8rem 0;
+    border-radius: 6px;
+    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Code block styles */
+.chat-bubble pre, .chapter-content pre {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0.8rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.8rem;
+    margin: 0.8rem 0;
+    color: #e2e8f0;
+}
+
+.chat-bubble code, .chapter-content code {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.82rem;
+    color: #f43f5e;
+}
+
+.chat-bubble pre code, .chapter-content pre code {
+    background: none;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
+}
+
+/* List styles */
+.chat-bubble ul, .chat-bubble ol,
+.chapter-content ul, .chapter-content ol {
+    padding-left: 1.5rem;
+    margin: 0.6rem 0;
+}
+
+.chat-bubble li, .chapter-content li {
+    margin-bottom: 0.35rem;
+    line-height: 1.5;
+}
+
+/* Embedded Image style */
+.chat-bubble img, .chapter-content img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 0.8rem 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+
