@@ -947,7 +947,9 @@ class ChronicleApp {
                                 contentEl.className = 'chapter-content';
                                 let storyHtml = chapter.story;
                                 if (window.marked) {
-                                    storyHtml = window.marked.parse(chapter.story, { breaks: true });
+                                    // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
+                                    let targetText = chapter.story.replace(/\|\s*\|/g, '|\n|');
+                                    storyHtml = window.marked.parse(targetText, { breaks: true });
                                     storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                                 }
                                 contentEl.innerHTML = storyHtml;
@@ -1293,7 +1295,9 @@ JSON Schema:
             const hasSpecialFormats = /[#*_\`\[\]!|]/.test(fullText) || /<\/?[a-z][\s\S]*>/i.test(fullText);
             
             if (hasSpecialFormats && window.marked) {
-                let processed = window.marked.parse(fullText, { breaks: true });
+                // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
+                let targetText = fullText.replace(/\|\s*\|/g, '|\n|');
+                let processed = window.marked.parse(targetText, { breaks: true });
                 processed = processed.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                 contentEl.innerHTML = processed;
                 chapterEl.style.opacity = 1;
@@ -1372,7 +1376,9 @@ JSON Schema:
         
         let processedText = text;
         if (window.marked) {
-            processedText = window.marked.parse(text, { breaks: true });
+            // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
+            let targetText = text.replace(/\|\s*\|/g, '|\n|');
+            processedText = window.marked.parse(targetText, { breaks: true });
             processedText = processedText.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
         } else {
             processedText = `<p>${text.replace(/\n/g, '<br>')}</p>`;
@@ -1764,7 +1770,9 @@ JSON Schema:
                     contentEl.className = 'chapter-content';
                     let storyHtml = chapter.story;
                     if (window.marked) {
-                        storyHtml = window.marked.parse(chapter.story, { breaks: true });
+                        // 제미나이가 JSON 상에서 한 줄로 보낸 표(| |)에 줄바꿈(\n) 복원
+                        let targetText = chapter.story.replace(/\|\s*\|/g, '|\n|');
+                        storyHtml = window.marked.parse(targetText, { breaks: true });
                         storyHtml = storyHtml.replace(/<table/g, '<div class="chat-bubble-table-wrapper"><table').replace(/<\/table>/g, '</table></div>');
                     }
                     contentEl.innerHTML = storyHtml;
@@ -2453,12 +2461,13 @@ JSON Schema:
 
 규칙:
 1. 인물 [${this.chatCharName}]의 말투와 대사, 행동, 눈빛, 숨소리 등을 지문(*행동 지문*)과 대사를 혼합하여 아주 몰입감 있고 매혹적인 롤플레이 스타일로 답변해 주세요. (공백 제외 한글 250~450자 내외)
-2. ${adultPromptRules}
-3. 유저의 입력([${actionText}])과 대화 기록을 바탕으로 유저에게 품은 호감도 변화 수치(affinityChange)를 -10에서 +10 사이의 정수로 연산하여 알려주세요. 유저가 무례하거나 냉대하면 마이너스, 다정하거나 자극적인 유혹에 넘어가면 플러스를 줍니다.
-4. 이번 턴의 대화 결과를 인물이 머릿속에 기억할 내용(memoryNotes)을 한 문장으로 간결하게 작성해 주세요 (예: "주인공이 나의 어깨를 감싸 안아서 당황했지만 기뻤음").
-5. 인물의 대사가 끝났을 때 유저가 대답할 수 있는 매력적이고 자연스러운 대화 대답 선택지 3가지를 배열로 구성해 주세요.
-6. 이번 대사에서 드러나는 인물의 주된 감정을 normal (평온), happy (기쁨), sad (슬픔), angry (화남), blush (부끄러움) 중 하나로 정확히 판별하여 emotion 필드에 지정해 주세요.
-7. 반드시 아래 명시된 JSON Schema 구조를 완전하게 만족하여 JSON 문자열로만 응답해 주세요. 마크다운 기호(\`\`\`json)는 절대 포함하지 마세요.
+2. 가독성을 위해 답변 내에 줄바꿈(개행)을 적극적으로 사용해 주세요. 특히 표(Table)를 그릴 때는 각 행마다 반드시 줄바꿈을 삽입하여 올바른 마크다운 표 규격을 엄격히 지켜야 합니다.
+3. ${adultPromptRules}
+4. 유저의 입력([${actionText}])과 대화 기록을 바탕으로 유저에게 품은 호감도 변화 수치(affinityChange)를 -10에서 +10 사이의 정수로 연산하여 알려주세요. 유저가 무례하거나 냉대하면 마이너스, 다정하거나 자극적인 유혹에 넘어가면 플러스를 줍니다.
+5. 이번 턴의 대화 결과를 인물이 머릿속에 기억할 내용(memoryNotes)을 한 문장으로 간결하게 작성해 주세요 (예: "주인공이 나의 어깨를 감싸 안아서 당황했지만 기뻤음").
+6. 인물의 대사가 끝났을 때 유저가 대답할 수 있는 매력적이고 자연스러운 대화 대답 선택지 3가지를 배열로 구성해 주세요.
+7. 이번 대사에서 드러나는 인물의 주된 감정을 normal (평온), happy (기쁨), sad (슬픔), angry (화남), blush (부끄러움) 중 하나로 정확히 판별하여 emotion 필드에 지정해 주세요.
+8. 반드시 아래 명시된 JSON Schema 구조를 완전하게 만족하여 JSON 문자열로만 응답해 주세요. 마크다운 기호(\`\`\`json)는 절대 포함하지 마세요.
 
 JSON Schema:
 {
