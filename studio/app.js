@@ -1335,17 +1335,95 @@ JSON Schema:
         });
     }
 
-    // 마크다운 표 앞뒤 개행 보정 및 한 줄 뭉침 오토 힐링 함수
+    // 모든 예외 경우의 수를 처리하는 범용 마크다운 표 표준화(Normalizer) 함수
     healMarkdownTable(text) {
         if (!text || !text.includes('|')) return text;
-        let healed = text;
-        // 1. 뭉친 표(| |)에 줄바꿈 삽입
-        healed = healed.replace(/\|\s*\|/g, '|\n|');
-        // 2. 표 시작 부분 앞에 빈 줄(\n\n) 보장 (일반 문자 바로 뒤에 표 헤더가 붙어 있는 경우)
-        healed = healed.replace(/([^\n|])\s*(\|\s*[^\n|]+\s*\|\s*[^\n|]+\s*\|)/g, '$1\n\n$2');
-        // 3. 표 끝부분 뒤에 빈 줄(\n\n) 보장 (표 행 바로 뒤에 일반 문자가 붙어 있는 경우)
-        healed = healed.replace(/(\|\s*[^\n|]+\s*\|\s*[^\n|]+\s*\|)\s*([^\n|])/g, '$1\n\n$2');
-        return healed;
+
+        // 1. 구분선 패턴(| :--- | 등)을 검색하여 표의 열(Column) 개수를 추정합니다.
+        const sepPattern = /\|\s*(?::?---*:?\s*\|)+/;
+        const match = text.match(sepPattern);
+        let colCount = 0;
+        
+        if (match) {
+            const sepStr = match[0];
+            colCount = (sepStr.match(/\|/g) || []).length - 1;
+        }
+
+        // 구분선이 없거나 열 개수 판별에 실패한 경우 기본 오토 힐링으로 백업
+        if (colCount <= 0) {
+            return text.replace(/\|\s*\|/g, '|\n|');
+        }
+
+        // 2. 파이프(|) 기준으로 데이터를 쪼개어 정밀 재조립 루프 수행
+        const parts = text.split('|');
+        const result = [];
+        let cellBuffer = [];
+        let inTableMode = false;
+
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i];
+            
+            // 첫 번째와 마지막 토큰은 표 외부의 일반 텍스트
+            if (i === 0) {
+                result.push(part);
+                continue;
+            }
+            if (i === parts.length - 1) {
+                if (inTableMode && cellBuffer.length > 0) {
+                    result.push('\n\n| ' + cellBuffer.join(' | ') + ' |\n\n');
+                }
+                result.push(part);
+                continue;
+            }
+
+            const cleanPart = part.trim();
+            const isSeparator = /^\s*:?---*:?\s*$/.test(cleanPart);
+            
+            // 표 헤더, 구분선, 혹은 데이터 셀이 이어지고 있는 상황
+            if (isSeparator || inTableMode || cellBuffer.length > 0) {
+                if (!inTableMode && !isSeparator) {
+                    // 표 영역이 시작되는 지점에 앞 문장이 있다면 강제 개행(\n\n) 확보
+                    if (result.length > 0 && !result[result.length - 1].endsWith('\n\n')) {
+                        result[result.length - 1] = result[result.length - 1].trim() + '\n\n';
+                    }
+                    inTableMode = true;
+                }
+                
+                cellBuffer.push(cleanPart);
+                
+                // 구분선이 들어왔는데 이전에 수집된 데이터가 있으면 그것을 헤더 행으로 강제 선조립
+                if (isSeparator && cellBuffer.length > 1) {
+                    const sepIndex = cellBuffer.length - 1;
+                    const headerCells = cellBuffer.slice(0, sepIndex);
+                    result.push('| ' + headerCells.join(' | ') + ' |\n');
+                    cellBuffer = cellBuffer.slice(sepIndex);
+                }
+
+                // 버퍼가 열 개수만큼 차오르면 하나의 온전한 행으로 조립 출력
+                if (cellBuffer.length === colCount) {
+                    result.push('| ' + cellBuffer.join(' | ') + ' |\n');
+                    cellBuffer = [];
+                }
+            } else {
+                // 표 영역이 끝났을 때의 처리
+                if (inTableMode) {
+                    if (cellBuffer.length > 0) {
+                        result.push('| ' + cellBuffer.join(' | ') + ' |\n');
+                        cellBuffer = [];
+                    }
+                    result.push('\n\n'); // 표 뒤 빈 줄 보장
+                    inTableMode = false;
+                }
+                result.push(part);
+            }
+        }
+
+        // 루프 종료 후 남은 잔여 버퍼 털기
+        if (cellBuffer.length > 0) {
+            result.push('| ' + cellBuffer.join(' | ') + ' |\n\n');
+        }
+
+        return result.join('');
     }
 
     // Action Cards Renderer
