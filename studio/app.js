@@ -1377,36 +1377,62 @@ JSON Schema:
         // 2. 뭉친 표(| |)에 줄바꿈 삽입하여 여러 행으로 분리 (개행 문자 \n 제외를 위해 [ \t] 사용)
         healed = healed.replace(/\|[ \t]*\|/g, '|\n|');
 
-        // 3. 줄 단위로 분석하며 표 영역 앞뒤에만 빈 줄(\n\n) 삽입 (파이프 기호 보존 및 오폭률 0%)
+        // 3. 줄 단위로 분석하며 표 영역 앞뒤에만 빈 줄(\n\n) 삽입 및 누락된 구분선 복구
         const lines = healed.split('\n');
         const resultLines = [];
+        
+        let inTable = false;
+        let tableRowCount = 0;
+        let expectedCols = 0;
+        let firstLineWasSeparator = false;
 
         for (let i = 0; i < lines.length; i++) {
             const currentLine = lines[i];
-            // 표의 행 판별 조건: 공백 제외 파이프(|)로 시작해 파이프(|)로 끝나는 온전한 행인지 검증
             const isCurrentTableRow = /^\s*\|.*\|\s*$/.test(currentLine);
 
             if (isCurrentTableRow) {
-                if (resultLines.length > 0) {
-                    const prevLine = resultLines[resultLines.length - 1];
-                    const isPrevTableRow = /^\s*\|.*\|\s*$/.test(prevLine);
-                    // 이전 줄이 표가 아니고 빈 줄도 아니었다면 표 시작 전에 빈 줄 삽입
-                    if (!isPrevTableRow && prevLine.trim() !== '') {
+                if (!inTable) {
+                    // 표 시작 전 빈 줄 삽입
+                    if (resultLines.length > 0 && resultLines[resultLines.length - 1].trim() !== '') {
                         resultLines.push('');
                     }
+                    inTable = true;
+                    tableRowCount = 1;
+                    // 첫 줄의 컬럼 개수 파악 (|와 | 사이의 개수)
+                    const cols = currentLine.match(/\|/g);
+                    expectedCols = cols ? cols.length - 1 : 1;
+                    firstLineWasSeparator = /^\s*\|([\s:\-]*\|)+\s*$/.test(currentLine);
+                    resultLines.push(currentLine);
+                } else {
+                    tableRowCount++;
+                    // 표의 두 번째 줄인데 구분선(|---|)이 아닌 경우 삽입
+                    if (tableRowCount === 2) {
+                        const isSeparator = /^\s*\|([\s:\-]*\|)+\s*$/.test(currentLine);
+                        if (!firstLineWasSeparator && !isSeparator) {
+                            // 구분선 강제 생성
+                            const sepLine = '|' + Array(Math.max(1, expectedCols)).fill('---').join('|') + '|';
+                            resultLines.push(sepLine);
+                        }
+                    }
+                    resultLines.push(currentLine);
                 }
-                resultLines.push(currentLine);
             } else {
-                if (resultLines.length > 0) {
-                    const prevLine = resultLines[resultLines.length - 1];
-                    const isPrevTableRow = /^\s*\|.*\|\s*$/.test(prevLine);
-                    // 이전 줄이 표였고 현재 줄이 빈 줄이 아니라면 표 종료 후 빈 줄 삽입
-                    if (isPrevTableRow && currentLine.trim() !== '') {
+                if (inTable) {
+                    // 표 종료 후 빈 줄 삽입
+                    if (currentLine.trim() !== '') {
                         resultLines.push('');
                     }
+                    inTable = false;
+                    tableRowCount = 0;
                 }
                 resultLines.push(currentLine);
             }
+        }
+
+        // 만약 표가 단 1줄로 끝난 경우 (데이터 없이 헤더만 있는 경우) 구분선 추가
+        if (inTable && tableRowCount === 1 && !firstLineWasSeparator) {
+            const sepLine = '|' + Array(Math.max(1, expectedCols)).fill('---').join('|') + '|';
+            resultLines.push(sepLine);
         }
 
         return resultLines.join('\n');
