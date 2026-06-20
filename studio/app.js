@@ -770,10 +770,22 @@ class ChronicleApp {
 
     // Main Studio Startup
     async startStudio() {
+        // 모드 전환(채팅 <-> 소설) 감지 시 기존 DOM 및 메모리 초기화
+        const newModeType = this.selectModeType.value;
+        if (this.modeType && this.modeType !== newModeType) {
+            this.storyHistory = [];
+            this.storyScrollArea.innerHTML = '';
+            this.memoryList = ["첫 대화가 시작되었습니다."];
+            this.dialogueVectors = [];
+            this.affinityValue = 50;
+            if (this.chatLogArea) this.chatLogArea.innerHTML = '';
+            if (this.choicesContainer) this.choicesContainer.innerHTML = '';
+        }
+
         // Read Settings
         this.apiKey = this.inputApiKey.value.trim();
         this.model = this.selectModel.value;
-        this.modeType = this.selectModeType.value;
+        this.modeType = newModeType;
 
         // API Key 누락 시 경고 메시지 띄우기 (오프라인 모드 안내)
         if (!this.apiKey) {
