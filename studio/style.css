@@ -1473,6 +1473,17 @@ select {
     font-size: 0.88rem;
     line-height: 1.6;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.chat-bubble p, .chapter-content p {
+    margin-top: 0;
+    margin-bottom: 0.6rem;
+}
+
+.chat-bubble p:last-child, .chapter-content p:last-child {
+    margin-bottom: 0;
 }
 
 .ai-message .chat-bubble {
