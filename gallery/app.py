@@ -1,4 +1,5 @@
 import os
+import subprocess
 import tempfile
 
 # 윈도우 마운트 대역(NTFS)에 임시 파일을 직접 적재하기 위해 rw 마운트된 public/videos/.temp 경로 강제 지정
@@ -488,21 +489,33 @@ def serve_thumbnail(folder, media_type, filename):
     original_path = MEDIA_ROOT / folder / media_type / filename
     if not original_path.exists():
         abort(404)
-    if media_type != "images":
-        return send_from_directory(str(original_path.parent), filename)
     thumb_dir = THUMBNAIL_DIR / folder / media_type
     thumb_dir.mkdir(parents=True, exist_ok=True)
     thumb_filename = f"{Path(filename).stem}_thumb.jpg"
     thumb_path = thumb_dir / thumb_filename
     if not thumb_path.exists():
-        try:
-            with Image.open(original_path) as img:
-                if img.mode in ("RGBA", "P"):
-                    img = img.convert('RGB')
-                img.thumbnail((400, 400))
-                img.save(thumb_path, format="JPEG", quality=80)
-        except Exception as e:
-            return send_from_directory(str(original_path.parent), filename)
+        if media_type == "images":
+            try:
+                with Image.open(original_path) as img:
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert('RGB')
+                    img.thumbnail((640, 360))
+                    img.save(thumb_path, format="JPEG", quality=82)
+            except Exception:
+                return send_from_directory(str(original_path.parent), filename)
+        else:
+            # ffmpeg으로 10초 지점 프레임 추출, 짧은 영상은 첫 프레임 fallback
+            for seek in ("10", "0"):
+                subprocess.run(
+                    ["ffmpeg", "-ss", seek, "-i", str(original_path),
+                     "-frames:v", "1", "-vf", "scale=640:-2",
+                     "-q:v", "3", str(thumb_path), "-y"],
+                    capture_output=True, timeout=60
+                )
+                if thumb_path.exists():
+                    break
+            if not thumb_path.exists():
+                abort(500)
     return send_from_directory(str(thumb_dir), thumb_filename)
 
 @app.route("/media/<folder>/<media_type>/<path:filename>")

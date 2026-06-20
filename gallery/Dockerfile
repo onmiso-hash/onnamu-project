@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# gunicorn 제거, Pillow(썸네일용)는 유지
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+
 RUN pip install --no-cache-dir \
     flask==3.0.0 \
     werkzeug==3.0.1 \
