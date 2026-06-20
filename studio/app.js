@@ -3553,6 +3553,9 @@ JSON Schema:
         
         // 대화 진행 중(active) 상태일 때만 서버로부터 최신 페르소나 정보를 머지
         if (localStorage.getItem('studio_active_state') === 'active') {
+            // 소설 모드일 경우 동기화 패스 (현재는 챗 모드만 서버 동기화 지원)
+            if (this.modeType !== 'chat') return;
+
             this.isSyncing = true;
             console.log("[Sync] Tab focused or Input clicked. Syncing with server...");
             
