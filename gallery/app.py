@@ -56,7 +56,7 @@ THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 def add_no_cache(response):
     # 미디어 파일 원본, 썸네일, 자막 등의 정적 미디어 요청은 10배 이상 부드러운 로딩과 서버 보호를 위해 극강의 30일 캐싱을 보장합니다.
     path = request.path.lower()
-    if any(keyword in path for keyword in ['/thumbnail', '/media', '/subtitles']) or path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mkv', '.mov', '.vtt', '.srt')):
+    if response.status_code < 400 and (any(keyword in path for keyword in ['/thumbnail', '/media', '/subtitles']) or path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mkv', '.mov', '.vtt', '.srt'))):
         # 썸네일 및 대용량 스트리밍 미디어는 30일(2592000초) 동안 절대 변하지 않는 자원(immutable)으로 강력 캐싱 지시
         response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
         if 'Pragma' in response.headers: del response.headers['Pragma']
@@ -505,17 +505,20 @@ def serve_thumbnail(folder, media_type, filename):
                 return send_from_directory(str(original_path.parent), filename)
         else:
             # ffmpeg으로 10초 지점 프레임 추출, 짧은 영상은 첫 프레임 fallback
+            # 동시 요청 시 같은 파일에 겹쳐 쓰지 않도록 임시 파일에 먼저 생성 후 원자적으로 교체
+            tmp_path = thumb_dir / f".{thumb_filename}.{os.getpid()}.tmp"
             for seek in ("10", "0"):
                 subprocess.run(
                     ["ffmpeg", "-ss", seek, "-i", str(original_path),
                      "-frames:v", "1", "-vf", "scale=640:-2",
-                     "-q:v", "3", str(thumb_path), "-y"],
+                     "-q:v", "3", str(tmp_path), "-y"],
                     capture_output=True, timeout=60
                 )
-                if thumb_path.exists():
+                if tmp_path.exists():
                     break
-            if not thumb_path.exists():
+            if not tmp_path.exists():
                 abort(500)
+            os.replace(tmp_path, thumb_path)
     return send_from_directory(str(thumb_dir), thumb_filename)
 
 @app.route("/media/<folder>/<media_type>/<path:filename>")
