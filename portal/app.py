@@ -218,6 +218,10 @@ HTML_TEMPLATE = """
                 <div class="service-icon">🤖</div>
                 <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p></div>
             </a>
+            <a href="/static/namu_guide.html" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🌳</div>
+                <div class="service-info"><h3>NAMU 안내서</h3><p>NAMU Agent User Guide</p></div>
+            </a>
             {% if is_admin %}
             <a href="https://studio.onnamu.kr" target="_blank" class="glass-card service-link">
                 <div class="service-icon">📖</div>
