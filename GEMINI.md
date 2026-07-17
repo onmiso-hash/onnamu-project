@@ -57,6 +57,7 @@
   4. **Goal-Driven Execution (목표 중심 실행)**: 성공적인 완료 기준을 사전에 확정하고 변경 사항의 작동 상태를 끝까지 자체 검증한 후 보고합니다.
 
 ## 📅 주요 히스토리
+- 2026-07-17: NAMU 원격 MCP 서버(`namu/`) 신규 서비스 배포 — GitHub 참조 빌드(namu-agent v0.1.25), namu.onnamu.kr→8765 라우팅, deploy.yml 자동 배포 편입. 상세 내용은 `history/TASK_20260717.md` 참조.
 - 2026-07-09: 영화관 썸네일 ffmpeg 전환(06-21) 버그 리뷰 — 3건 수정 (빈 img src, ffmpeg 캐시 원자적 쓰기, 썸네일 에러 응답 30일 캐싱 제외). 상세 내용은 `history/TASK_20260709.md` 참조.
 - 2026-06-21: 영화관 썸네일 ffmpeg JPG 정적 캐싱 전환, 히트맵 API 방식 수정, GitHub Actions SSH 키 인증 전환 및 타임아웃 연장. 상세 내용은 `history/TASK_20260621.md` 참조.
 - 2026-06-19: 안드레이 카파시 AI 코딩 4원칙을 작업 규칙(Conventions)에 공식 반영 및 통합. 상세 내용은 `history/KARPATHY_PRINCIPLES_GEMINI_20260619.md` 참조.

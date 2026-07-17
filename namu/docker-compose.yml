@@ -1,0 +1,18 @@
+services:
+  namu:
+    build:
+      context: https://github.com/onmiso-hash/namu-agent.git#v0.1.25
+      dockerfile: deploy/Dockerfile
+    container_name: namu-remote-mcp
+    ports:
+      - "8765:8765"
+    restart: always
+    environment:
+      - NAMU_SYNC_REMOTE=${NAMU_SYNC_REMOTE}
+      - NAMU_HTTP_PATH_SECRET=${NAMU_HTTP_PATH_SECRET}
+      - NAMU_HTTP_ALLOWED_HOSTS=namu.onnamu.kr
+    volumes:
+      - namu_data:/root/.namu
+
+volumes:
+  namu_data:

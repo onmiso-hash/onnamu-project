@@ -32,6 +32,7 @@ curl -s -X POST https://onnamu.kr/api/work/save \
 | Games | `games/` | Flask | 5005 |
 | Chronicle AI | `studio/` | Node.js/Express | 8080 |
 | RDAP | `rdap/` | FastAPI / Static | 5003–5004 |
+| NAMU MCP | `namu/` | Docker (GitHub 참조 빌드) | 8765 |
 
 외부: **Cloudflare Tunnel** (HTTPS). 환경변수: `gallery/.env` → 배포 시 각 서비스로 복사.
 SSO: HMAC-SHA256 서명 토큰 30일. 상세 인증 플로우 → `gallery/CLAUDE.md`.
