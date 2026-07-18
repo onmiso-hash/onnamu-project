@@ -1,7 +1,7 @@
 services:
   namu:
     # 이미지는 deploy.yml이 GitHub 참조 빌드로 생성 (compose의 Windows git URL 컨텍스트 버그 우회)
-    image: namu-remote-mcp:v0.1.26
+    image: namu-remote-mcp:v0.1.27
     container_name: namu-remote-mcp
     ports:
       - "8765:8765"
