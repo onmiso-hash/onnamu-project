@@ -57,7 +57,9 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
   git commit -m "NAMU 원격 MCP v<version> 승격 (namu-agent <기능요약> 반영)"
   git push origin main
   ```
-- 커밋 메시지 끝에 `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>` 포함.
+- 커밋 메시지 끝에 `Co-Authored-By: Claude <현재 모델명> <noreply@anthropic.com>` 포함.
+  모델명은 **지금 실행 중인 자기 모델**을 쓴다(예: `Claude Opus 5`). 특정 버전을 적어두면
+  모델이 바뀔 때마다 문서가 어긋나므로 고정하지 않는다.
 
 ### 7. 배포 확인
 - 미니PC deploy.yml이 새 태그로 재빌드(약 1분). `git reset --hard origin/main` 후
