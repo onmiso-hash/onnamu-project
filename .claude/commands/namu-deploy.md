@@ -64,8 +64,19 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
   `docker build ... namu-agent.git#v<version>` → `compose up -d`.
 - `curl -s -o /dev/null -w "%{http_code}" https://namu.onnamu.kr/`가 **404면 정상**
   (비밀 경로 전용, 502/타임아웃이 아니면 컨테이너 생존).
-- 원격에서 이미지 스왑 100% 확증은 불가함을 명시. 확증하려면 미니PC
-  `C:\Users\onmis\project\deploy.log`에서 `Successfully tagged namu-remote-mcp:v<version>` 확인 안내.
+- 원격에서 이미지 스왑 100% 확증은 불가함을 명시. 확증은 미니PC에서만 가능하므로
+  **사용자에게 미니PC(Chrome Remote Desktop)에 접속 중인지 먼저 묻고**, 접속했다면 아래 두 줄을
+  복붙하도록 안내한다:
+  ```powershell
+  Get-Content C:\Users\onmis\project\deploy.log -Encoding UTF8 | Select-String "namu-remote-mcp:v0.1"
+  docker inspect -f '{{.Config.Image}}' namu-remote-mcp
+  ```
+  - **`Successfully tagged`를 찾지 말 것.** deploy.yml은 NAMU 빌드 전에 `DOCKER_BUILDKIT=0`을
+    설정하지 않으므로(그 설정은 Studio 직전에만 있음) BuildKit이 쓰이고, 로그에는
+    `#NN naming to docker.io/library/namu-remote-mcp:v<version> ... done`으로 찍힌다
+    (2026-07-25 v0.1.34 실측). 태그 문자열로 검색해야 두 빌더 모두 잡힌다.
+  - **결정적 증거는 `docker inspect`의 실행 중 이미지**다. 로그는 "빌드했다"까지만 말하고
+    컨테이너가 실제로 새 이미지로 교체됐는지는 말해주지 않는다.
 - 히트맵은 이 머신에 `gallery/.env`가 없어 deploy.yml 자동 기록에 위임(수동 기록 불필요).
 
 ## 완료 보고
