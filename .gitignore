@@ -17,3 +17,7 @@ save_cap.ps1
 *.js_utf8.js
 rdap/bootstrap_server/data/
 portal/data/
+
+# 로컬 실행 부산물 (저장소 대상 아님)
+/db/
+/data/
