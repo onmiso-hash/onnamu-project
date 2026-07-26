@@ -9,9 +9,9 @@ services:
       - "8770:8770"
     restart: always
     environment:
-      # 시작 시 entrypoint가 이 remote로 namu-cloud-memory를 clone/pull한다.
-      - NAMU_STORE_REMOTE=${NAMU_STORE_REMOTE}
-      # STORE clone 경로 = 사용자 디렉토리(users/<키>/)의 부모. 볼륨에 영속화.
+      # 사용자별 저장소 사본이 쌓이는 볼륨 폴더(users/<키>/). git 작업 트리가 아니다
+      # — v0.1.7부터 나무 소유 STORE 저장소는 폐기됐고(NAMU_STORE_REMOTE도 제거),
+      # 기억의 원본은 각 사용자 본인의 GitHub repo다.
       - NAMU_STORE_ROOT=/root/.namu-store
       # URL 경로 시크릿(/mcp/<secret>). claude.ai 웹 커넥터는 임의 헤더를 못 넣어
       # 개인용 namu처럼 시크릿을 URL 경로에 실어 인증한다(헤더 불필요). repo에선
@@ -19,8 +19,28 @@ services:
       - NAMU_HTTP_PATH_SECRET=${NAMU_CLOUD_PATH_SECRET}
       # 터널 경유 Host 헤더 허용(미설정 시 421 Misdirected Request로 거부됨).
       - NAMU_HTTP_ALLOWED_HOSTS=namu-cloud.onnamu.kr
+      # --- 신원 계층(v0.1.7, namu-58) ---------------------------------------
+      # 아래 5종은 .env에 값이 있어도 이 블록에 적지 않으면 컨테이너에 들어가지
+      # 않는다(compose는 .env를 ${} 치환에만 쓴다). 누락 시 /auth/github/login이
+      # RuntimeError로 500을 낸다 — 실측으로 확인된 갭이라 여기 명시한다.
+      - NAMU_GITHUB_APP_ID=${NAMU_GITHUB_APP_ID}
+      - NAMU_GITHUB_CLIENT_ID=${NAMU_GITHUB_CLIENT_ID}
+      - NAMU_GITHUB_CLIENT_SECRET=${NAMU_GITHUB_CLIENT_SECRET}
+      # 개인키 .pem 전체를 base64 한 줄로 접어 넣는다(.env가 여러 줄 값을 못 담음).
+      #   base64 -w0 namu-memory-app.private-key.pem
+      - NAMU_GITHUB_APP_PRIVATE_KEY=${NAMU_GITHUB_APP_PRIVATE_KEY}
+      # 쿠키(state/session)·select-repo 링크 서명 키. NAMU_CLOUD_PATH_SECRET과
+      # 다른 값이어야 한다(수명 주기가 달라 하나를 교체하면 다른 하나가 함께 끊긴다).
+      - NAMU_SESSION_SECRET=${NAMU_SESSION_SECRET}
+      # 가입자 장부(user_key ↔ github_id ↔ 설치/repo). NAMU_STORE_ROOT **바깥**의
+      # 전용 볼륨에 둔다 — 안쪽에 두면 사용자 저장소로 push될 때 가입자 명단이
+      # 함께 커밋된다. 별도 볼륨이라 재배포에도 살아남는다(컨테이너 FS면 매 배포
+      # 마다 모든 사용자의 연결이 사라진다).
+      - NAMU_IDENTITY_DB_PATH=/root/.namu-identity/identity.db
     volumes:
       - namu_cloud_store:/root/.namu-store
+      - namu_cloud_identity:/root/.namu-identity
 
 volumes:
   namu_cloud_store:
+  namu_cloud_identity:
