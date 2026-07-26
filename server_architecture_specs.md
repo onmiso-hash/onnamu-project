@@ -30,7 +30,7 @@
 | **`rdap-bootstrap`** | `rdap-bootstrap-server` | `0.0.0.0:5004` | `8000` | IANA 동기화 bootstrap RDAP 리다이렉터 |
 | **`my-rdap`** | `rdap-my-rdap` | `0.0.0.0:5003` | `80` | RDAP 다국어 웹 클라이언트 및 대시보드 |
 | **`namu-remote-mcp`** | `namu-namu` (GitHub 참조 빌드) | `0.0.0.0:8765` | `8765` | NAMU 원격 MCP 서버 (웹 Claude 커넥터용, `namu_data` 볼륨에 `~/.namu` 영속화) |
-| **`namu-cloud-routing`** | `namu-cloud-routing:v0.1.6` (clone --recurse-submodules 로컬 빌드) | `0.0.0.0:8770` | `8770` | NAMU 공용 라우팅 MCP 서버 (`?user=<키>` per-user 격리, `namu_cloud_store` 볼륨에 STORE clone 영속화) |
+| **`namu-cloud-routing`** | `namu-cloud-routing:v0.1.7` (clone --recurse-submodules 로컬 빌드) | `0.0.0.0:8770` | `8770` | NAMU 공용 라우팅 MCP 서버 (`?user=<키>` per-user 격리, `namu_cloud_store` 볼륨에 STORE clone 영속화) |
 | **`n8n`** | `n8nio/n8n` | `0.0.0.0:5678` | `5678` | 워크플로우 및 텔레그램 모니터링 자동화 봇 |
 | **`cloudflared`** | `cloudflare/cloudflared` | 없음 (아웃바운드 터널) | - | Cloudflare Zero Trust 보안 터널링 데몬 |
 
