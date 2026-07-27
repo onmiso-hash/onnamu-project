@@ -30,7 +30,7 @@
 | **`rdap-bootstrap`** | `rdap-bootstrap-server` | `0.0.0.0:5004` | `8000` | IANA 동기화 bootstrap RDAP 리다이렉터 |
 | **`my-rdap`** | `rdap-my-rdap` | `0.0.0.0:5003` | `80` | RDAP 다국어 웹 클라이언트 및 대시보드 |
 | **`namu-remote-mcp`** | `namu-namu` (GitHub 참조 빌드) | `0.0.0.0:8765` | `8765` | NAMU 원격 MCP 서버 (웹 Claude 커넥터용, `namu_data` 볼륨에 `~/.namu` 영속화) |
-| **`namu-cloud-routing`** | `namu-cloud-routing:v0.1.11` (clone --recurse-submodules 로컬 빌드) | `0.0.0.0:8770` | `8770` | NAMU 공용 라우팅 MCP 서버 (v0.1.11부터 접속 주소가 `/mcp/<사용자별 열쇠>` — 열쇠 자체가 신원이고 `?user=`는 서버가 덮어쓴다. 전원 공용 `NAMU_HTTP_PATH_SECRET`은 폐기. `namu_cloud_store` 볼륨에 사용자별 저장소 사본 / `namu_cloud_identity` 볼륨에 가입자 장부 `identity.db` 영속화, `/auth/github/*` 웹 로그인 후 완료 화면이 접속 주소 발급) |
+| **`namu-cloud-routing`** | `namu-cloud-routing:v0.1.12` (clone --recurse-submodules 로컬 빌드) | `0.0.0.0:8770` | `8770` | NAMU 공용 라우팅 MCP 서버 (v0.1.11부터 접속 주소가 `/mcp/<사용자별 열쇠>` — 열쇠 자체가 신원이고 `?user=`는 서버가 덮어쓴다. 전원 공용 `NAMU_HTTP_PATH_SECRET`은 폐기. `namu_cloud_store` 볼륨에 사용자별 저장소 사본 / `namu_cloud_identity` 볼륨에 가입자 장부 `identity.db` 영속화, `/auth/github/*` 웹 로그인 후 완료 화면이 접속 주소 발급) |
 | **`n8n`** | `n8nio/n8n` | `0.0.0.0:5678` | `5678` | 워크플로우 및 텔레그램 모니터링 자동화 봇 |
 | **`cloudflared`** | `cloudflare/cloudflared` | 없음 (아웃바운드 터널) | - | Cloudflare Zero Trust 보안 터널링 데몬 |
 
