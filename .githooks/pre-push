@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# push 직전에 도는 검사. 실패하면 push가 중단된다.
+# 설치: git config core.hooksPath .githooks   (클론마다 한 번)
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+if [ -x "$ROOT/scripts/check_cloud_core_pin.sh" ]; then
+  "$ROOT/scripts/check_cloud_core_pin.sh" || exit 1
+fi
+
+exit 0

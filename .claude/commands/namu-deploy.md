@@ -105,5 +105,50 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
     컨테이너가 실제로 새 이미지로 교체됐는지는 말해주지 않는다.
 - 히트맵은 이 머신에 `gallery/.env`가 없어 deploy.yml 자동 기록에 위임(수동 기록 불필요).
 
+---
+
+## 부록 — 클라우드 라우팅(namu-cloud.onnamu.kr) 배포
+
+위 절차는 **개인용** 원격 MCP(namu.onnamu.kr) 것이다. 공용 클라우드는 다른 저장소
+(`onmiso-hash/namu-cloud-routing`)이고 배포 방식도 다르다 — 그쪽은 **서브모듈을 품은
+로컬 빌드**라 `#tag` 참조 빌드가 안 된다.
+
+### C1. 착수 전 — 안쪽 엔진 검사 (가장 중요)
+클라우드는 기억 엔진(`vendor/namu-agent`)을 **통째로 품고** 배포된다. 바깥 버전을
+올려도 안쪽은 따라오지 않는다. 2026-07-31에 이걸 놓쳐 v0.1.13이 2주 묵은 코어
+(v0.1.29)를 실은 채 라이브로 나갔고, 클라우드로 저장한 기억에 3층 칸이 생기지 않았다.
+
+```bash
+./scripts/check_cloud_core_pin.sh
+```
+- 이 검사는 **push 직전 자동으로도 돈다**(`.githooks/pre-push`). 설치는 클론마다 한 번:
+  `git config core.hooksPath .githooks`
+- 판정: 클라우드 태그가 품은 코어 버전 >= 개인용 서버 코어 버전. 낮으면 **push 차단**.
+- 오프라인·클론 없음이면 조용히 통과한다(검사기 사정으로 사용자를 막지 않는다).
+- **주의**: `git tag --contains <커밋>`은 그 커밋을 품은 꼬리표를 **전부** 준다. 옛 커밋도
+  최신 꼬리표에 들어 있으므로 **맨 앞(sort -V | head -1)**을 골라야 한다. 맨 뒤를 고르면
+  검사가 통째로 무력해진다(2026-07-31 실측으로 발견).
+
+### C2. 번호 치환 — 네 자리
+`grep -rn "v0\.1\.[0-9]"`로 찾는다. onnamu-project엔 서브모듈이 없으므로
+`git submodule` 명령으로 찾지 말 것.
+1. `.github/workflows/deploy.yml` — `clone --recurse-submodules --branch v<X>`
+2. `.github/workflows/deploy.yml` — `-t namu-cloud-routing:v<X>` (같은 줄)
+3. `namu-cloud/docker-compose.yml` — `image: namu-cloud-routing:v<X>`
+4. `server_architecture_specs.md` 사양표
+
+치환 후 **옛 번호 잔존 0건**을 다시 센다. 단, `server_architecture_specs.md`에는
+`"v0.1.11부터 접속 주소가 …"` 같은 **연혁 서술**이 섞여 있으니 전역 치환 금지 —
+남은 건수가 의도적으로 남긴 것인지 확인한다.
+
+### C3. 배포 확인 — 화면이 아니라 저장된 파일로
+- 대문(`/`)은 **원래 없는 주소**라 404가 정상이다. 사용자에게 도메인만 주지 말 것 —
+  입구는 `https://namu-cloud.onnamu.kr/auth/github/login` 하나다.
+- 내 페이지(`/auth/me`)는 로그인 필수(401). curl로는 버전 판정이 불가능하므로
+  **새 버전에만 있는 동작**을 사용자가 브라우저로 확인한다.
+- 기억 저장 기능을 고쳤다면 **사용자 저장소(`onmiso-hash/namu-memory`)를 직접 열어
+  저장된 항목의 칸 구성을 본다.** 화면이나 AI의 자기보고를 증거로 삼지 말 것 —
+  "도착했는가"와 "올바른 모양인가"는 다른 질문이다.
+
 ## 완료 보고
 "완료되었습니다" 대신 **"수정을 완료했으며 확인이 필요합니다"** 형식으로, 단계별 ✅/한계를 표로 보고한다.
