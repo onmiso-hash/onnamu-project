@@ -7,7 +7,14 @@
 # 결과: 클라우드로 저장한 기억에 3층(summary/reason/body) 칸이 생기지 않았다.
 # 사람의 기억에 의존하는 확인은 이미 한 번 실패했으므로 여기서 막는다.
 #
-# 판정: 클라우드 태그가 품은 코어 버전 >= 개인용 원격 MCP가 쓰는 코어 버전.
+# 판정(두 갈래):
+#  (A) 이 푸시가 클라우드 번호 자체를 올리는 경우 — 품은 코어가 namu-agent의
+#      **가장 최신 꼬리표**와 같아야 한다. 잣대를 '개인용 서버가 지금 쓰는 번호'로
+#      두면, 개인용이 뒤처져 있을 때 클라우드도 함께 뒤처진 채 통과한다.
+#      2026-08-01 실측: 개인용 v0.1.43 / 클라우드 엔진 v0.1.45 / 실제 최신 0.1.47
+#      → 옛 판정은 "통과"였다. 새 판을 올리는 그 순간이 최신을 요구할 유일한 시점이다.
+#  (B) 클라우드 번호를 건드리지 않는 푸시 — 옛 판정(클라우드 엔진 >= 개인용 코어)만
+#      본다. 무관한 작업까지 막지 않기 위해서다.
 # 낮으면 exit 1(푸시 차단). 확인 자체가 불가능하면(오프라인·클론 없음) exit 0으로
 # 조용히 넘어간다 — 검사기 사정으로 사용자의 푸시를 막지는 않는다.
 
@@ -62,10 +69,27 @@ PIN="$(git -C "$ROUTING_DIR" ls-tree "$CLOUD_TAG" vendor/namu-agent 2>/dev/null 
 ENGINE="$(git -C "$AGENT_DIR" tag --contains "$PIN" 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | head -1)"
 [ -n "$ENGINE" ] || block "$CLOUD_TAG 가 품은 엔진 커밋(${PIN:0:8})이 어느 버전인지 확인되지 않습니다."
 
-OLDEST="$(printf '%s\n%s\n' "$ENGINE" "$CORE_TAG" | sort -V | head -1)"
-if [ "$ENGINE" != "$CORE_TAG" ] && [ "$OLDEST" = "$ENGINE" ]; then
+older() { printf '%s\n%s\n' "$1" "$2" | sort -V | head -1; }
+
+# 이 푸시가 클라우드 번호를 올리는가(작업 트리 값 vs 깃허브 main 값).
+PREV_CLOUD="$(git -C "$ROOT" show origin/main:namu-cloud/docker-compose.yml 2>/dev/null \
+  | grep -oE 'namu-cloud-routing:v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | cut -d: -f2)"
+
+if [ "$CLOUD_TAG" != "$PREV_CLOUD" ]; then
+  # (A) 새 판을 올리는 중 — 잣대는 namu-agent의 가장 최신 꼬리표다.
+  LATEST="$(git -C "$AGENT_DIR" tag -l 2>/dev/null | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)"
+  [ -n "$LATEST" ] || skip "namu-agent 꼬리표를 읽지 못함"
+  if [ "$ENGINE" != "$LATEST" ] && [ "$(older "$ENGINE" "$LATEST")" = "$ENGINE" ]; then
+    block "$CLOUD_TAG 가 품은 엔진은 $ENGINE 인데, 나무 본체의 최신 꼬리표는 $LATEST 입니다."
+  fi
+  echo "[클라우드 엔진 검사] 통과 — $CLOUD_TAG 가 품은 엔진 $ENGINE (본체 최신 $LATEST)"
+  exit 0
+fi
+
+# (B) 클라우드 번호는 그대로 — 옛 판정만 본다.
+if [ "$ENGINE" != "$CORE_TAG" ] && [ "$(older "$ENGINE" "$CORE_TAG")" = "$ENGINE" ]; then
   block "$CLOUD_TAG 가 품은 엔진은 $ENGINE 인데, 개인용 서버는 $CORE_TAG 를 씁니다."
 fi
 
-echo "[클라우드 엔진 검사] 통과 — $CLOUD_TAG 가 품은 엔진 $ENGINE (개인용 $CORE_TAG)"
+echo "[클라우드 엔진 검사] 통과 — $CLOUD_TAG 가 품은 엔진 $ENGINE (개인용 $CORE_TAG, 클라우드 번호 변경 없음)"
 exit 0
