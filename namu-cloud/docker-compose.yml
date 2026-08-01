@@ -3,7 +3,7 @@ services:
     # 이미지는 deploy.yml이 clone --recurse-submodules 후 로컬 빌드로 생성한다.
     # 개인용 namu(#tag 원URL 빌드)와 달리 서브모듈 vendor/namu-agent가 필요해
     # '#tag' 컨텍스트로는 서브모듈이 누락된다 — 로컬 빌드 방식이 강제된다.
-    image: namu-cloud-routing:v0.1.17
+    image: namu-cloud-routing:v0.1.18
     container_name: namu-cloud-routing
     ports:
       - "8770:8770"
