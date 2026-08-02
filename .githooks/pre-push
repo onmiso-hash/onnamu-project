@@ -9,4 +9,8 @@ if [ -x "$ROOT/scripts/check_cloud_core_pin.sh" ]; then
   "$ROOT/scripts/check_cloud_core_pin.sh" || exit 1
 fi
 
+if [ -x "$ROOT/scripts/check_core_pin.sh" ]; then
+  "$ROOT/scripts/check_core_pin.sh" || exit 1
+fi
+
 exit 0
