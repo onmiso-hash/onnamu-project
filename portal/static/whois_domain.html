@@ -122,7 +122,7 @@ function xmlToString(xmlData) {
 	<!-- 본문 -->
 	<section id="contents" style="padding:0px 100px;min-width:1000px">
 		<div style="width:100%;height:50px;font-weight:bold;font-size:1.2rem;background-color:rgba(0, 0, 0, 0.18);padding:8px 15px;color:white;">
-			<p>도메인 만료일자 조회 하기</p>
+			<p>WHOIS OpenAPI 조회 하기</p>
 		</div>
 		<div style="width:100%;height:80%;background-color:white;padding:20px 30px;">
 			<div style="width:100%;height:40px;">
@@ -133,7 +133,7 @@ function xmlToString(xmlData) {
 				<div></div>
 			</div>
 			<div style="width:100%;height:40px;margin-top:6px;">
-				<div style="float:left;width:130px;height:40px;background-color:#108040;color:white;padding:6px;10px;font-size:1.1rem;font-weight:bold;text-align:center;">도메인 이름</div>
+				<div style="float:left;width:130px;height:40px;background-color:#108040;color:white;padding:6px;10px;font-size:1.1rem;font-weight:bold;text-align:center;">조회 대상</div>
 				<div style="float:left;width:400px;height:40px;">
 					<input type="text" name="query" id="query" value="" style="width:400px;height:100%;font-weight:bold;font-size:13pt;"/>
 				</div>
@@ -193,14 +193,14 @@ function xmlToString(xmlData) {
 			</div>
 
 			<div id="api_response" style="width:100%;height:100%;margin-top:6px;display:none;">
-				<table  style="width:100%">
+				<table  style="width:100%;table-layout:fixed;">
 					<thead>
 
 					</thead>
 					<tbody>
 						<tr>
 							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">API 응답</th>
-							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><pre id="resStr"></pre></td>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;max-width:0;"><pre id="resStr" style="margin:0;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;"></pre></td>
 						</tr>
 					</tbody>
 				</table>
