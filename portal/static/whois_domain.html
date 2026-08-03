@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8"/>
+	<title>WHOIS Open API 실습 - 도메인 만료일자 조회</title>
+	<link rel="stylesheet" href="https://fonts.googleapis.com/earlyaccess/nanumgothic.css">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.3.1/dist/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+	<link rel="stylesheet" href="https://code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+	<script src="https://code.jquery.com/jquery.min.js"></script>
+	<script src="https://code.jquery.com/ui/1.11.4/jquery-ui.min.js"></script>
+
+<script type="text/javascript">
+$(document).ready(function(){
+
+	$(document).ajaxStart(function() {
+		$('#loading').show();
+	}).ajaxStop(function(){
+		$('#loading').hide();
+	});
+
+	$('#search').bind('click', function(){
+		//console.log('click');
+		$('#result').hide();
+		$('#success_result').hide();
+		$('#api_response').hide();
+		getDomainInfo();
+	});
+
+	$(document).keyup(function(event){
+		//Enter 처리
+		if(event.keyCode == '13') $('#search').click();
+	});
+});
+function getDomainInfo(){
+	init();
+	var service_key = $('#service_key').val();
+	var query	    = $('#query').val();
+	var answer      = $('input[name="answer"]:checked').val();
+	var url = "/api/whois/domain"; /*포털 중계 경로 (공공데이터 포털은 브라우저 직접 호출을 403으로 거절)*/
+
+	$.ajax({
+		dataType: answer,
+		url: url,
+		data: { serviceKey: service_key, query: query, answer: answer  },
+		success: function(res){
+			if(answer == "json"){
+				$('#result_code').text(res.response.result.result_code);
+				$('#result_msg').text(res.response.result.result_msg);
+				var resultCode = $('#result_code').text();
+				//alert("json resultCode:"+resultCode);
+				if(resultCode == '10000') {
+					$('#endDate').text(res.response.whois.krdomain.endDate);
+					$('#domain_name').text(res.response.whois.krdomain.name);
+				}
+
+				$('#resStr').text(JSON.stringify(res, null, 2));
+				//$('#resStr').text(JSON.stringify(res));
+			}
+			else{
+				$('#result_code').text($(res).find('result_code').text());
+				$('#result_msg').text($(res).find('result_msg').text());
+				$('#domain_name').text($(res).find('name').text());
+				$('#endDate').text($(res).find('endDate').text());
+				console.log("endDate:"+$(res).find('endDate').text());
+				//$('#resStr').text($(res).text());
+				$('#resStr').text(xmlToString(res));
+			}
+			
+			$('#result').show();
+			var resultCode = $('#result_code').text();
+			//alert("resultCode:"+resultCode);
+			if(resultCode == '10000') $('#success_result').show();
+			$('#api_response').show();
+		},
+		error: function(request, status, error){
+			alert("--------------------- error ---------------");
+			alert("code : "+request.status+"\n"+"message : "+request.responseText+"\n"+"error : "+error);
+			console.log("error : "+error);
+		}		
+
+	});
+}
+
+function init(){
+	// result div 숨김
+	$('#result').hide();
+	$('#success_result').hide();
+	$('#api_response').hide();
+	// 텍스트 필드 초기화
+	$('#result_code').text("");
+	$('#result_msg').text("");
+	$('#domain_name').text("");
+	$('#end_date').text("");
+	$('#resStr').text("");
+}
+
+function xmlToString(xmlData) {
+	var xmlString;
+	//IE
+	 if (window.ActiveXObject){
+		xmlString = xmlData.xml;
+	}// code for Mozilla, Firefox, Opera, etc.
+	else{
+		xmlString = (new XMLSerializer()).serializeToString(xmlData);
+		//xmlString = JSON.stringify(xmlData, null, 2);
+	}
+	return xmlString;
+}
+
+</script>
+</head>
+<body style="background-color:#0769ad;font-family:'Nanum Gothic';">
+	
+	<!--head -->
+	<section id="head" style="">
+		<div style="width:100%;height:40px;background-color:black;"></div>
+		<div style="width:100%;heigjt:80px;color:white;font-weight:bold;font-size:3.1rem;padding:30px 100px;">
+			<p>WHOIS Open API 실습</p>
+		</div>
+	</section>
+
+	<!-- 본문 -->
+	<section id="contents" style="padding:0px 100px;min-width:1000px">
+		<div style="width:100%;height:50px;font-weight:bold;font-size:1.2rem;background-color:rgba(0, 0, 0, 0.18);padding:8px 15px;color:white;">
+			<p>도메인 만료일자 조회 하기</p>
+		</div>
+		<div style="width:100%;height:80%;background-color:white;padding:20px 30px;">
+			<div style="width:100%;height:40px;">
+				<div style="float:left;width:130px;height:40px;background-color:#108040;color:white;padding:6px;10px;font-size:1.1rem;font-weight:bold;text-align:center;">Service Key</div>
+				<div style="float:left;width:600px;height:40px;">
+					<input type="text" name="service_key" id="service_key" value="xUCrnRQSS+QwgLgpE/jLc5mAyVcPCl4LbN/h02aX8XQlnwWpH2QrVdDD2aDN6oqY0NmrjyyhlLkqvgLTJfPDWg==" style="width:600px;height:100%;font-weight:bold;font-size:13pt;"/>
+				</div>
+				<div></div>
+			</div>
+			<div style="width:100%;height:40px;margin-top:6px;">
+				<div style="float:left;width:130px;height:40px;background-color:#108040;color:white;padding:6px;10px;font-size:1.1rem;font-weight:bold;text-align:center;">도메인 이름</div>
+				<div style="float:left;width:400px;height:40px;">
+					<input type="text" name="query" id="query" value="" style="width:400px;height:100%;font-weight:bold;font-size:13pt;"/>
+				</div>
+				<div></div>
+			</div>
+			<div style="width:100%;height:40px;margin-top:6px;">
+				<div style="float:left;width:130px;height:40px;background-color:#108040;color:white;padding:6px;10px;font-size:1.1rem;font-weight:bold;text-align:center;">응답형식</div>
+				<div style="float:left;width:290px;height:40px;border:1px solid #d4d4d4;">
+					<input type="radio" name="answer" id="answer_xml" value="xml" style="width:50px;margin-top:7px;height:70%;font-weight:bold;font-size:13pt;"/>
+					<label for="answer_xml" style="font-size:1.5rem;">XML</label>
+					<input type="radio" name="answer" id="answer_json" value="json" style="width:50px;margin-top:7px;height:70%;font-weight:bold;font-size:13pt;" checked />
+					<label for="answer_json" style="font-size:1.5rem;">JSON</label>
+				</div>
+				<div id="search" style="float:left;width:107px;height:40px;background-color:#6e2568;color:white;padding:6px;10px;font-size:1.1rem;text-align:center;cursor:pointer;margin-left:3px">조회</div>
+				<div></div>
+					
+			</div>
+			<br>
+			<div id="loading" style="width:100%;height:80px;margin-top:6px;padding:30px;display:none;">
+				WHOIS Open API 호출 중 ...
+			</div>
+
+			<div id="result" style="width:100%;height:100%;margin-top:6px;display:none;">
+				<table  style="width:100%">
+					<thead>
+
+					</thead>
+					<tbody>
+						<tr>
+							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">결과코드</th>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="result_code"></span></td>
+						</tr>
+						<tr>
+							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">응답메세지</th>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="result_msg"></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<div id="success_result" style="width:100%;height:100%;margin-top:6px;display:none;">
+				<table  style="width:100%">
+					<thead>
+
+					</thead>
+					<tbody>
+						<tr>
+							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">도메인</th>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="domain_name"></span></td>
+						</tr>
+						<tr>
+							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">만료일자</th>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="endDate"></span></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+
+			<div id="api_response" style="width:100%;height:100%;margin-top:6px;display:none;">
+				<table  style="width:100%">
+					<thead>
+
+					</thead>
+					<tbody>
+						<tr>
+							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">API 응답</th>
+							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><pre id="resStr"></pre></td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</section>
+
+	<!-- foot -->
+	<section id="foot" style="color:white;padding:20px 0;">
+		<div class="row" style="max-height:80px;">
+            <div class="col-md-2"></div>
+            <div class="col-md-2"><img src="http://iwe.kr/img/logo_iwetech.gif"></div>
+        
+            <div class="col" style="">
+                <div class="row" style="max-height:30px;">
+                    <div class="col" style="min-width:100px;min-width:120px;padding:2px 12px !important;">사업자번호 : </div>
+                    <div class="col" style="min-width:350px;padding:2px 12px !important;">204 - 81 - 79020</div>
+                    <div class="col"></div>
+                </div>
+                <div class="row" style="max-height:30px;">
+                    <div class="col" style="min-width:100px;min-width:120px;padding:2px 12px !important;">주소 : </div>
+                    <div class="col" style="min-width:350px;padding:2px 12px !important;">서울특별시 서초구 효령로22, 멤버스뷰 309호</div>
+                     <div class="col"></div>
+                </div>
+                <div class="row" style="max-height:30px;">
+                    <div class="col" style="min-width:100px;min-width:120px;padding:2px 12px !important;">전화번호 : </div>
+                    <div class="col" style="min-width:350px;padding:2px 12px !important;"> 02 - 523 - 5505</div>
+                    <div class="col"></div>
+                </div>
+            </div>
+            <div class="col-md-1"></div>
+        
+        </div>
+	</section>
+</body>
+</html>

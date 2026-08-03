@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template_string, render_template, request, redirect, url_for, make_response
+from flask import Flask, jsonify, render_template_string, render_template, request, redirect, url_for, make_response, Response
 import psutil
 import sqlite3
 import os
@@ -685,6 +685,28 @@ def get_deploy_log():
         return f"<pre style='background:#1e1e1e; color:#d4d4d4; padding:20px; font-family:monospace; line-height:1.5;'>{content}</pre>"
     except Exception as e:
         return f"Error reading log: {str(e)}", 500
+
+@app.route('/api/whois/domain')
+def whois_domain():
+    """WHOIS Open API 중계 — 공공데이터포털은 Origin 헤더가 붙은 브라우저 직접 호출을 403으로 거절하므로
+    포털 서버가 대신 호출해서 응답을 그대로 돌려준다."""
+    import urllib.parse, urllib.request, urllib.error
+    params = urllib.parse.urlencode({
+        'serviceKey': request.args.get('serviceKey', ''),
+        'query': request.args.get('query', ''),
+        'answer': request.args.get('answer', 'json'),
+    })
+    url = "https://apis.data.go.kr/B551505/whois/domain_name?" + params
+    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as res:
+            return Response(res.read(), status=res.status,
+                            content_type=res.headers.get('Content-Type', 'application/json'))
+    except urllib.error.HTTPError as e:
+        return Response(e.read(), status=e.code,
+                        content_type=e.headers.get('Content-Type', 'application/json'))
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=502, content_type='application/json')
 
 if __name__ == '__main__':
     init_db(); app.run(host='0.0.0.0', port=5001)
