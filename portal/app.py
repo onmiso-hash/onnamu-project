@@ -242,6 +242,11 @@ HTML_TEMPLATE = """
                 <div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div>
                 <span class="demo-badge">Draft</span>
             </a>
+            <a href="/static/whois_domain.html" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:rgba(255,255,255,0.03)">🔎</div>
+                <div class="service-info"><h3>WHOIS 도메인 조회</h3><p>Domain Expiry &amp; API Key Test</p></div>
+                <span class="demo-badge">Test</span>
+            </a>
         </div>
         <footer>Managed by onmiso | onnamu.kr hub v6.3</footer>
     </div>
