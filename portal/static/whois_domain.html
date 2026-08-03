@@ -21,7 +21,6 @@ $(document).ready(function(){
 	$('#search').bind('click', function(){
 		//console.log('click');
 		$('#result').hide();
-		$('#success_result').hide();
 		$('#api_response').hide();
 		getDomainInfo();
 	});
@@ -31,52 +30,56 @@ $(document).ready(function(){
 		if(event.keyCode == '13') $('#search').click();
 	});
 });
+/* 입력값이 AS번호인지 IP인지 도메인인지 판별한다.
+   AS번호: AS9700 형태 / IP: IPv4 점 4자리 또는 IPv6(콜론 포함) / 그 외: 도메인 */
+function detectType(q){
+	q = $.trim(q);
+	if(/^as\d+$/i.test(q))                    return 'as_number';
+	if(/^\d{1,3}(\.\d{1,3}){3}$/.test(q))     return 'ip_address';
+	if(q.indexOf(':') > -1)                   return 'ip_address';
+	return 'domain_name';
+}
+
+function typeLabel(type){
+	if(type == 'as_number')  return 'AS번호';
+	if(type == 'ip_address') return 'IP주소';
+	return '도메인';
+}
+
 function getDomainInfo(){
 	init();
 	var service_key = $('#service_key').val();
 	var query	    = $('#query').val();
 	var answer      = $('input[name="answer"]:checked').val();
+	var type        = detectType(query);
 	var url = "/api/whois/domain"; /*포털 중계 경로 (공공데이터 포털은 브라우저 직접 호출을 403으로 거절)*/
+
+	$('#query_type').text(typeLabel(type));
 
 	$.ajax({
 		dataType: answer,
 		url: url,
-		data: { serviceKey: service_key, query: query, answer: answer  },
+		data: { serviceKey: service_key, query: query, answer: answer, type: type },
 		success: function(res){
 			if(answer == "json"){
 				$('#result_code').text(res.response.result.result_code);
 				$('#result_msg').text(res.response.result.result_msg);
-				var resultCode = $('#result_code').text();
-				//alert("json resultCode:"+resultCode);
-				if(resultCode == '10000') {
-					$('#endDate').text(res.response.whois.krdomain.endDate);
-					$('#domain_name').text(res.response.whois.krdomain.name);
-				}
-
 				$('#resStr').text(JSON.stringify(res, null, 2));
-				//$('#resStr').text(JSON.stringify(res));
 			}
 			else{
 				$('#result_code').text($(res).find('result_code').text());
 				$('#result_msg').text($(res).find('result_msg').text());
-				$('#domain_name').text($(res).find('name').text());
-				$('#endDate').text($(res).find('endDate').text());
-				console.log("endDate:"+$(res).find('endDate').text());
-				//$('#resStr').text($(res).text());
 				$('#resStr').text(xmlToString(res));
 			}
-			
+
 			$('#result').show();
-			var resultCode = $('#result_code').text();
-			//alert("resultCode:"+resultCode);
-			if(resultCode == '10000') $('#success_result').show();
 			$('#api_response').show();
 		},
 		error: function(request, status, error){
 			alert("--------------------- error ---------------");
 			alert("code : "+request.status+"\n"+"message : "+request.responseText+"\n"+"error : "+error);
 			console.log("error : "+error);
-		}		
+		}
 
 	});
 }
@@ -84,13 +87,11 @@ function getDomainInfo(){
 function init(){
 	// result div 숨김
 	$('#result').hide();
-	$('#success_result').hide();
 	$('#api_response').hide();
 	// 텍스트 필드 초기화
 	$('#result_code').text("");
 	$('#result_msg').text("");
-	$('#domain_name').text("");
-	$('#end_date').text("");
+	$('#query_type').text("");
 	$('#resStr').text("");
 }
 
@@ -137,6 +138,7 @@ function xmlToString(xmlData) {
 				<div style="float:left;width:400px;height:40px;">
 					<input type="text" name="query" id="query" value="" style="width:400px;height:100%;font-weight:bold;font-size:13pt;"/>
 				</div>
+				<div style="float:left;height:40px;padding:9px 12px;font-size:1rem;color:#333;">판별 : <span id="query_type" style="font-weight:bold;"></span></div>
 				<div></div>
 			</div>
 			<div style="width:100%;height:40px;margin-top:6px;">
@@ -169,24 +171,6 @@ function xmlToString(xmlData) {
 						<tr>
 							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">응답메세지</th>
 							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="result_msg"></span></td>
-						</tr>
-					</tbody>
-				</table>
-			</div>
-
-			<div id="success_result" style="width:100%;height:100%;margin-top:6px;display:none;">
-				<table  style="width:100%">
-					<thead>
-
-					</thead>
-					<tbody>
-						<tr>
-							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">도메인</th>
-							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="domain_name"></span></td>
-						</tr>
-						<tr>
-							<th style="padding:5px 15px;background-color:#d4d4d4;width:130px;font-weight:bold;border:1px solid #f4f4f4;">만료일자</th>
-							<td style="padding:5px 15px;font-weight:bold;border:1px solid #d4d4d4;"><span id="endDate"></span></td>
 						</tr>
 					</tbody>
 				</table>

@@ -691,17 +691,23 @@ def get_deploy_log():
     except Exception as e:
         return f"Error reading log: {str(e)}", 500
 
+WHOIS_ENDPOINTS = ('domain_name', 'ip_address', 'as_number')
+
 @app.route('/api/whois/domain')
 def whois_domain():
     """WHOIS Open API 중계 — 공공데이터포털은 Origin 헤더가 붙은 브라우저 직접 호출을 403으로 거절하므로
-    포털 서버가 대신 호출해서 응답을 그대로 돌려준다."""
+    포털 서버가 대신 호출해서 응답을 그대로 돌려준다.
+    type 으로 조회 갈래(도메인/IP/AS번호)를 고른다."""
     import urllib.parse, urllib.request, urllib.error
+    endpoint = request.args.get('type', 'domain_name')
+    if endpoint not in WHOIS_ENDPOINTS:
+        endpoint = 'domain_name'
     params = urllib.parse.urlencode({
         'serviceKey': request.args.get('serviceKey', ''),
         'query': request.args.get('query', ''),
         'answer': request.args.get('answer', 'json'),
     })
-    url = "https://apis.data.go.kr/B551505/whois/domain_name?" + params
+    url = "https://apis.data.go.kr/B551505/whois/" + endpoint + "?" + params
     req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
     try:
         with urllib.request.urlopen(req, timeout=20) as res:
