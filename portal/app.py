@@ -242,7 +242,7 @@ HTML_TEMPLATE = """
                 <div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div>
                 <span class="demo-badge">Draft</span>
             </a>
-            <a href="/static/whois_domain.html" target="_blank" class="glass-card service-link">
+            <a href="/static/whois.html" target="_blank" class="glass-card service-link">
                 <div class="service-icon" style="background:rgba(255,255,255,0.03)">🔎</div>
                 <div class="service-info"><h3>WHOIS OpenAPI</h3><p>Domain · IP · AS Number Lookup</p></div>
                 <span class="demo-badge">Test</span>
