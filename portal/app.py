@@ -244,7 +244,7 @@ HTML_TEMPLATE = """
             </a>
             <a href="/static/whois_domain.html" target="_blank" class="glass-card service-link">
                 <div class="service-icon" style="background:rgba(255,255,255,0.03)">🔎</div>
-                <div class="service-info"><h3>WHOIS 도메인 조회</h3><p>Domain Expiry &amp; API Key Test</p></div>
+                <div class="service-info"><h3>WHOIS OpenAPI</h3><p>Domain · IP · AS Number Lookup</p></div>
                 <span class="demo-badge">Test</span>
             </a>
         </div>
