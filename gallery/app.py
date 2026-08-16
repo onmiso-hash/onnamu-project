@@ -15,11 +15,12 @@ import re
 import json
 import math
 import shutil
+import threading
 from pathlib import Path
 from PIL import Image
 from flask import (
     Flask, render_template, request,
-    redirect, url_for, send_from_directory, abort, flash, jsonify, Response, g
+    redirect, url_for, send_from_directory, abort, flash, jsonify, g
 )
 from auth_helper import login_required, verify_token
 
@@ -49,8 +50,13 @@ ALLOWED_UPLOAD_EXTS = VIDEO_EXTS | IMAGE_EXTS
 PER_PAGE = 24
 
 # 썸네일 경로 (권한 문제를 방지하기 위해 앱 디렉토리 내부에 생성)
+# docker-compose에서 named volume을 물려두어 재배포해도 캐시가 남는다.
 THUMBNAIL_DIR = Path("/app/.thumbnails")
 THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
+
+# ffmpeg 썸네일 생성 동시 실행 제한.
+# 영화관 첫 진입 시 카드 여러 장이 한꺼번에 요청을 걸어 미니PC가 몰리는 것을 막는다.
+THUMBNAIL_WORKERS = threading.Semaphore(2)
 
 @app.after_request
 def add_no_cache(response):
@@ -78,21 +84,42 @@ def get_all_files(folders: list, extensions: set, media_type: str) -> list[dict]
         folder_path = MEDIA_ROOT / folder / media_type
         if not folder_path.exists():
             continue
-        for f in sorted(folder_path.iterdir()):
-            if f.suffix.lower() in extensions:
+        # 폴더를 한 번만 훑는다. 예전에는 영화 한 편마다 자막을 찾느라 폴더를
+        # 다시 훑어서 편수의 제곱으로 느려졌다.
+        with os.scandir(folder_path) as it:
+            entries = sorted(it, key=lambda e: e.name)
+        subtitle_names = [e.name for e in entries
+                          if os.path.splitext(e.name)[1].lower() in SUBTITLE_EXTS]
+        for entry in entries:
+            stem, ext = os.path.splitext(entry.name)
+            if ext.lower() in extensions:
                 file_info = {
-                    "name": f.name,
-                    "stem": f.stem,
+                    "name": entry.name,
+                    "stem": stem,
                     "folder": folder,
-                    "path": f"{folder}/{media_type}/{f.name}"
+                    "path": f"{folder}/{media_type}/{entry.name}"
                 }
                 if media_type == "movies":
-                    subtitle = find_subtitle(folder_path, f.stem)
+                    subtitle = match_subtitle(subtitle_names, stem)
                     if subtitle:
                         file_info["subtitle"] = f"{folder}/{media_type}/{subtitle}"
-                    file_info["size"] = f.stat().st_size
+                    file_info["size"] = entry.stat().st_size
                 all_files.append(file_info)
     return sorted(all_files, key=lambda x: x['name'])
+
+def match_subtitle(subtitle_names: list, video_stem: str) -> str:
+    # find_subtitle과 같은 규칙을 디스크가 아니라 이미 읽어둔 이름 목록에서 적용한다.
+    for ext in SUBTITLE_EXTS:
+        exact = f"{video_stem}{ext}"
+        if exact in subtitle_names:
+            return exact
+        # find_subtitle의 glob(f"{stem}.*{ext}")과 같은 조건 — 예: 영화.ko.srt
+        prefix = f"{video_stem}."
+        min_len = len(video_stem) + 1 + len(ext)
+        for name in subtitle_names:
+            if name.startswith(prefix) and name.endswith(ext) and len(name) >= min_len:
+                return name
+    return None
 
 def find_subtitle(directory: Path, video_stem: str) -> str:
     for ext in SUBTITLE_EXTS:
@@ -170,8 +197,16 @@ def movies():
     username = g.user.get("username")
     folders = g.user.get("folders", [])
     is_admin = g.user.get("is_admin", False)
+    page = int(request.args.get("page", 1))
     all_movies = get_all_files(folders, MOVIE_EXTS, "movies")
-    return render_template("movies.html", movies=all_movies, username=username, is_admin=is_admin, format_size=format_size)
+
+    total = len(all_movies)
+    total_pages = max(1, math.ceil(total / PER_PAGE))
+    page = max(1, min(page, total_pages))
+    start = (page - 1) * PER_PAGE
+    movies_page = all_movies[start:start + PER_PAGE]
+
+    return render_template("movies.html", movies=movies_page, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, format_size=format_size)
 
 @app.route("/player/<folder>/<path:filename>")
 @login_required()
@@ -185,41 +220,6 @@ def player(folder, filename):
         abort(404)
     subtitle = find_subtitle(movie_path.parent, movie_path.stem)
     return render_template("player.html", folder=folder, filename=filename, subtitle=subtitle, username=username)
-
-@app.route("/stream/<folder>/<path:filename>")
-@login_required()
-def stream_movie(folder, filename):
-    folders = g.user.get("folders", [])
-    if folder not in folders:
-        abort(403)
-    file_path = MEDIA_ROOT / folder / "movies" / filename
-    if not file_path.exists():
-        abort(404)
-    range_header = request.headers.get('Range', None)
-    if not range_header:
-        return send_from_directory(str(file_path.parent), file_path.name)
-    size = file_path.stat().st_size
-    byte1, byte2 = 0, None
-    m = re.search(r'(\d+)-(\d*)', range_header)
-    if m:
-        g_match = m.groups()
-        byte1 = int(g_match[0])
-        if g_match[1]:
-            byte2 = int(g_match[1])
-    if byte2 is None:
-        byte2 = size - 1
-    length = byte2 - byte1 + 1
-    with open(file_path, 'rb') as f:
-        f.seek(byte1)
-        data = f.read(length)
-    rv = Response(data, 206, direct_passthrough=True)
-    rv.headers.add('Content-Range', f'bytes {byte1}-{byte2}/{size}')
-    rv.headers.add('Accept-Ranges', 'bytes')
-    rv.headers.add('Content-Length', str(length))
-    ext = file_path.suffix.lower()
-    mime = {'.mp4': 'video/mp4', '.mkv': 'video/x-matroska', '.avi': 'video/x-msvideo', '.mov': 'video/quicktime', '.webm': 'video/webm'}.get(ext, 'video/mp4')
-    rv.headers.add('Content-Type', mime)
-    return rv
 
 @app.route("/subtitle/<folder>/<path:filename>")
 @login_required()
@@ -504,21 +504,25 @@ def serve_thumbnail(folder, media_type, filename):
             except Exception:
                 return send_from_directory(str(original_path.parent), filename)
         else:
-            # ffmpeg으로 10초 지점 프레임 추출, 짧은 영상은 첫 프레임 fallback
-            # 동시 요청 시 같은 파일에 겹쳐 쓰지 않도록 임시 파일에 먼저 생성 후 원자적으로 교체
-            tmp_path = thumb_dir / f".{thumb_filename}.{os.getpid()}.tmp"
-            for seek in ("10", "0"):
-                subprocess.run(
-                    ["ffmpeg", "-ss", seek, "-i", str(original_path),
-                     "-frames:v", "1", "-vf", "scale=640:-2",
-                     "-q:v", "3", str(tmp_path), "-y"],
-                    capture_output=True, timeout=60
-                )
-                if tmp_path.exists():
-                    break
-            if not tmp_path.exists():
-                abort(500)
-            os.replace(tmp_path, thumb_path)
+            # ffmpeg은 무거우므로 동시에 2개까지만 돌린다. 나머지 요청은 여기서 기다린다.
+            with THUMBNAIL_WORKERS:
+                # 기다리는 동안 다른 요청이 같은 썸네일을 이미 만들었을 수 있다.
+                if not thumb_path.exists():
+                    # ffmpeg으로 10초 지점 프레임 추출, 짧은 영상은 첫 프레임 fallback
+                    # 동시 요청 시 같은 파일에 겹쳐 쓰지 않도록 임시 파일에 먼저 생성 후 원자적으로 교체
+                    tmp_path = thumb_dir / f".{thumb_filename}.{os.getpid()}.{threading.get_ident()}.tmp"
+                    for seek in ("10", "0"):
+                        subprocess.run(
+                            ["ffmpeg", "-ss", seek, "-i", str(original_path),
+                             "-frames:v", "1", "-vf", "scale=640:-2",
+                             "-q:v", "3", str(tmp_path), "-y"],
+                            capture_output=True, timeout=60
+                        )
+                        if tmp_path.exists():
+                            break
+                    if not tmp_path.exists():
+                        abort(500)
+                    os.replace(tmp_path, thumb_path)
     return send_from_directory(str(thumb_dir), thumb_filename)
 
 @app.route("/media/<folder>/<media_type>/<path:filename>")

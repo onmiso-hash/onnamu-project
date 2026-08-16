@@ -21,7 +21,11 @@ services:
       - C:/Users/onmis/media/family/videos:/media/family/videos:rw
       - C:/Users/onmis/media/family/images:/media/family/images:rw
       - C:/Users/onmis/media/family/movies:/media/family/movies:rw
-      
+
+      # 썸네일 캐시 — 재배포로 컨테이너를 새로 만들어도 남아야 한다.
+      # (컨테이너 내부에 두면 배포할 때마다 전부 지워져 ffmpeg을 처음부터 다시 돌린다)
+      - gallery_thumbnails:/app/.thumbnails
+
     environment:
       - SECRET_KEY=${SECRET_KEY}
       - MEDIA_ROOT=/media
@@ -32,3 +36,6 @@ services:
 networks:
   gallery-network:
     driver: bridge
+
+volumes:
+  gallery_thumbnails:
