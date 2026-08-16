@@ -510,7 +510,12 @@ def serve_thumbnail(folder, media_type, filename):
                 if not thumb_path.exists():
                     # ffmpeg으로 10초 지점 프레임 추출, 짧은 영상은 첫 프레임 fallback
                     # 동시 요청 시 같은 파일에 겹쳐 쓰지 않도록 임시 파일에 먼저 생성 후 원자적으로 교체
-                    tmp_path = thumb_dir / f".{thumb_filename}.{os.getpid()}.{threading.get_ident()}.tmp"
+                    #
+                    # ⚠ 임시 파일 이름은 반드시 .jpg로 끝나야 한다.
+                    # ffmpeg은 출력 파일의 확장자로 muxer를 고르므로 .tmp로 끝나면
+                    # "Error initializing the muxer ... Invalid argument"로 실패한다.
+                    # (2026-07-09~08-16 사이 썸네일이 한 장도 생성되지 않은 원인)
+                    tmp_path = thumb_dir / f".{thumb_filename}.{os.getpid()}.{threading.get_ident()}.tmp.jpg"
                     for seek in ("10", "0"):
                         subprocess.run(
                             ["ffmpeg", "-ss", seek, "-i", str(original_path),
