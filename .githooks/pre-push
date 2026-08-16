@@ -13,4 +13,8 @@ if [ -x "$ROOT/scripts/check_core_pin.sh" ]; then
   "$ROOT/scripts/check_core_pin.sh" || exit 1
 fi
 
+if [ -x "$ROOT/scripts/check_deploy_cmd_len.sh" ]; then
+  "$ROOT/scripts/check_deploy_cmd_len.sh" || exit 1
+fi
+
 exit 0
