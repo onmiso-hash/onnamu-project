@@ -57,18 +57,30 @@ services:
     volumes:
       - stream_letsencrypt:/etc/letsencrypt
     environment:
-      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN:-}
+      - CF_API_EMAIL=${CF_API_EMAIL:-}
+      - CF_API_KEY=${CF_API_KEY:-}
       - CERTBOT_EMAIL=${CERTBOT_EMAIL}
     # --keep-until-expiring 이라 매번 새로 받지 않는다. 만료가 가까울 때만 갱신한다.
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
-        if [ -z "$$CF_DNS_API_TOKEN" ]; then
-          echo "[stream-certbot] CF_DNS_API_TOKEN 이 없다. 인증서를 받을 수 없다."
+        INI=/tmp/cloudflare.ini
+        # 자격은 둘 중 하나면 된다.
+        #  (1) API 토큰 — 권장. 단, 계정 메일이 확인되지 않으면 클라우드플레어가
+        #      토큰 '생성'을 막는다(오류 1211). 그때는 (2)를 쓴다.
+        #  (2) 글로벌 API 키 + 계정 메일 — 계정에 이미 있는 값이라 새로 만들지 않는다.
+        if [ -n "$$CF_DNS_API_TOKEN" ]; then
+          echo "[stream-certbot] API 토큰으로 진행한다."
+          printf 'dns_cloudflare_api_token = %s\n' "$$CF_DNS_API_TOKEN" > $$INI
+        elif [ -n "$$CF_API_KEY" ] && [ -n "$$CF_API_EMAIL" ]; then
+          echo "[stream-certbot] 글로벌 API 키로 진행한다."
+          printf 'dns_cloudflare_email = %s\ndns_cloudflare_api_key = %s\n' \
+                 "$$CF_API_EMAIL" "$$CF_API_KEY" > $$INI
+        else
+          echo "[stream-certbot] 자격이 없다. CF_DNS_API_TOKEN 또는 (CF_API_EMAIL + CF_API_KEY)가 필요하다."
           exit 1
         fi
-        INI=/tmp/cloudflare.ini
-        printf 'dns_cloudflare_api_token = %s\n' "$$CF_DNS_API_TOKEN" > $$INI
         chmod 600 $$INI
         while :; do
           certbot certonly \

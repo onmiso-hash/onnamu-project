@@ -64,9 +64,23 @@ https://stream.onnamu.kr:50443/v/<폴더>/movies/<파일>?md5=<서명>&expires=<
 | 이름 | 용도 |
 |---|---|
 | `STREAM_SECRET` | 갤러리와 나눠 갖는 서명 열쇠. **영문자·숫자만** (`openssl rand -hex 32`) |
-| `CF_DNS_API_TOKEN` | Cloudflare DNS 편집 토큰 (인증서 발급·갱신) |
-| `CERTBOT_EMAIL` | 인증서 만료 알림 주소 |
+| `CERTBOT_EMAIL` | 인증서 만료 알림 주소 (Cloudflare 계정 메일과 무관) |
 | `STREAM_BASE_URL` | 갤러리 쪽 설정. `https://stream.onnamu.kr:50443` |
+
+Cloudflare 자격은 **둘 중 하나**만 있으면 된다. `stream-certbot`이 알아서 고른다(토큰 우선).
+
+| 방식 | 넣을 이름 |
+|---|---|
+| ① API 토큰 (권장) | `CF_DNS_API_TOKEN` |
+| ② 글로벌 API 키 | `CF_API_EMAIL` + `CF_API_KEY` |
+
+**①이 막힐 수 있다.** Cloudflare는 계정 메일이 확인되지 않으면 **API 토큰 생성 자체를 거부**한다
+(`Please verify your email. (Code: 1211)`). 공식 안내문의 제한 목록에는 토큰이 없지만 실제로는 막힌다 —
+2026-08-16에 이 계정에서 그 상황을 겪었다. 그때는 ②를 쓴다. 글로벌 키는 **새로 만드는 게 아니라
+계정에 이미 있는 값을 보는 것**이라 생성 제한에 걸리지 않는다.
+
+`certbot_dns_cloudflare` 플러그인이 두 형식을 모두 받는 것은 이미지 안의 플러그인 소스와
+`--dry-run` 실행으로 확인했다(가짜 키로 Cloudflare API 호출 단계까지 도달).
 
 **`STREAM_SECRET`에 `\|`나 `&`를 넣지 말 것** — 설정 파일에 `sed`로 채워 넣으므로 깨진다.
 
