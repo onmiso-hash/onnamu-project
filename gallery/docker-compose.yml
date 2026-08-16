@@ -29,7 +29,13 @@ services:
     environment:
       - SECRET_KEY=${SECRET_KEY}
       - MEDIA_ROOT=/media
-      
+      # 영상 직행 통로 (stream.onnamu.kr). 비어 있으면 재생 화면이 종전
+      # /media 경로를 쓴다 — 통로를 아직 안 열었을 때도 영화는 그대로 나온다.
+      - STREAM_BASE_URL=${STREAM_BASE_URL:-}
+      - STREAM_SECRET=${STREAM_SECRET:-}
+      - STREAM_TTL=${STREAM_TTL:-43200}
+
+
     networks:
       - gallery-network
 
