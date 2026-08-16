@@ -62,17 +62,25 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
     (pre-push 훅이 두 manifest 버전 일치를 검증한다. `OK: manifest versions match`가 정상.)
 
 ### 5. onnamu-project 참조 상향
+
+> **번호가 박힌 곳은 `scripts/deploy.ps1`이지 `.github/workflows/deploy.yml`이 아니다.**
+> 2026-08-16에 배포 명령을 파일로 분리했다 — 명령이 윈도우 명령줄 한계(8,191자)를 넘어
+> 배포가 8회 연속 실패했기 때문이다. 지금 `deploy.yml`은 SSH로 들어와 `deploy.ps1`을
+> 부르기만 하고 버전 문자열이 하나도 없다. 검사기(`scripts/check_core_pin.sh`)도
+> `deploy.ps1`을 본다.
+
 현재 참조 중인 옛 버전을 찾아 `<version>`으로 치환한다(하드코딩 금지, 실제 파일에서 옛 값 검출):
 - `~/project/onnamu-project/namu/docker-compose.yml`: `image: namu-remote-mcp:<옛>` → `<version>` (1곳)
-- `~/project/onnamu-project/.github/workflows/deploy.yml`: NAMU build 라인의
+- `~/project/onnamu-project/scripts/deploy.ps1`: `--- Deploy NAMU ---` 줄의
   `-t namu-remote-mcp:<옛>` 및 `namu-agent.git#<옛>` → `<version>` (2곳, 같은 줄)
-- 치환 후 검증: 두 파일에 옛 버전 0곳, 새 버전 docker-compose 1곳·deploy.yml 2곳.
+- 치환 후 검증: 두 파일에 옛 버전 0곳, 새 버전 docker-compose 1곳·deploy.ps1 2곳.
+  (`scripts/check_core_pin.sh`를 손으로 돌려 세 자리가 같은지 확인하면 더 확실하다.)
 
 ### 6. 커밋·push (재배포 트리거)
 - **사용자 확인 후**:
   ```
   cd ~/project/onnamu-project
-  git add namu/docker-compose.yml .github/workflows/deploy.yml
+  git add namu/docker-compose.yml scripts/deploy.ps1
   git commit -m "NAMU 원격 MCP v<version> 승격 (namu-agent <기능요약> 반영)"
   git push origin main
   ```
@@ -81,8 +89,8 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
   모델이 바뀔 때마다 문서가 어긋나므로 고정하지 않는다.
 
 ### 7. 배포 확인
-- 미니PC deploy.yml이 새 태그로 재빌드(약 1분). `git reset --hard origin/main` 후
-  `docker build ... namu-agent.git#v<version>` → `compose up -d`.
+- 깃허브 Actions가 SSH로 미니PC에 들어가 `scripts/deploy.ps1`을 돌린다(약 1분).
+  `git reset --hard origin/main` 후 `docker build ... namu-agent.git#v<version>` → `compose up -d`.
 - `curl -s -o /dev/null -w "%{http_code}" https://namu.onnamu.kr/`가 **404면 정상**
   (비밀 경로 전용 = 컨테이너 생존).
   - **502를 한 번 봤다고 실패로 단정하지 말 것.** `compose up -d`가 컨테이너를 교체하는
@@ -92,8 +100,8 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
     2연속 502도 아직 정상 범위다. 502·타임아웃이 나오면 **30초 간격으로 3회 재확인**해
     값이 안정됐는지 보고 나서 판정한다.
   - 502가 계속되면 **대조군을 같이 재서 범위를 가른다.** 단 대조군은 **이 배포가 건드리지
-    않거나 훨씬 먼저 교체가 끝나는 서비스**여야 한다. deploy.yml의 교체 순서는
-    갤러리 → 포털 → 게임 → RDAP → **NAMU → NAMU 클라우드** → 스튜디오이므로:
+    않거나 훨씬 먼저 교체가 끝나는 서비스**여야 한다. `scripts/deploy.ps1`의 교체 순서는
+    갤러리 → 포털 → 게임 → RDAP → **NAMU → NAMU 클라우드** → 스튜디오 → 스트림이므로:
     - ✅ `https://onnamu.kr/`(포털, 200 기대) — 앞쪽에서 이미 교체가 끝나 유효한 대조군.
     - ❌ `https://namu-cloud.onnamu.kr/` — NAMU 바로 다음에 교체돼 **같은 창에서 함께 502**가
       된다(2026-07-25 v0.1.36 실측: namu 502·cloud 502 → 동시에 404·404). 둘 다 502인 것은
@@ -116,13 +124,13 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
   Get-Content C:\Users\onmis\project\deploy.log -Encoding UTF8 | Select-String "namu-remote-mcp:v0.1"
   docker inspect -f '{{.Config.Image}}' namu-remote-mcp
   ```
-  - **`Successfully tagged`를 찾지 말 것.** deploy.yml은 NAMU 빌드 전에 `DOCKER_BUILDKIT=0`을
+  - **`Successfully tagged`를 찾지 말 것.** `deploy.ps1`은 NAMU 빌드 전에 `DOCKER_BUILDKIT=0`을
     설정하지 않으므로(그 설정은 Studio 직전에만 있음) BuildKit이 쓰이고, 로그에는
     `#NN naming to docker.io/library/namu-remote-mcp:v<version> ... done`으로 찍힌다
     (2026-07-25 v0.1.34 실측). 태그 문자열로 검색해야 두 빌더 모두 잡힌다.
   - **결정적 증거는 `docker inspect`의 실행 중 이미지**다. 로그는 "빌드했다"까지만 말하고
     컨테이너가 실제로 새 이미지로 교체됐는지는 말해주지 않는다.
-- 히트맵은 이 머신에 `gallery/.env`가 없어 deploy.yml 자동 기록에 위임(수동 기록 불필요).
+- 히트맵은 이 머신에 `gallery/.env`가 없어 `deploy.ps1` 자동 기록에 위임(수동 기록 불필요).
 
 ---
 
@@ -206,8 +214,9 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
 ### C3. 번호 치환 — 네 자리
 `grep -rn "v0\.1\.[0-9]"`로 찾는다. onnamu-project엔 서브모듈이 없으므로
 `git submodule` 명령으로 찾지 말 것.
-1. `.github/workflows/deploy.yml` — `clone --recurse-submodules --branch v<X>`
-2. `.github/workflows/deploy.yml` — `-t namu-cloud-routing:v<X>` (같은 줄)
+1. `scripts/deploy.ps1` — `clone --recurse-submodules --branch v<X>`
+2. `scripts/deploy.ps1` — `-t namu-cloud-routing:v<X>` (같은 줄)
+   (5단계 머리말 참조 — 번호는 `deploy.yml`이 아니라 이 파일에 박힌다)
 3. `namu-cloud/docker-compose.yml` — `image: namu-cloud-routing:v<X>`
 4. `server_architecture_specs.md` 사양표
 

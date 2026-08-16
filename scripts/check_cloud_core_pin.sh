@@ -48,8 +48,13 @@ block() {
 [ -f "$COMPOSE" ] && [ -f "$DEPLOY" ] || skip "설정 파일을 찾을 수 없음"
 
 # 이번 푸시가 클라우드 배포와 무관하면 네트워크를 쓰지 않고 즉시 통과.
+#
+# 여기 적는 파일은 위 COMPOSE·DEPLOY와 같아야 한다. 2026-08-16에 배포 명령이
+# deploy.yml 에서 scripts/deploy.ps1 로 옮겨졌는데 이 걸림목만 옛 이름을 달고
+# 있었다 — 클라우드 꼬리표가 박히는 자리가 바로 그 파일이라, deploy.ps1 만 고친
+# 푸시는 검사를 통째로 건너뛰었다(막아야 할 바로 그 경우가 안 걸렸다).
 CHANGED="$(git -C "$ROOT" diff --name-only origin/main..HEAD 2>/dev/null)"
-if [ -n "$CHANGED" ] && ! grep -qE 'namu-cloud/docker-compose\.yml|\.github/workflows/deploy\.yml' <<<"$CHANGED"; then
+if [ -n "$CHANGED" ] && ! grep -qE 'namu-cloud/docker-compose\.yml|scripts/deploy\.ps1' <<<"$CHANGED"; then
   exit 0
 fi
 
