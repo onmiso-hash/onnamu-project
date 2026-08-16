@@ -72,7 +72,7 @@
         </div>
         
         <video controls autoplay playsinline id="video-player">
-            <source src="/media/{{ folder }}/movies/{{ filename }}">
+            <source src="{{ video_url }}">
             {% if subtitle %}
             <track kind="subtitles" src="/subtitle/{{ folder }}/{{ subtitle }}" srclang="ko" label="한국어 (자동)" default>
             {% endif %}

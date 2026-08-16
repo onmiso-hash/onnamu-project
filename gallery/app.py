@@ -14,9 +14,13 @@ if os.environ.get("MEDIA_ROOT"):
 import re
 import json
 import math
+import time
+import base64
 import shutil
+import hashlib
 import threading
 from pathlib import Path
+from urllib.parse import quote
 from PIL import Image
 from flask import (
     Flask, render_template, request,
@@ -57,6 +61,12 @@ THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 # ffmpeg 썸네일 생성 동시 실행 제한.
 # 영화관 첫 진입 시 카드 여러 장이 한꺼번에 요청을 걸어 미니PC가 몰리는 것을 막는다.
 THUMBNAIL_WORKERS = threading.Semaphore(2)
+
+# 영상 직행 통로 (stream.onnamu.kr). 셋 다 없으면 기능이 꺼진 채 종전대로 동작한다.
+STREAM_BASE_URL = os.environ.get("STREAM_BASE_URL", "").rstrip("/")
+STREAM_SECRET = os.environ.get("STREAM_SECRET", "")
+# 영화 한 편을 다 볼 시간은 넉넉히 준다. 재생 중에 기한이 끝나면 건너뛰기가 막힌다.
+STREAM_TTL = int(os.environ.get("STREAM_TTL", 12 * 3600))
 
 @app.after_request
 def add_no_cache(response):
@@ -129,6 +139,25 @@ def find_subtitle(directory: Path, video_stem: str) -> str:
         for lang_file in directory.glob(f"{video_stem}.*{ext}"):
             return lang_file.name
     return None
+
+def build_stream_url(folder: str, filename: str) -> str:
+    """영상 알맹이를 받아올 직행 주소를 만든다.
+
+    목록·재생 화면은 gallery.onnamu.kr(클라우드플레어 경유)이 그대로 내지만,
+    무거운 영상만 stream.onnamu.kr로 직접 받게 한다. 주소가 다르면 로그인 쿠키가
+    따라가지 않으므로, 로그인 검사를 이미 통과한 여기서 기한이 붙은 서명을 만들어 준다.
+    서명 규칙은 nginx의 secure_link_md5와 같다 — stream/nginx/stream.conf.tpl 참고.
+
+    STREAM_BASE_URL이나 STREAM_SECRET이 없으면 None을 돌려준다.
+    그때 화면은 종전처럼 /media 경로를 쓴다(직행 통로를 아직 안 열었을 때).
+    """
+    if not STREAM_BASE_URL or not STREAM_SECRET:
+        return None
+    path = f"/v/{folder}/movies/{filename}"
+    expires = int(time.time()) + STREAM_TTL
+    digest = hashlib.md5(f"{expires}{path} {STREAM_SECRET}".encode("utf-8")).digest()
+    token = base64.urlsafe_b64encode(digest).decode().rstrip("=")
+    return f"{STREAM_BASE_URL}{quote(path)}?md5={token}&expires={expires}"
 
 def format_size(size_bytes: int) -> str:
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
@@ -219,7 +248,9 @@ def player(folder, filename):
     if not movie_path.exists():
         abort(404)
     subtitle = find_subtitle(movie_path.parent, movie_path.stem)
-    return render_template("player.html", folder=folder, filename=filename, subtitle=subtitle, username=username)
+    # 직행 통로가 열려 있으면 그쪽에서, 아니면 종전처럼 이 서버에서 영상을 받는다.
+    video_url = build_stream_url(folder, filename) or f"/media/{quote(folder)}/movies/{quote(filename)}"
+    return render_template("player.html", folder=folder, filename=filename, subtitle=subtitle, username=username, video_url=video_url)
 
 @app.route("/subtitle/<folder>/<path:filename>")
 @login_required()

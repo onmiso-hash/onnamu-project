@@ -32,6 +32,8 @@
 | **`namu-remote-mcp`** | `namu-namu` (GitHub 참조 빌드) | `0.0.0.0:8765` | `8765` | NAMU 원격 MCP 서버 (웹 Claude 커넥터용, `namu_data` 볼륨에 `~/.namu` 영속화) |
 | **`namu-cloud-routing`** | `namu-cloud-routing:v0.1.51` (clone --recurse-submodules 로컬 빌드) | `0.0.0.0:8770` | `8770` | NAMU 공용 라우팅 MCP 서버 (v0.1.11부터 접속 주소가 `/mcp/<사용자별 열쇠>` — 열쇠 자체가 신원이고 `?user=`는 서버가 덮어쓴다. 전원 공용 `NAMU_HTTP_PATH_SECRET`은 폐기. `namu_cloud_store` 볼륨에 사용자별 저장소 사본 / `namu_cloud_identity` 볼륨에 가입자 장부 `identity.db` 영속화, `/auth/github/*` 웹 로그인 후 완료 화면이 접속 주소 발급. **v0.1.20부터 `/`가 404가 아니다** — 공개 페이지 5장(`/`·`/start`·`/memory`·`/safety`·`/faq`)을 웹 앱이 낸다. 디스패처는 이 다섯 경로만 **정확히 일치**할 때 웹으로 보내고 나머지는 종전대로 MCP+인증 쪽이다. **v0.1.39부터 모든 화면 오른쪽 아래에 AI 안내원 말풍선**이 붙는다(`/auth/ask` POST 전용, 로그인 불필요). 열쇠 `NAMU_ASK_API_KEY`가 없으면 단추 자체를 안 그리므로 화면은 종전과 같다) |
 | **`n8n`** | `n8nio/n8n` | `0.0.0.0:5678` | `5678` | 워크플로우 및 텔레그램 모니터링 자동화 봇 |
+| **`stream-nginx`** | `nginx:alpine` | `0.0.0.0:5443` | `5443` | 영상 직행 통로 (stream.onnamu.kr). Cloudflare를 거치지 않고 영화 파일 바이트만 직접 전송. 서명된 주소(`secure_link`)로만 열리며 `stream_letsencrypt` 볼륨의 인증서를 쓴다. 상세는 `stream/CLAUDE.md` |
+| **`stream-certbot`** | `certbot/dns-cloudflare` | 없음 | - | stream.onnamu.kr 인증서 발급·자동 갱신 (DNS-01 방식, 12시간 주기). 80번 포트를 KT 공유기 관리 화면이 점유하고 있어 HTTP-01은 쓸 수 없다 |
 | **`cloudflared`** | `cloudflare/cloudflared` | 없음 (아웃바운드 터널) | - | Cloudflare Zero Trust 보안 터널링 데몬 |
 
 ---
@@ -44,6 +46,10 @@
   * **외부 포트**: `50002` ──> **내부 매핑**: `172.30.1.100` (포트 `5002` / TCP)
   * **목적**: Cloudflare의 단일 파일 100MB 업로드 크기 제한을 우회하기 위한 다이렉트 통로.
   * **변경 사항 (2026-06-14)**: 분할 청크 업로드(10MB) 도입으로 50002 우회 채널뿐만 아니라 본래 포털 주소(https://gallery.onnamu.kr/upload)에서도 대용량 업로드가 성공하도록 개선되었습니다. 또한, 영화관 업로드 완료 시 최종 병합을 위해 docker-compose 상의 `/media/public/movies`, `/media/private/movies`, `/media/family/movies` 디렉토리 마운트 권한이 `:ro`에서 `:rw`로 업그레이드되었습니다.
+* **영상 직행 채널 (2026-08-16 신설)**:
+  * **외부 포트**: `50443` ──> **내부 매핑**: `172.30.1.100` (포트 `5443` / TCP)
+  * **목적**: 영화 재생 시 영상 바이트가 Cloudflare 프록시를 거치지 않도록 하는 직행 통로. 화면(목록·재생)은 그대로 `gallery.onnamu.kr`가 낸다.
+  * **주의**: 80번 포트는 KT 공유기 자체 관리 화면(GoAhead-Webs, `:8899/login.asp`로 리다이렉트)이 점유 중이므로 인증서는 DNS-01 방식으로만 받을 수 있다.
 * **SSH 원격 개발 채널**:
   * **외부 포트**: `50022` ──> **내부 매핑**: `172.30.1.100` (포트 `22` / TCP)
   * **목적**: 원격 터미널 접근용.

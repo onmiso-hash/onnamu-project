@@ -1,0 +1,93 @@
+# 영상 직행 통로 (stream.onnamu.kr) — 컨테이너 두 개
+#
+#   stream-nginx   : 영상 알맹이를 직접 내보낸다 (TLS + 서명 검사)
+#   stream-certbot : 인증서를 받고 자동으로 갱신한다 (클라우드플레어 DNS 방식)
+#
+# 필요한 환경변수 (gallery/.env 에 넣으면 배포 때 복사된다):
+#   STREAM_SECRET      갤러리와 나눠 갖는 서명 열쇠. 영문자·숫자만 (openssl rand -hex 32)
+#   CF_DNS_API_TOKEN   클라우드플레어 DNS 편집 권한 토큰 (인증서 발급·갱신용)
+#   CERTBOT_EMAIL      인증서 만료 알림 받을 메일 주소
+
+services:
+  stream-nginx:
+    image: nginx:alpine
+    container_name: stream-nginx
+    restart: unless-stopped
+    depends_on:
+      - stream-certbot
+    ports:
+      - "5443:5443"
+    volumes:
+      - ./nginx/stream.conf.tpl:/etc/nginx/stream.conf.tpl:ro
+      - stream_letsencrypt:/etc/letsencrypt:ro
+      # 영상 원본 — 읽기 전용. 갤러리와 같은 폴더를 본다.
+      - C:/Users/onmis/media/public:/media/public:ro
+      - C:/Users/onmis/media/private:/media/private:ro
+      - C:/Users/onmis/media/family:/media/family:ro
+    environment:
+      - STREAM_SECRET=${STREAM_SECRET}
+    # 1) 인증서가 생길 때까지 기다린다 (처음 발급은 1~2분 걸린다)
+    # 2) 서명 열쇠를 설정에 채워 넣는다 — envsubst 대신 sed를 쓰는 이유는
+    #    envsubst가 nginx 자체 변수($uri, $arg_md5 …)까지 지워버리기 때문이다
+    # 3) 6시간마다 설정을 다시 읽는다 — 갱신된 인증서를 집어 올리기 위해서다
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        CERT=/etc/letsencrypt/live/stream.onnamu.kr/fullchain.pem
+        n=0
+        until [ -s "$$CERT" ]; do
+          n=$$((n+1))
+          [ $$((n % 12)) -eq 1 ] && echo "[stream-nginx] 인증서를 기다리는 중... ($${n}회)"
+          sleep 10
+        done
+        echo "[stream-nginx] 인증서 확인. 설정을 만든다."
+        sed "s|__STREAM_SECRET__|$$STREAM_SECRET|g" \
+            /etc/nginx/stream.conf.tpl > /etc/nginx/conf.d/default.conf
+        nginx -t
+        ( while :; do sleep 21600; nginx -s reload 2>/dev/null || true; done ) &
+        exec nginx -g 'daemon off;'
+    networks:
+      - stream-network
+
+  stream-certbot:
+    image: certbot/dns-cloudflare
+    container_name: stream-certbot
+    restart: unless-stopped
+    volumes:
+      - stream_letsencrypt:/etc/letsencrypt
+    environment:
+      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
+      - CERTBOT_EMAIL=${CERTBOT_EMAIL}
+    # --keep-until-expiring 이라 매번 새로 받지 않는다. 만료가 가까울 때만 갱신한다.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ -z "$$CF_DNS_API_TOKEN" ]; then
+          echo "[stream-certbot] CF_DNS_API_TOKEN 이 없다. 인증서를 받을 수 없다."
+          exit 1
+        fi
+        INI=/tmp/cloudflare.ini
+        printf 'dns_cloudflare_api_token = %s\n' "$$CF_DNS_API_TOKEN" > $$INI
+        chmod 600 $$INI
+        while :; do
+          certbot certonly \
+            --non-interactive --agree-tos \
+            --email "$${CERTBOT_EMAIL:-onmiso@gmail.com}" \
+            --dns-cloudflare \
+            --dns-cloudflare-credentials $$INI \
+            --dns-cloudflare-propagation-seconds 30 \
+            --keep-until-expiring \
+            -d stream.onnamu.kr \
+          || echo "[stream-certbot] 이번 시도는 실패했다. 12시간 뒤 다시 해본다."
+          sleep 43200
+        done
+    networks:
+      - stream-network
+
+networks:
+  stream-network:
+    driver: bridge
+
+volumes:
+  stream_letsencrypt:

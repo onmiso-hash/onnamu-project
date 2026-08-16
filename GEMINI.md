@@ -57,6 +57,8 @@
   4. **Goal-Driven Execution (목표 중심 실행)**: 성공적인 완료 기준을 사전에 확정하고 변경 사항의 작동 상태를 끝까지 자체 검증한 후 보고합니다.
 
 ## 📅 주요 히스토리
+- 2026-08-16: 영화관 2단계 — 영상 직행 통로(`stream/`) 신설. stream.onnamu.kr:50443에서 nginx가 서명된 주소로만 영상 바이트를 직접 전송(Cloudflare 우회), 인증서는 certbot DNS-01 자동 갱신. 설정이 없으면 종전 `/media` 경로로 자동 폴백. 상세 내용은 `history/TASK_20260816.md` 참조.
+- 2026-08-16: 영화관 썸네일이 2026-07-09부터 한 장도 생성되지 않던 문제 수정 — ffmpeg 출력 확장자가 `.tmp`라 muxer를 정하지 못해 항상 실패. 상세 내용은 `history/TASK_20260816.md` 참조.
 - 2026-08-16: 영화관 첫 화면 성능 개선 1단계 — 목록 생성 O(N²) 자막 탐색 제거(디렉터리 1회 스캔), `/movies` 페이지네이션(24개/쪽), 썸네일 캐시 named volume 영속화, ffmpeg 동시 2개 제한, 미사용 `/stream` 라우트 제거. 상세 내용은 `history/TASK_20260816.md` 참조.
 - 2026-07-17: NAMU 원격 MCP 서버(`namu/`) 신규 서비스 배포 — GitHub 참조 빌드(namu-agent v0.1.25), namu.onnamu.kr→8765 라우팅, deploy.yml 자동 배포 편입. 상세 내용은 `history/TASK_20260717.md` 참조.
 - 2026-07-09: 영화관 썸네일 ffmpeg 전환(06-21) 버그 리뷰 — 3건 수정 (빈 img src, ffmpeg 캐시 원자적 쓰기, 썸네일 에러 응답 30일 캐싱 제외). 상세 내용은 `history/TASK_20260709.md` 참조.
