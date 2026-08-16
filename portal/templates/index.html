@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | Home Hub</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+    <!-- 화면이 그려지기 '전에' 돈다. 뒤로 밀면 밝게를 고른 사람에게 어두운 화면이
+         한 번 번쩍이고 나서 밝아진다. 기본은 언제나 어둡다 — 컴퓨터 설정은 안 본다. -->
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('onnamu-theme');
+                if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg) 100%);
+            color: var(--fg); min-height: 100vh; padding: 40px 20px; line-height: 1.6;
+        }
+        .container { max-width: var(--maxw); margin: 0 auto; }
+        .glass-card {
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl); padding: 20px; border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; }
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
+            text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .label-btn { background: none; border: none; color: var(--accent); font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-sm); }
+
+        /* 밝게/어둡게 단추. 크기·여백·글자 크기는 .label-btn에서 그대로 받는다 —
+           여기서 따로 정하면 옆에 선 것과 반드시 어긋난다. 이 규칙이 더하는 것은
+           셋뿐이다: 줄어들지 않게, 글꼴을 물려받게, 좁은 화면에서 글자를 접게. */
+        .themebtn { flex: none; font-family: inherit; }
+        .themebtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        @media (max-width: 520px) { .themebtn .lab { display: none; } }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 30px; }
+        .stat-card { display: flex; flex-direction: column; justify-content: space-between; }
+        .stat-value { font-size: 1.8rem; font-weight: 700; color: var(--fg); }
+        .progress-mini { height: 4px; background: var(--bg-track); margin-top: 15px; border-radius: var(--radius-md); overflow: hidden; }
+        .progress-inner { height: 100%; width: 0%; background: var(--bar-cpu); transition: width 1s ease; }
+
+        .heatmap-container { display: grid; grid-template-rows: repeat(7, 1fr); grid-auto-flow: column; gap: 4px; overflow-x: auto; padding-bottom: 8px; }
+        .heatmap-cell { width: 12px; height: 12px; background: var(--bg-track); border-radius: var(--radius-xs); cursor: pointer; }
+        .heatmap-cell.has-data { background: var(--accent); box-shadow: 0 0 8px var(--accent-glow); }
+
+        .date-strip-container { display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; scroll-behavior: smooth; }
+        .date-item { min-width: 55px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; padding: 12px 8px; border-radius: var(--radius); transition: all 0.2s; }
+        .date-item:hover { background: var(--bg-elev); }
+        .date-item.today { background: var(--accent-soft); border: 1px solid var(--accent-line); }
+        .month-item {
+            min-width: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: var(--accent-tint-soft); border: 1px dashed var(--accent-line); border-radius: var(--radius);
+            font-weight: 800; color: var(--accent); font-size: 0.85rem;
+        }
+        .work-dot { width: 4px; height: 4px; background: var(--accent); border-radius: var(--radius-full); opacity: 0; }
+        .work-dot.active { opacity: 1; box-shadow: 0 0 5px var(--accent); }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay); backdrop-filter: blur(8px); z-index: 1000; }
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 95%; max-width: var(--maxw-modal); z-index: 1001; max-height: 80vh; flex-direction: column; background: var(--bg-soft); border-radius: var(--radius-2xl); border: 1px solid var(--border); color: var(--fg); }
+        .modal-header { padding: 24px; border-bottom: 1px solid var(--border-soft); display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 24px; overflow-y: auto; }
+        .news-item-box { margin-bottom: 20px; }
+        .news-content-text { font-size: 0.95rem; line-height: 1.8; color: var(--fg-muted); }
+        .news-category { font-size: 1.15rem; font-weight: 800; color: var(--accent); margin-top: 25px; margin-bottom: 12px; display: block; border-left: 4px solid var(--accent); padding-left: 12px; }
+        .news-title { font-weight: 700; color: var(--fg); margin-top: 15px; margin-bottom: 8px; font-size: 1rem; display: block; }
+        .news-bullet { padding-left: 2rem; text-indent: -1.4rem; margin-bottom: 6px; display: block; color: var(--fg-muted); }
+        .news-divider { border: 0; height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); margin: 15px 0; }
+
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--maxw-tile), 1fr)); gap: 16px; }
+        .service-link { display: flex; align-items: center; gap: 18px; text-decoration: none; color: inherit; }
+        .service-icon { width: 48px; height: 48px; border-radius: var(--radius-lg); background: var(--accent-tint); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; flex-shrink: 0; }
+        .service-info h3 { font-size: 0.95rem; font-weight: 600; color: var(--fg); }
+        .service-info p { font-size: 0.75rem; color: var(--fg-soft); margin-top: 1px; }
+        .demo-badge { font-size: 0.65rem; border: 1px solid var(--border); padding: 2px 8px; border-radius: var(--radius-sm); color: var(--fg-soft); }
+
+        footer { margin-top: 60px; font-size: 0.8rem; color: var(--fg-faint); text-align: center; }
+        @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="topbar glass-card">
+            <span style="font-weight:700;">onnamu.kr hub</span>
+            <div style="display:flex; align-items:center; gap:12px;">
+                {% if username %}
+                <span style="font-size:0.8rem; color:var(--fg-muted);">👤 {{ username }}{% if is_admin %} (관리자){% endif %}</span>
+                <a href="/logout" style="font-size:0.8rem; color:var(--accent); text-decoration:none; font-weight:700;">로그아웃</a>
+                {% else %}
+                <a href="/login" style="font-size:0.8rem; color:var(--accent); text-decoration:none; font-weight:700;">로그인</a>
+                {% endif %}
+                <!-- 처음엔 숨겨 둔다 — 자바스크립트가 살아 있을 때만 아래 조각이 꺼낸다.
+                     눌러도 안 듣는 단추를 보여 주지 않는 것이 요점이다. -->
+                <button type="button" class="label-btn themebtn" id="themebtn" hidden aria-label="밝게 보기"><span class="ico" aria-hidden="true">☀️</span> <span class="lab">밝게</span></button>
+                <span id="update-time" style="font-size:0.8rem; color:var(--fg-soft); margin-left:10px;">Syncing...</span>
+            </div>
+        </div>
+
+        <div class="section-label">System Health {% if not username %}<span style="font-size:0.65rem; color:var(--fg-faint); margin-left:8px; text-transform:none;">(로그인 시 실시간 수치 활성화)</span>{% endif %}</div>
+        <div class="stats-grid">
+            <div class="glass-card stat-card">
+                <div style="font-size:0.75rem; color:var(--fg-soft); margin-bottom:8px;">CPU Load</div>
+                <div class="stat-value" id="cpu">-</div>
+                <div class="progress-mini"><div class="progress-inner" id="cpu-bar"></div></div>
+            </div>
+            <div class="glass-card stat-card">
+                <div style="font-size:0.75rem; color:var(--fg-soft); margin-bottom:8px;">RAM Usage</div>
+                <div class="stat-value" id="ram">-</div>
+                <div class="progress-mini"><div class="progress-inner" id="ram-bar" style="background: var(--bar-ram);"></div></div>
+            </div>
+            <div class="glass-card stat-card">
+                <div style="font-size:0.75rem; color:var(--fg-soft); margin-bottom:8px;">DISK (C:)</div>
+                <div class="stat-value" id="disk">-</div>
+                <div class="progress-mini"><div class="progress-inner" id="disk-bar" style="background: var(--bar-disk);"></div></div>
+                <p id="disk-sub" style="font-size: 0.7rem; color: var(--fg-faint); margin-top: 8px;"></p>
+            </div>
+        </div>
+
+        <div class="section-label">Server Work Heatmap</div>
+        <div class="glass-card"><div id="heatmap" class="heatmap-container"></div></div>
+
+        <div class="section-label">
+            Daily News Timeline
+            <div style="display:flex; align-items:center; gap:10px;">
+                <button class="label-btn" onclick="changeMonth(-1)">&lt;</button>
+                <span id="current-month-display" style="color:var(--fg); font-weight:700; min-width:80px; text-align:center;">-</span>
+                <button class="label-btn" onclick="changeMonth(1)">&gt;</button>
+                <button class="label-btn" onclick="gotoToday()" style="margin-left:10px;">Today</button>
+            </div>
+        </div>
+        <div class="glass-card date-strip-container" id="date-strip"></div>
+
+        <div class="section-label">Operational Services</div>
+        <div class="services-grid">
+            <a href="https://n8n.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">⚙️</div>
+                <div class="service-info"><h3>n8n Automation</h3><p>Workflow & Bot Manager</p></div>
+            </a>
+            <a href="https://gallery.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🏠</div>
+                <div class="service-info"><h3>Media Home</h3><p>Unified Media Service</p></div>
+            </a>
+            <a href="https://games.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🎮</div>
+                <div class="service-info"><h3>Games Hub</h3><p>Lightweight Web Games</p></div>
+            </a>
+            <a href="https://rdap.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🌐</div>
+                <div class="service-info"><h3>onnamu RDAP</h3><p>Internet Resource Query</p></div>
+            </a>
+            <a href="https://bootstrap.rdap.kr/dashboard" target="_blank" class="glass-card service-link">
+                <div class="service-icon">📊</div>
+                <div class="service-info"><h3>RDAP Dashboard</h3><p>Real-time Stats & Monitoring</p></div>
+            </a>
+            <a href="https://t.me/Jaeseung_minipc_bot" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🤖</div>
+                <div class="service-info"><h3>Jaeseung Bot</h3><p>Telegram Monitoring System</p></div>
+            </a>
+            <a href="/static/namu_guide.html" target="_blank" class="glass-card service-link">
+                <div class="service-icon">🌳</div>
+                <div class="service-info"><h3>NAMU 안내서</h3><p>NAMU Agent User Guide</p></div>
+            </a>
+            {% if is_admin %}
+            <a href="https://studio.onnamu.kr" target="_blank" class="glass-card service-link">
+                <div class="service-icon">📖</div>
+                <div class="service-info"><h3>Chronicle Studio</h3><p>Co-creative AI Storytelling</p></div>
+            </a>
+            {% endif %}
+        </div>
+
+        <div class="section-label" style="margin-top:20px;">Project Demos</div>
+        <div class="services-grid">
+            <a href="/v1" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:var(--bg-sunken)">🏢</div>
+                <div class="service-info"><h3>Company Renewal v1</h3><p>Initial Concept Draft</p></div>
+                <span class="demo-badge">Draft</span>
+            </a>
+            <a href="/v2" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:var(--bg-sunken)">🚀</div>
+                <div class="service-info"><h3>Company Renewal v2</h3><p>Final Production Prototype</p></div>
+                <span class="demo-badge">Draft</span>
+            </a>
+            <a href="/static/whois.html" target="_blank" class="glass-card service-link">
+                <div class="service-icon" style="background:var(--bg-sunken)">🔎</div>
+                <div class="service-info"><h3>WHOIS OpenAPI</h3><p>Domain · IP · AS Number Lookup</p></div>
+                <span class="demo-badge">Test</span>
+            </a>
+        </div>
+        <footer>Managed by onmiso | onnamu.kr hub v6.3</footer>
+    </div>
+
+    <div class="modal-overlay" id="overlay" onclick="closeModal()"></div>
+    <div class="modal" id="news-modal">
+        <div class="modal-header"><h3 id="modal-date">작업 상세</h3><button style="background:none; border:none; color:var(--fg-soft); font-size:1.5rem; cursor:pointer;" onclick="closeModal()">&times;</button></div>
+        <div class="modal-body" id="modal-content"></div>
+    </div>
+
+    <script>
+        function updateStats() {
+            {% if username %}
+            fetch('/stats').then(r => {
+                if (r.status === 401) {
+                    document.getElementById('cpu').innerText = 'Locked';
+                    document.getElementById('ram').innerText = 'Locked';
+                    document.getElementById('disk').innerText = 'Locked';
+                    return;
+                }
+                return r.json();
+            }).then(d => {
+                if (!d) return;
+                document.getElementById('cpu').innerText = d.cpu + '%';
+                document.getElementById('ram').innerText = d.ram + '%';
+                document.getElementById('disk').innerText = d.disk_percent + '%';
+                document.getElementById('disk-sub').innerText = d.disk_detail;
+                document.getElementById('cpu-bar').style.width = d.cpu + '%';
+                document.getElementById('ram-bar').style.width = d.ram + '%';
+                document.getElementById('disk-bar').style.width = d.disk_percent + '%';
+                document.getElementById('update-time').innerText = 'Last updated: ' + new Date().toLocaleTimeString();
+            }).catch(() => {});
+            {% else %}
+            document.getElementById('cpu').innerText = 'Locked';
+            document.getElementById('ram').innerText = 'Locked';
+            document.getElementById('disk').innerText = 'Locked';
+            document.getElementById('disk-sub').innerText = '관리자 로그인 필요';
+            {% endif %}
+        }
+        setInterval(updateStats, 10000); updateStats();
+
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        let currentTargetDate = new Date();
+        let cachedNewsDates = new Set();
+
+        async function initArchiveUI() {
+            try {
+                const resWork = await fetch('/api/work/events');
+                const workEvents = await resWork.json();
+                const workDates = new Set(workEvents.map(e => e.date));
+
+                const resNews = await fetch('/api/news/events');
+                const newsEvents = await resNews.json();
+                cachedNewsDates = new Set(newsEvents.map(e => e.date));
+
+                renderHeatmap(workDates);
+                renderDateStrip(currentTargetDate);
+            } catch (e) { console.error(e); }
+        }
+
+        function renderHeatmap(workDates) {
+            const container = document.getElementById('heatmap');
+            const today = new Date();
+            const start = new Date(); start.setMonth(today.getMonth() - 6);
+            for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+                const dateStr = formatDate(d);
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell' + (workDates.has(dateStr) ? ' has-data' : '');
+                cell.title = dateStr;
+                cell.onclick = () => fetchWork(dateStr);
+                container.appendChild(cell);
+            }
+            setTimeout(() => { container.scrollLeft = container.scrollWidth; }, 300);
+        }
+
+        function renderDateStrip(targetDate) {
+            const container = document.getElementById('date-strip');
+            container.innerHTML = '';
+
+            const today = new Date();
+            const todayStr = formatDate(today);
+
+            // 헤더 월 표시 업데이트
+            document.getElementById('current-month-display').innerText = `${targetDate.getFullYear()}.${String(targetDate.getMonth() + 1).padStart(2, '0')}`;
+
+            // 타겟 월의 시작일과 종료일 계산 (전후 1주일씩 추가 노출)
+            const start = new Date(targetDate.getFullYear(), targetDate.getMonth(), 1);
+            start.setDate(start.getDate() - 7);
+            const end = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+            end.setDate(end.getDate() + 7);
+
+            const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+            let lastMonth = -1;
+
+            for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                const currentMonth = d.getMonth();
+
+                // 월이 바뀌는 지점에 월 레이블 삽입
+                if (lastMonth !== -1 && lastMonth !== currentMonth) {
+                    const monthLabel = document.createElement('div');
+                    monthLabel.className = 'month-item';
+                    monthLabel.innerText = `${currentMonth + 1}월`;
+                    container.appendChild(monthLabel);
+                }
+                lastMonth = currentMonth;
+
+                const dateStr = formatDate(d);
+                const isToday = dateStr === todayStr;
+                const item = document.createElement('div');
+                item.className = 'date-item' + (isToday ? ' today' : '');
+                if(isToday) item.id = 'date-today';
+
+                // 타겟 월에 속하지 않는 날짜는 반투명 처리 (선택사항)
+                if (d.getMonth() !== targetDate.getMonth()) {
+                    item.style.opacity = '0.4';
+                }
+
+                item.onclick = () => fetchNews(dateStr);
+                item.innerHTML = `
+                    <span style="font-size:0.65rem; color:var(--fg-soft); font-weight:600;">${days[d.getDay()]}</span>
+                    <span style="font-size:1.1rem; font-weight:700;">${d.getDate()}</span>
+                    <div class="work-dot ${cachedNewsDates.has(dateStr) ? 'active' : ''}"></div>
+                `;
+                container.appendChild(item);
+            }
+
+            // 오늘이 포함된 월이라면 오늘로 스크롤, 아니면 월 초입으로 스크롤
+            setTimeout(() => {
+                const scrollTarget = document.getElementById('date-today') || container.querySelector('.month-item') || container.firstChild;
+                if (scrollTarget) scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }, 300);
+        }
+
+        function changeMonth(offset) {
+            currentTargetDate.setMonth(currentTargetDate.getMonth() + offset);
+            renderDateStrip(currentTargetDate);
+        }
+
+        function gotoToday() {
+            currentTargetDate = new Date();
+            renderDateStrip(currentTargetDate);
+        }
+
+        function fetchNews(date) {
+            fetch('/api/news/get?date=' + date).then(r => r.json()).then(data => {
+                let content = document.getElementById('modal-content');
+                document.getElementById('modal-date').innerText = date + " 뉴스 요약";
+                if(data.length > 0) {
+                    content.innerHTML = data.map(n => {
+                        const lines = n.content.split('\n');
+                        let headerFound = false;
+                        const formatted = lines.map(line => {
+                            line = line.trim();
+                            if (!line) return '';
+
+                            // 헤더(보라색 타이틀) 패턴 확인
+                            const isHeader = line.startsWith('🤖') || line.startsWith('📰');
+
+                            // 첫 헤더가 나오기 전의 문장은 도입부로 간주 (흰색 작은 글씨)
+                            if (!headerFound && !isHeader) {
+                                return `<span style="display:block; margin-bottom:10px; font-size:0.85rem; color:var(--fg-muted);">${line}</span>`;
+                            }
+
+                            if (isHeader) {
+                                headerFound = true;
+                                return `<span class="news-category">${line}</span>`;
+                            }
+
+                            if (line.startsWith('🔹')) return `<span class="news-title">${line}</span>`;
+                            if (line.startsWith('•') || line.startsWith('-')) return `<span class="news-bullet">${line}</span>`;
+                            return `<span style="display:block; margin-bottom:4px;">${line}</span>`;
+                        }).join('');
+                        return `<div class="news-item-box"><div class="news-content-text">${formatted}</div><hr class="news-divider"></div>`;
+                    }).join('');
+                } else { content.innerHTML = "<p style='text-align:center; padding:40px; color:var(--fg-faint);'>저장된 뉴스가 없습니다.</p>"; }
+                document.getElementById('news-modal').style.display = 'flex';
+                document.getElementById('overlay').style.display = 'block';
+            });
+        }
+
+        function fetchWork(date) {
+            fetch('/api/work/get?date=' + date).then(r => r.json()).then(data => {
+                let content = document.getElementById('modal-content');
+                document.getElementById('modal-date').innerText = date + " 작업 상세";
+                if(data.length > 0) {
+                    content.innerHTML = data.map(n => `
+                        <div class="work-item-box">
+                            <span class="news-category">${n.category}</span>
+                            <div class="news-content-text">${n.content}</div>
+                        </div>
+                    `).join('');
+                } else { content.innerHTML = "<p style='text-align:center; padding:40px; color:var(--fg-faint);'>기록된 작업이 없습니다.</p>"; }
+                document.getElementById('news-modal').style.display = 'flex';
+                document.getElementById('overlay').style.display = 'block';
+            });
+        }
+
+        function closeModal() { document.getElementById('news-modal').style.display = 'none'; document.getElementById('overlay').style.display = 'none'; }
+        document.addEventListener('DOMContentLoaded', initArchiveUI);
+    </script>
+
+    <!-- 밝게/어둡게 단추. 고른 값은 이 브라우저에만 남는다(서버는 모른다).
+         나무 클라우드(ui.py)의 _THEME_TOGGLE_SCRIPT와 같은 방식이되, 온나무는
+         "아무것도 안 고르면 어둡게"라서 컴퓨터 설정을 묻는 갈래가 없다. -->
+    <script>
+        (function () {
+            var b = document.getElementById('themebtn');
+            if (!b) return;
+            var r = document.documentElement;
+            b.hidden = false;
+            // 지금 어두운가 — 밝게를 고른 것이 아니면 언제나 어둡다.
+            function dark() { return r.getAttribute('data-theme') !== 'light'; }
+            function paint() {
+                var d = dark();
+                b.querySelector('.ico').textContent = d ? '☀️' : '🌙';
+                b.querySelector('.lab').textContent = d ? '밝게' : '어둡게';
+                b.setAttribute('aria-label', (d ? '밝게' : '어둡게') + ' 보기');
+            }
+            paint();
+            b.addEventListener('click', function () {
+                var n = dark() ? 'light' : 'dark';
+                r.setAttribute('data-theme', n);
+                try { localStorage.setItem('onnamu-theme', n); } catch (e) { }
+                paint();
+            });
+        })();
+    </script>
+</body>
+</html>
