@@ -37,6 +37,8 @@ curl -s -X POST https://onnamu.kr/api/work/save \
 외부: **Cloudflare Tunnel** (HTTPS). 환경변수: `gallery/.env` → 배포 시 각 서비스로 복사.
 SSO: HMAC-SHA256 서명 토큰 30일. 상세 인증 플로우 → `gallery/CLAUDE.md`.
 
+**미니PC 상태 확인은 SSH로 직접 한다** — `ssh minipc "docker ps"` (집 밖이면 `minipc-out`). 사용자에게 파워셸 명령을 붙여넣게 하지 말 것. 읽기 확인은 바로 실행, 상태 변경은 승인 후. 상세 → `~/.claude/CLAUDE.md`.
+
 ---
 
 ## 개발·배포 명령
