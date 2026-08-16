@@ -25,7 +25,9 @@ ROUTING_DIR="${NAMU_CLOUD_ROUTING_DIR:-$HOME/project/namu-cloud-routing}"
 AGENT_DIR="${NAMU_AGENT_DIR:-$HOME/project/namu-agent}"
 
 COMPOSE="$ROOT/namu-cloud/docker-compose.yml"
-DEPLOY="$ROOT/.github/workflows/deploy.yml"
+# 배포 명령은 2026-08-16에 deploy.yml 에서 이 파일로 옮겼다(윈도우 명령줄
+# 한계 초과). 번호(핀)도 같이 옮겨왔으므로 여기를 읽는다.
+DEPLOY="$ROOT/scripts/deploy.ps1"
 
 skip() { echo "[클라우드 엔진 검사] 건너뜀 — $1"; exit 0; }
 block() {

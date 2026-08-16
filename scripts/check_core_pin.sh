@@ -25,7 +25,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AGENT_DIR="${NAMU_AGENT_DIR:-$HOME/project/namu-agent}"
 
 COMPOSE="$ROOT/namu/docker-compose.yml"
-DEPLOY="$ROOT/.github/workflows/deploy.yml"
+# 배포 명령은 2026-08-16에 deploy.yml 에서 이 파일로 옮겼다(윈도우 명령줄
+# 한계 초과). 번호(핀)도 같이 옮겨왔으므로 여기를 읽는다.
+DEPLOY="$ROOT/scripts/deploy.ps1"
 
 skip() { echo "[개인용 서버 검사] 건너뜀 — $1"; exit 0; }
 block() {
@@ -39,7 +41,7 @@ block() {
   echo ""
   echo "  푸는 법 — 아래 세 자리를 최신 번호로 고쳐 이번 푸시에 같이 실으세요."
   echo "     namu/docker-compose.yml           image: namu-remote-mcp:v...   (1곳)"
-  echo "     .github/workflows/deploy.yml      -t namu-remote-mcp:v... 와"
+  echo "     scripts/deploy.ps1                -t namu-remote-mcp:v... 와"
   echo "                                       namu-agent.git#v...          (2곳, 같은 줄)"
   echo "  절차 전문은 /namu-deploy 를 보세요."
   echo ""
