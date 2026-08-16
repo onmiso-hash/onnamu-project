@@ -82,6 +82,31 @@ Cloudflare 자격은 **둘 중 하나**만 있으면 된다. `stream-certbot`이
 `certbot_dns_cloudflare` 플러그인이 두 형식을 모두 받는 것은 이미지 안의 플러그인 소스와
 `--dry-run` 실행으로 확인했다(가짜 키로 Cloudflare API 호출 단계까지 도달).
 
+### ③ 둘 다 막혔을 때 — 손으로 받기 (2026-08-16 현재 이 계정 상황)
+
+이 계정은 **토큰 생성도 글로벌 키 보기도** `Please verify your email (1211)`로 막혔고,
+확인 메일 자체가 오지 않는다(발송 차단 목록으로 추정 — 공식 해결책은 Cloudflare 고객지원 문의).
+
+그동안은 인증서를 손으로 받는다. **미니PC에서** 한 번 실행:
+
+```bash
+docker run --rm -it -v stream_letsencrypt:/etc/letsencrypt certbot/certbot \
+  certonly --manual --preferred-challenges dns \
+  --agree-tos --email onmiso@gmail.com -d stream.onnamu.kr
+```
+
+화면에 `_acme-challenge.stream.onnamu.kr` 에 넣을 TXT 값이 나온다.
+Cloudflare DNS에 그 TXT 레코드를 추가하고 Enter를 누르면 인증서가
+`stream_letsencrypt` 볼륨에 저장된다. (그 뒤 TXT 레코드는 지워도 된다.)
+
+**자격이 없으면 `stream-certbot`은 죽지 않고 쉰다.** 손으로 받아 둔 인증서로 nginx는 계속 돈다.
+
+> ⚠ **손으로 받은 인증서는 90일 뒤 만료된다. 자동 갱신이 없다.**
+> 만료되면 화면은 멀쩡한데 영상만 안 나온다. Cloudflare 자격이 풀리는 대로 ①이나 ②로 옮길 것.
+
+볼륨 이름은 compose에서 `name: stream_letsencrypt`로 못 박았다 —
+안 박으면 폴더 이름이 앞에 붙어 위 명령과 어긋난다.
+
 **`STREAM_SECRET`에 `\|`나 `&`를 넣지 말 것** — 설정 파일에 `sed`로 채워 넣으므로 깨진다.
 
 ---
