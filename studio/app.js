@@ -871,6 +871,19 @@ class ChronicleApp {
                 }
             }
 
+            // 홈에서 다른 인물을 골라 들어왔으면 화면에 남아 있던 앞 인물의 대화를 비운다.
+            // 인물 고르기 칸으로 바꾸면 그때 비워지지만, 이름을 직접 고쳐 쓰면 그 길을 안 탄다.
+            // 안 비우면 앞 인물의 말이 새 인물의 대화로 통째로 옮겨 담긴다.
+            if (this.chatCharName && this.chatCharName !== finalName) {
+                this.storyHistory = [];
+                this.currentChapterIndex = 0;
+                this.dialogueVectors = [];
+                this.memoryList = ["첫 대화가 시작되었습니다."];
+                this.affinityValue = 50;
+                this.redoAvailable = 0;
+                this.setCurrentConversation(null);
+            }
+
             // Silently apply all new configuration inputs while fully preserving existing dialogue history and affinity
             this.chatCharName = finalName;
             this.chatRelation = finalRelation;
@@ -3683,6 +3696,28 @@ JSON Schema:
         return this.modeType === 'chat' ? (this.chatCharName || '새 대화') : (this.characterName || '새 소설');
     }
 
+    // 이 대화가 지금 홈에서 고른 인물의 것인가.
+    // 양쪽 다 인물 번호가 있으면 번호로 맞춘다(이름이 같은 다른 인물에 안 걸린다).
+    // 한쪽이라도 번호가 없으면 — 인물 목록에 저장하지 않고 이름만 적어 쓰는 경우다 —
+    // 이름으로 맞춘다. 여기서 이름 대조를 빼면 그런 인물은 들어올 때마다 대화가 새로 생긴다.
+    conversationBelongsToCurrentCharacter(conv) {
+        if (!conv) return false;
+        const name = this.chatCharName || '';
+        const wantId = this.currentCharId();
+        // 인물 고르기 칸이 가리키는 인물의 이름이 지금 이름과 다르면 — 이름을 직접 고쳐 써서
+        // 다른 인물로 들어온 것이다 — 그 칸은 더 이상 지금 인물을 가리키지 않으므로 안 믿는다.
+        const picked = wantId ? this.serverPersonasById[wantId] : null;
+        const idUsable = !!picked && (picked.charName || picked.presetName) === name;
+        if (idUsable && conv.charId) return conv.charId === wantId;
+        if (!name) return false;
+        return conv.charName === name || conv.title === name;
+    }
+
+    // 인물별로 마지막에 보던 대화 — 다음에 그 인물로 들어오면 이 대화가 열린다.
+    lastConversationKeyForCharacter() {
+        return this.chatCharName ? `last_conv_chat_${this.chatCharName}` : '';
+    }
+
     // 열어 둔 대화 id는 모드별로 따로 기억한다 — 소설과 대화가 서로의 자리를 뺏지 않게.
     conversationIdKey() {
         return `current_conv_id_${this.modeType}`;
@@ -3692,6 +3727,11 @@ JSON Schema:
         this.convId = convId || null;
         if (convId) localStorage.setItem(this.conversationIdKey(), convId);
         else localStorage.removeItem(this.conversationIdKey());
+
+        // 인물별 기억은 **열었을 때만** 적는다. 인물을 바꾸며 비울 때(null) 지워버리면
+        // 아직 앞 인물 이름이 남아 있어 그 인물의 기억이 대신 지워진다.
+        const key = this.lastConversationKeyForCharacter();
+        if (convId && this.modeType === 'chat' && key) localStorage.setItem(key, convId);
     }
 
     // 서버가 내려준 대화 한 건을 화면 상태에 옮겨 담는다.
@@ -4082,6 +4122,28 @@ JSON Schema:
         try {
             this.convId = localStorage.getItem(this.conversationIdKey()) || null;
             await this.refreshServerPersonaIds();
+            this.conversationList = await this.fetchConversationList();
+
+            // 채팅에서는 **홈에서 고른 인물이 주인이다.** 열어 두었던 대화가 다른 인물의
+            // 것이면 그 인물의 가장 최근 대화로 갈아탄다(그 인물의 대화가 하나도 없으면
+            // 아무 대화도 열지 않고, 첫 말을 걸 때 새로 만들어진다).
+            // 이 갈아타기가 없으면 홈에서 고른 인물이 앞서 보던 인물로 되돌아간다 —
+            // 대화를 열 때 인물까지 갈아끼우게 되면서 생긴 갈래다.
+            if (this.modeType === 'chat') {
+                const open = this.conversationList.find(c => c.id === this.convId);
+                if (!this.conversationBelongsToCurrentCharacter(open)) {
+                    const mine = this.conversationList
+                        .filter(c => c.mode === 'chat' && this.conversationBelongsToCurrentCharacter(c))
+                        // 목록은 최근 순으로 와 있다. 다만 한꺼번에 옮겨온 옛 대화들은 시각이
+                        // 모두 같아 순서를 가릴 수 없으므로, 그럴 때는 말이 더 많이 쌓인 쪽을 앞에 둔다.
+                        .sort((a, b) => (new Date(b.updatedAt) - new Date(a.updatedAt)) || ((b.turnCount || 0) - (a.turnCount || 0)));
+                    // 이 인물로 마지막에 보던 대화가 있으면 그것이 먼저다 — 사용자가 고른 것이
+                    // 자동 순서보다 앞선다(한 인물에 대화가 여럿일 때 매번 엉뚱한 게 열리지 않게).
+                    const rememberedId = localStorage.getItem(this.lastConversationKeyForCharacter());
+                    const remembered = mine.find(c => c.id === rememberedId);
+                    this.setCurrentConversation(remembered ? remembered.id : (mine.length ? mine[0].id : null));
+                }
+            }
 
             if (this.convId) {
                 const r = await this.callApi('GET', `/api/conversations/${this.convId}?vectors=1`);
