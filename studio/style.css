@@ -1868,32 +1868,68 @@ select {
     margin-top: 0.2rem;
 }
 
+/* 인물별 묶음 — 인물 이름은 머리글로 한 번만 쓴다 */
+.conv-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-bottom: 0.4rem;
+}
+
+.conv-group-head {
+    padding: 0.3rem 0.5rem 0.1rem;
+    color: #cbd5e1;
+    font-size: 0.78rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .conversation-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
+    gap: 0.1rem;
     width: 100%;
-    padding: 0.55rem 0.8rem;
-    background: transparent;
     border: 1px solid transparent;
     border-radius: 10px;
-    color: #94a3b8;
-    font-family: inherit;
-    font-size: 0.82rem;
-    text-align: left;
-    cursor: pointer;
     transition: all 0.2s;
 }
 
 .conversation-item:hover {
     background: rgba(255, 255, 255, 0.03);
-    color: #fff;
 }
 
 .conversation-item.active {
     background: rgba(6, 182, 212, 0.08);
     border-color: rgba(6, 182, 212, 0.15);
+}
+
+/* 줄을 누르면 그 대화가 열린다. 연필·휴지통은 이 버튼 안이 아니라 옆에 나란히 둔다 —
+   버튼 안에 버튼을 넣으면 연필을 눌렀을 때 대화 열기까지 함께 눌린다. */
+.conv-open {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    padding: 0.55rem 0.2rem 0.55rem 0.8rem;
+    background: transparent;
+    border: none;
+    border-radius: 10px 0 0 10px;
+    color: #94a3b8;
+    font-family: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    cursor: pointer;
+}
+
+.conversation-item:hover .conv-open {
+    color: #fff;
+}
+
+.conversation-item.active .conv-open {
     color: var(--cyan);
 }
 
@@ -1908,6 +1944,32 @@ select {
     flex-shrink: 0;
     font-size: 0.72rem;
     opacity: 0.65;
+}
+
+.conv-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.05rem;
+    padding-right: 0.35rem;
+}
+
+/* 항상 보이지만 흐리게 둔다 — 손가락으로 쓰는 화면에서는 마우스를 올릴 수 없어
+   마우스를 올릴 때만 나타나게 하면 버튼을 아예 못 찾는다. */
+.conv-action {
+    padding: 0.28rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    line-height: 1;
+    opacity: 0.35;
+    cursor: pointer;
+    transition: opacity 0.2s, background 0.2s;
+}
+
+.conv-action:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 .conversation-list-empty {

@@ -3886,6 +3886,9 @@ JSON Schema:
         const r = await this.callApi('POST', '/api/conversations', {
             mode: this.modeType,
             charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            // 인물 번호가 없는 경우(인물 목록에 저장하지 않고 이름만 적어 쓸 때)를 위해
+            // 이름도 함께 보낸다 — 대화가 누구의 것인지 제목으로 짐작하지 않게.
+            charName: this.modeType === 'chat' ? (this.chatCharName || '') : '',
             title: this.conversationTitle(),
             chatLevel: this.chatLevel,
             userName: this.characterName
@@ -3908,15 +3911,28 @@ JSON Schema:
         const convId = await this.ensureConversation();
         if (!convId) return false;
 
+        const meta = {
+            affinityValue: this.affinityValue,
+            memoryList: [...this.memoryList],
+            chatLevel: this.chatLevel,
+            userName: this.characterName
+        };
+
+        // 첫 마디가 그 대화의 제목이 된다 — 사용자가 아무것도 하지 않아도 대화끼리 구별되고
+        // 무엇에 대한 대화였는지 떠오른다. 두 겹으로 잠가 둔다:
+        //   ① 첫 두 턴에서만 — 대화를 열자마자 「대화 시작」이 자동으로 한 턴을 채우는 경우가
+        //      있어서 사용자가 실제로 건네는 말은 1번 턴일 수 있다. 그 뒤로는 짓지 않는다
+        //      (수백 턴 쌓인 옛 대화의 제목이 도중에 한 말로 바뀌면 안 된다).
+        //   ② 제목이 아직 자동으로 붙은 것일 때만 — 사용자가 연필로 고친 제목은 덮지 않는다.
+        if (index <= 1) {
+            const autoTitle = this.titleFromTurn(turn);
+            if (autoTitle && this.conversationTitleIsAuto(convId)) meta.title = autoTitle;
+        }
+
         const r = await this.callApi('POST', `/api/conversations/${convId}/turns`, {
             n: index,
             turn,
-            meta: {
-                affinityValue: this.affinityValue,
-                memoryList: [...this.memoryList],
-                chatLevel: this.chatLevel,
-                userName: this.characterName
-            }
+            meta
         });
 
         if (!r.ok) {
@@ -3934,6 +3950,37 @@ JSON Schema:
         this.updateUndoRedoButtons();
         this.refreshConversationList();
         return convId; // 이 말이 실제로 들어간 대화 — 벡터도 반드시 여기에 붙어야 한다
+    }
+
+    // 제목이 될 만한 글을 이 턴에서 뽑는다 — **사용자가 건넨 말**이다.
+    // 「대화 시작」처럼 자동으로 들어간 말은 사용자가 한 말이 아니므로 쓰지 않는다(빈 값).
+    // AI가 한 대사는 제목으로 쓰지 않는다 — 지문이 섞인 긴 문장이 와서 무슨 대화였는지
+    // 오히려 알아볼 수 없다(실측: "*눈빛에 조용하고 다정함 특징이 서려 있는 한지수…").
+    // 소설만 예외로 챕터 제목을 쓴다 — 그건 원고를 짧게 가리키도록 AI가 지은 이름이다.
+    titleFromTurn(turn) {
+        if (!turn) return '';
+        const AUTO_OPENERS = ['대화를 시작하자.', '이야기를 시작해줘.'];
+        const said = (typeof turn.actionText === 'string') ? turn.actionText.trim() : '';
+        let text = AUTO_OPENERS.includes(said) ? '' : said;
+        if (!text && this.modeType === 'story' && typeof turn.chapterTitle === 'string') {
+            text = turn.chapterTitle.trim();
+        }
+        text = text.replace(/\s+/g, ' ').trim();
+        if (!text) return '';
+        return text.length > 30 ? `${text.slice(0, 30)}…` : text;
+    }
+
+    // 그 대화의 제목이 아직 자동으로 붙은 것인가(인물 이름이거나 '새 대화'). 사용자가 직접
+    // 고친 제목을 첫 마디로 덮지 않기 위해 본다. 갓 만들어 목록에 아직 없는 대화는 자동으로 본다.
+    conversationTitleIsAuto(convId) {
+        const conv = (this.conversationList || []).find(c => c.id === convId);
+        if (!conv) return true;
+        const title = (conv.title || '').trim();
+        return title === ''
+            || title === '새 대화'
+            || title === '새 소설'
+            || title === (conv.charName || '').trim()
+            || title === this.conversationTitle();
     }
 
     // 검색용 벡터는 말보다 늦게 도착하므로 따로 붙인다.
@@ -3969,21 +4016,185 @@ JSON Schema:
             return;
         }
 
+        // 소설에는 상대 인물이 없으므로 묶지 않고 그대로 늘어놓는다.
+        if (this.modeType !== 'chat') {
+            mine.forEach(conv => this.conversationListEl.appendChild(this.buildConversationItem(conv, '')));
+            return;
+        }
+
+        // 채팅은 **인물별로 묶는다** — 인물 이름을 머리글로 한 번만 쓰고 그 아래에 그 인물의
+        // 대화를 넣는다. 같은 이름이 목록에 줄줄이 반복되던 모습 자체를 없애는 것이 목적이다.
+        // 목록은 최근 순으로 와 있고 Map은 넣은 순서를 지키므로, 묶음도 최근 순으로 선다.
+        const groups = new Map();
         mine.forEach(conv => {
-            const item = document.createElement('button');
-            item.className = 'conversation-item' + (conv.id === this.convId ? ' active' : '');
-            const title = document.createElement('span');
-            title.className = 'conv-title';
-            // 사용자가 지은 제목이므로 글자 그대로 넣는다(HTML로 해석되지 않게)
-            title.textContent = conv.title || '이름 없는 대화';
-            const count = document.createElement('span');
-            count.className = 'conv-count';
-            count.textContent = `${conv.turnCount || 0}턴`;
-            item.appendChild(title);
-            item.appendChild(count);
-            item.addEventListener('click', () => this.openConversation(conv.id));
-            this.conversationListEl.appendChild(item);
+            const key = this.conversationGroupKey(conv);
+            if (!groups.has(key)) groups.set(key, { name: this.conversationGroupName(conv), items: [] });
+            groups.get(key).items.push(conv);
         });
+
+        groups.forEach(group => {
+            const box = document.createElement('div');
+            box.className = 'conv-group';
+            const head = document.createElement('div');
+            head.className = 'conv-group-head';
+            // 인물 이름도 사용자가 지은 글자다 — 그대로 넣는다(HTML로 해석되지 않게)
+            head.textContent = `▸ ${group.name}`;
+            box.appendChild(head);
+            group.items.forEach(conv => box.appendChild(this.buildConversationItem(conv, group.name)));
+            this.conversationListEl.appendChild(box);
+        });
+    }
+
+    // 어느 묶음에 들어갈 대화인가. 인물 번호가 있으면 번호로 묶는다 — 이름이 같은
+    // 다른 인물(실제로 있다)이 한 묶음에 섞이지 않게.
+    conversationGroupKey(conv) {
+        if (conv.charId) return `id:${conv.charId}`;
+        return `name:${conv.charName || conv.title || ''}`;
+    }
+
+    conversationGroupName(conv) {
+        return conv.charName || conv.title || '이름 없는 인물';
+    }
+
+    // 묶음 안에서 보일 제목. 머리글에 이미 인물 이름이 있으므로 제목 앞에 붙은 같은 이름은
+    // 뗀다("한지수 (자동 저장본)" → "(자동 저장본)"). 떼고 나면 남는 게 없는 대화는
+    // 예전에 인물 이름만 제목으로 달고 만들어진 것이다 — 제목이 없다고 알리고,
+    // 사용자가 연필로 직접 지을 수 있게 한다.
+    conversationItemLabel(conv, groupName) {
+        let text = (conv.title || '').trim();
+        if (groupName && text.startsWith(groupName)) {
+            text = text.slice(groupName.length).trim();
+        }
+        return text || '(제목 없음)';
+    }
+
+    // 목록에 보일 날짜. 올해면 "8월 17일", 지난 해의 것이면 해까지 적는다.
+    conversationDateLabel(iso) {
+        if (!iso) return '';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '';
+        const monthDay = `${d.getMonth() + 1}월 ${d.getDate()}일`;
+        return d.getFullYear() === new Date().getFullYear() ? monthDay : `${d.getFullYear()}년 ${monthDay}`;
+    }
+
+    // 목록 한 줄. 바깥을 div로 두고 그 안에 "열기" 버튼과 연필·휴지통을 **나란히** 넣는다 —
+    // 줄 전체를 버튼으로 두고 그 안에 버튼을 넣으면 연필을 눌렀을 때 대화 열기까지 함께 눌린다.
+    buildConversationItem(conv, groupName) {
+        const item = document.createElement('div');
+        item.className = 'conversation-item' + (conv.id === this.convId ? ' active' : '');
+        // 어느 대화의 줄인지 표시로 남긴다 — 제목이 자유로운 글이 된 뒤로는 글자로 줄을
+        // 짚을 수 없다(검사가 제목 글자로 줄을 찾다가 못 찾은 일이 있었다).
+        item.dataset.convId = conv.id;
+
+        const open = document.createElement('button');
+        open.type = 'button';
+        open.className = 'conv-open';
+
+        const title = document.createElement('span');
+        title.className = 'conv-title';
+        // 사용자가 지은 제목이므로 글자 그대로 넣는다(HTML로 해석되지 않게)
+        title.textContent = this.conversationItemLabel(conv, groupName);
+        title.title = conv.title || '';
+
+        const count = document.createElement('span');
+        count.className = 'conv-count';
+        const date = this.conversationDateLabel(conv.updatedAt);
+        count.textContent = date ? `${conv.turnCount || 0}턴 · ${date}` : `${conv.turnCount || 0}턴`;
+
+        open.appendChild(title);
+        open.appendChild(count);
+        open.addEventListener('click', () => this.openConversation(conv.id));
+
+        const actions = document.createElement('div');
+        actions.className = 'conv-actions';
+        actions.appendChild(this.buildConversationAction('✏️', '제목 바꾸기', () => this.renameConversation(conv.id)));
+        actions.appendChild(this.buildConversationAction('🗑️', '대화 지우기', () => this.deleteConversation(conv.id)));
+
+        item.appendChild(open);
+        item.appendChild(actions);
+        return item;
+    }
+
+    buildConversationAction(icon, label, handler) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'conv-action';
+        btn.textContent = icon;
+        btn.title = label;
+        btn.setAttribute('aria-label', label);
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handler();
+        });
+        return btn;
+    }
+
+    // 연필 — 제목을 직접 고친다. 서버 통로(PATCH title)는 이미 있다.
+    async renameConversation(convId) {
+        const conv = (this.conversationList || []).find(c => c.id === convId);
+        const current = conv ? (conv.title || '') : '';
+        const answer = prompt('이 대화의 제목을 적어 주세요.', current);
+        if (answer === null) return;                       // 취소
+        const title = answer.trim();
+        if (!title || title === current) return;
+
+        const r = await this.callApi('PATCH', `/api/conversations/${convId}`, { title });
+        if (!r.ok) {
+            alert('제목을 바꾸지 못했습니다.');
+            return;
+        }
+        await this.refreshConversationList();
+    }
+
+    // 휴지통 — 대화를 지운다. 한 번 되묻고, 되돌릴 수 없다고 알린다.
+    async deleteConversation(convId) {
+        if (this.isGenerating) {
+            alert('AI가 답을 쓰는 중입니다. 잠시 뒤에 지워 주세요.');
+            return;
+        }
+        const conv = (this.conversationList || []).find(c => c.id === convId);
+        const label = (conv && conv.title) ? conv.title : '이름 없는 대화';
+        if (!confirm(`「${label}」을(를) 지웁니다.\n주고받은 말이 모두 사라지고 되돌릴 수 없습니다. 계속할까요?`)) return;
+
+        const r = await this.callApi('DELETE', `/api/conversations/${convId}`);
+        if (!r.ok) {
+            alert('그 대화를 지우지 못했습니다.');
+            return;
+        }
+
+        // "이 인물로 마지막에 본 대화" 기억이 지운 대화를 가리키고 있으면 함께 뗀다.
+        // 남겨두면 다음에 그 인물로 들어올 때 없는 대화를 열려 한다.
+        this.forgetLastConversation(convId);
+        this.conversationList = (this.conversationList || []).filter(c => c.id !== convId);
+
+        // 지금 보고 있던 대화를 지웠으면 화면이 없는 대화를 가리키게 된다.
+        // 같은 인물의 다른 대화로 옮기고, 그것도 없으면 빈 화면으로 떨어뜨린다.
+        if (convId === this.convId) {
+            this.setCurrentConversation(null);
+            const next = (this.conversationList || []).find(c => c.mode === this.modeType
+                && (this.modeType !== 'chat' || this.conversationBelongsToCurrentCharacter(c)));
+            if (next) {
+                await this.openConversation(next.id);      // 목록도 여기서 다시 그려진다
+                return;
+            }
+            this.clearConversationState();
+            this.rerenderFeedFromHistory();
+            this.updateUndoRedoButtons();
+        }
+        await this.refreshConversationList();
+    }
+
+    // 어느 인물의 것이든 지운 대화를 가리키는 "마지막에 본 대화" 기억은 모두 뗀다.
+    // 지운 대화가 지금 인물의 것이 아닐 수도 있어 지금 인물 것만 보지 않는다.
+    forgetLastConversation(convId) {
+        const stale = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('last_conv_chat_') && localStorage.getItem(key) === convId) {
+                stale.push(key);
+            }
+        }
+        stale.forEach(key => localStorage.removeItem(key));
     }
 
     async openConversation(convId) {
@@ -4008,11 +4219,9 @@ JSON Schema:
         this.renderConversationList();
     }
 
-    async startNewConversation() {
-        if (this.isGenerating) {
-            alert('AI가 답을 쓰는 중입니다. 잠시 뒤에 다시 눌러 주세요.');
-            return;
-        }
+    // 화면을 빈 대화 상태로 되돌린다. 서버에 새 대화를 만드는 일은 여기서 하지 않는다 —
+    // 대화를 지운 뒤에도 이 상태로 떨어지는데, 그때 서버에 빈 대화를 만들면 빈 껍데기가 쌓인다.
+    clearConversationState() {
         this.setCurrentConversation(null);
         this.storyHistory = [];
         this.currentChapterIndex = 0;
@@ -4022,6 +4231,14 @@ JSON Schema:
             this.affinityValue = 50;
             this.memoryList = ["첫 대화가 시작되었습니다."];
         }
+    }
+
+    async startNewConversation() {
+        if (this.isGenerating) {
+            alert('AI가 답을 쓰는 중입니다. 잠시 뒤에 다시 눌러 주세요.');
+            return;
+        }
+        this.clearConversationState();
 
         const convId = await this.ensureConversation();
         this.rerenderFeedFromHistory();
@@ -4071,6 +4288,7 @@ JSON Schema:
             importKey,
             mode: this.modeType,
             charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            charName: this.modeType === 'chat' ? (this.chatCharName || '') : '',
             title: this.conversationTitle(),
             turns: this.storyHistory,
             vectors: this.pairLocalVectorsToTurns(),
@@ -4100,6 +4318,7 @@ JSON Schema:
             importKey: `rescue:${Date.now()}`,
             mode: this.modeType,
             charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            charName: this.modeType === 'chat' ? (this.chatCharName || '') : '',
             title: `${this.conversationTitle()} (복구본)`,
             turns: this.storyHistory,
             vectors: this.pairLocalVectorsToTurns(),

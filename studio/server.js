@@ -523,6 +523,7 @@ app.post('/api/conversations', (req, res) => {
         res.json(store.createConversation(u.username, {
             mode: body.mode,
             charId: body.charId,
+            charName: body.charName,
             title: body.title,
             chatLevel: body.chatLevel,
             userName: body.userName
@@ -546,6 +547,7 @@ app.post('/api/conversations/import', (req, res) => {
             importKey: body.importKey,
             mode: body.mode,
             charId: body.charId,
+            charName: body.charName,
             title: body.title,
             turns: body.turns,
             vectors: body.vectors,

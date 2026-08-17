@@ -606,6 +606,14 @@ function listConversationMetas(username) {
     return metas;
 }
 
+// 대화에 적어 두는 인물 이름. 화면이 그대로 보여주고 묶음 머리글로도 쓰므로 길이를 자른다.
+function normalizeCharName(value) {
+    if (typeof value !== 'string') return null;
+    const name = value.trim();
+    if (!name) return null;
+    return name.length > 100 ? name.slice(0, 100) : name;
+}
+
 // 대화 목록(요약).
 function listConversations(username) {
     ensureUser(username);
@@ -621,6 +629,8 @@ function listConversations(username) {
             }
             charName = charNameById.get(meta.charId);
         }
+        // 인물 번호가 없거나 그 인물이 지워졌으면 대화에 적어 둔 이름을 쓴다.
+        if (!charName) charName = meta.charName || null;
         list.push({
             id: meta.id,
             title: meta.title,
@@ -655,6 +665,10 @@ function createConversation(username, opts) {
         const ch = getCharacter(username, charId);
         charName = ch ? ch.charName : null;
     }
+    // 인물 목록에 저장하지 않고 이름만 적어 대화하는 경우가 있어 인물 번호가 없다.
+    // 그때는 그 이름을 대화에 그대로 적어 둔다 — 이것이 없으면 "이 대화가 누구의 것인가"를
+    // 제목으로 짐작하게 되고, 제목이 첫 마디로 바뀌는 순간 그 짐작이 무너진다.
+    if (!charName) charName = normalizeCharName(opts && opts.charName);
 
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
@@ -662,6 +676,7 @@ function createConversation(username, opts) {
         id,
         mode,
         charId,
+        charName,
         title: (opts && opts.title) || charName || '새 대화',
         createdAt: now,
         updatedAt: now,
@@ -700,6 +715,7 @@ function importConversation(username, opts) {
         if (!ch) throw fail('NOT_FOUND', `인물을 찾을 수 없습니다: ${charId}`);
         charName = ch.charName;
     }
+    if (!charName) charName = normalizeCharName(o.charName);
 
     const importKey = o.importKey.trim();
     const already = listConversationMetas(username).find(m => m.importKey === importKey);
@@ -713,6 +729,7 @@ function importConversation(username, opts) {
         id,
         mode: o.mode,
         charId,
+        charName,
         title: o.title || charName || '옮겨온 대화',
         createdAt: now,
         updatedAt: now,
