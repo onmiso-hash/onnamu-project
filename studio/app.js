@@ -52,6 +52,7 @@ class ChronicleApp {
         // 끊겼을 때를 위한 임시 보관일 뿐이고, 서버와 다투면 서버가 이긴다.
         this.convId = localStorage.getItem('current_conv_id') || null;
         this.serverPersonaIds = {};   // 프리셋 이름 -> 서버가 매긴 인물 id
+        this.serverPersonasById = {}; // 인물 id -> 인물 설정 한 벌(대화를 열 때 인물을 갈아끼우는 데 쓴다)
         this.conversationList = [];   // 왼쪽 서랍에 그릴 대화 목록
         this.serverInitPromise = null; // 들어올 때 하는 서버 준비(끝나야 말을 보낼 수 있다)
         this.memorySearchOff = false;  // 기억 검색(지난 대화 찾기)이 꺼졌는지
@@ -3694,15 +3695,84 @@ JSON Schema:
     }
 
     // 서버가 내려준 대화 한 건을 화면 상태에 옮겨 담는다.
+    // 호감도·기억은 **없으면 처음 값으로 되돌린다** — 앞서 보던 대화의 것이 남으면
+    // 남의 기억이 이 대화의 것인 양 얹힌다.
     applyConversation(conv) {
         if (!conv) return;
         this.setCurrentConversation(conv.id);
         this.storyHistory = Array.isArray(conv.turns) ? conv.turns : [];
         this.currentChapterIndex = this.storyHistory.length;
-        if (typeof conv.affinityValue === 'number') this.affinityValue = conv.affinityValue;
-        if (Array.isArray(conv.memoryList) && conv.memoryList.length > 0) this.memoryList = [...conv.memoryList];
+        this.affinityValue = (typeof conv.affinityValue === 'number') ? conv.affinityValue : 50;
+        this.memoryList = (Array.isArray(conv.memoryList) && conv.memoryList.length > 0)
+            ? [...conv.memoryList]
+            : ["첫 대화가 시작되었습니다."];
+
+        // 인물을 먼저 갈아끼우고, 그 위에 이 대화에 저장된 값(주인공 이름·수위)을 덮는다.
+        this.applyCharacterOfConversation(conv);
         if (conv.userName) this.characterName = conv.userName;
         if (conv.chatLevel && (this.isAdmin || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
+        this.syncChatSettingsInputs();
+    }
+
+    // 대화를 열면 그 대화의 인물(이름·관계·성격·수위·그림)도 함께 갈아끼운다.
+    // 이것이 없으면 앞서 보던 인물의 얼굴과 이름이 남의 대화 위에 그대로 얹힌다
+    // (대화만 바뀌고 인물 카드는 그대로 남던 결함).
+    applyCharacterOfConversation(conv) {
+        if (!conv || conv.mode !== 'chat' || !conv.charId) return;
+        const char = this.serverPersonasById[conv.charId];
+        // 서버 목록에 없는 인물(일반 계정에 가려진 19금 등)은 건드리지 않는다
+        if (!char) return;
+
+        this.chatCharName = char.charName || char.presetName || '';
+        this.chatRelation = char.relation || '';
+        this.chatCharDesc = char.desc || '';
+        this.characterImages = char.characterImages || {};
+        if (char.level && (this.isAdmin || char.level !== 'adult-19')) this.chatLevel = char.level;
+        if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = char.imagePrompt || '';
+
+        // 인물 고르기 칸도 함께 옮긴다 — 다음에 하는 말이 남의 인물로 나가지 않게.
+        if (this.selectPersonaPreset && char.presetName) {
+            const known = Array.from(this.selectPersonaPreset.options).some(o => o.value === char.presetName);
+            if (known) {
+                this.selectPersonaPreset.value = char.presetName;
+                localStorage.setItem('recent_persona_preset', char.presetName);
+            }
+        }
+        this.refreshCharacterImagePreviews();
+    }
+
+    // 지금 인물 값을 설정 칸과 위쪽 표시줄에 반영한다.
+    syncChatSettingsInputs() {
+        if (this.modeType !== 'chat') return;
+        if (this.inputChatCharName) this.inputChatCharName.value = this.chatCharName || '';
+        if (this.inputChatRelation) this.inputChatRelation.value = this.chatRelation || '';
+        if (this.inputChatCharDesc) this.inputChatCharDesc.value = this.chatCharDesc || '';
+        if (this.selectChatLevel) this.selectChatLevel.value = this.chatLevel || 'normal';
+        if (this.inputChatUserName) this.inputChatUserName.value = this.characterName || '';
+        if (this.hudTone) this.hudTone.textContent = this.chatLevel === 'adult-19' ? "치명적 19금" : "일반 롤플레이";
+        if (this.hudCharacter) this.hudCharacter.textContent = `${this.chatCharName} & 주인공`;
+    }
+
+    // 설정창의 감정별 그림 미리보기를 지금 인물 것으로 맞춘다.
+    refreshCharacterImagePreviews() {
+        ['normal', 'happy', 'sad', 'angry', 'blush'].forEach(emotion => {
+            const imgEl = document.getElementById(`img-preview-${emotion}`);
+            const placeholderEl = document.getElementById(`placeholder-${emotion}`);
+            const raw = this.characterImages ? this.characterImages[emotion] : '';
+            if (raw) {
+                if (imgEl) {
+                    imgEl.src = raw.startsWith('/data/uploads/') ? '.' + raw : raw;
+                    imgEl.style.display = 'block';
+                }
+                if (placeholderEl) placeholderEl.style.display = 'none';
+            } else {
+                if (imgEl) {
+                    imgEl.src = '';
+                    imgEl.style.display = 'none';
+                }
+                if (placeholderEl) placeholderEl.style.display = 'flex';
+            }
+        });
     }
 
     // 서버에 저장된 검색용 벡터를 화면 쪽 모양으로 되살린다.
@@ -3888,6 +3958,8 @@ JSON Schema:
             alert('그 대화를 불러오지 못했습니다.');
             return;
         }
+        // 인물 목록을 아직 못 받았으면 지금 받는다 — 없으면 인물이 안 바뀐다.
+        if (Object.keys(this.serverPersonasById).length === 0) await this.refreshServerPersonaIds();
         this.applyConversation(r.data);
         this.restoreVectorsFromServer(r.data);
         this.redoAvailable = 0;
@@ -4033,11 +4105,22 @@ JSON Schema:
     async refreshServerPersonaIds() {
         const r = await this.callApi('GET', '/api/personas');
         if (!r.ok || !r.data || typeof r.data !== 'object') return;
-        const map = {};
-        Object.keys(r.data).forEach(name => {
-            if (r.data[name] && r.data[name].id) map[name] = r.data[name].id;
+        this.rememberServerPersonas(r.data);
+    }
+
+    // 서버가 준 인물 목록을 두 갈래로 들고 있는다 — 이름으로 찾을 때와 id로 찾을 때.
+    // id 쪽은 대화를 열 때 그 대화의 인물을 화면에 갈아끼우는 데 쓴다.
+    rememberServerPersonas(serverPresets) {
+        const byName = {};
+        const byId = {};
+        Object.keys(serverPresets || {}).forEach(name => {
+            const p = serverPresets[name];
+            if (!p || !p.id) return;
+            byName[name] = p.id;
+            byId[p.id] = { ...p, presetName: name };
         });
-        this.serverPersonaIds = map;
+        this.serverPersonaIds = byName;
+        this.serverPersonasById = byId;
     }
 
     // Push local persona presets to backend server
@@ -4132,11 +4215,7 @@ JSON Schema:
         const serverPresets = (r.data && typeof r.data === 'object') ? r.data : {};
 
         // 인물 id는 대화를 만들 때 필요하므로 항상 최신으로 들고 있는다
-        const idMap = {};
-        Object.keys(serverPresets).forEach(name => {
-            if (serverPresets[name] && serverPresets[name].id) idMap[name] = serverPresets[name].id;
-        });
-        this.serverPersonaIds = idMap;
+        this.rememberServerPersonas(serverPresets);
 
         let localPresets = {};
         try {
