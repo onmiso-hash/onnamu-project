@@ -250,10 +250,19 @@
                 <button id="btn-undo-story" class="sidebar-menu-item">
                     <span class="icon">↩️</span> <span class="text">이전 선택 취소</span>
                 </button>
+                <button id="btn-redo-story" class="sidebar-menu-item" style="display: none;">
+                    <span class="icon">↪️</span> <span class="text">취소 되돌리기</span>
+                </button>
                 <button id="btn-reset-story" class="sidebar-menu-item">
                     <span class="icon">🔄</span> <span class="text">처음부터 다시 쓰기</span>
                 </button>
-                
+
+                <div class="menu-section-title" style="margin-top: 1.5rem;">💬 내 대화</div>
+                <button id="btn-new-conversation" class="sidebar-menu-item">
+                    <span class="icon">➕</span> <span class="text">새 대화 시작</span>
+                </button>
+                <div id="conversation-list" class="conversation-list"></div>
+
                 <div class="menu-section-title" style="margin-top: 1.5rem;">⚙️ 시스템 및 도구</div>
                 <button id="btn-home-settings" class="sidebar-menu-item">
                     <span class="icon">⚙️</span> <span class="text">설정 화면 (홈)</span>

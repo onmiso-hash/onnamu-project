@@ -47,6 +47,15 @@ class ChronicleApp {
         // Sync State variables
         this.pushDebounceTimer = null;
         this.isSyncing = false;
+
+        // 서버 대화 상태 — 대화의 정본은 서버에 있다. 브라우저 저장소는 인터넷이
+        // 끊겼을 때를 위한 임시 보관일 뿐이고, 서버와 다투면 서버가 이긴다.
+        this.convId = localStorage.getItem('current_conv_id') || null;
+        this.serverPersonaIds = {};   // 프리셋 이름 -> 서버가 매긴 인물 id
+        this.conversationList = [];   // 왼쪽 서랍에 그릴 대화 목록
+        this.serverInitPromise = null; // 들어올 때 하는 서버 준비(끝나야 말을 보낼 수 있다)
+        this.memorySearchOff = false;  // 기억 검색(지난 대화 찾기)이 꺼졌는지
+        this.redoAvailable = 0;       // 되돌리기 취소로 되살릴 수 있는 턴 수(0이면 버튼 숨김)
         
         // Bind DOM Elements
         this.initDOM();
@@ -149,6 +158,17 @@ class ChronicleApp {
         this.btnUndoStory.addEventListener('click', () => this.undoLastAction());
         this.btnResetStory.addEventListener('click', () => this.resetStory());
         this.btnExportText.addEventListener('click', () => this.exportStory());
+
+        // 대화 여러 개 쓰기 — 새 대화 만들기 · 취소 되돌리기 · 대화 목록
+        this.btnRedoStory = document.getElementById('btn-redo-story');
+        this.btnNewConversation = document.getElementById('btn-new-conversation');
+        this.conversationListEl = document.getElementById('conversation-list');
+        if (this.btnRedoStory) {
+            this.btnRedoStory.addEventListener('click', () => this.redoLastAction());
+        }
+        if (this.btnNewConversation) {
+            this.btnNewConversation.addEventListener('click', () => this.startNewConversation());
+        }
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
         // Setup Password Visibility Toggle
@@ -1060,6 +1080,10 @@ class ChronicleApp {
         }
         localStorage.setItem('gemini_api_model', this.model);
 
+        // 서버와 대화를 맞춘다: 열어 둔 대화를 다시 읽고, 브라우저에만 있던 옛 대화를
+        // 한 번 올리고, 왼쪽 서랍의 대화 목록을 채운다. 화면 전환을 막지 않도록 기다리지 않는다.
+        this.serverInitPromise = this.initServerConversation();
+
         // Init Audio
         this.initAudioEngine();
 
@@ -1149,6 +1173,10 @@ class ChronicleApp {
                 // Parse Success
                 this.storyHistory.push(result);
                 this.currentChapterIndex = this.storyHistory.length;
+
+                // 소설도 대화와 같은 통로로 서버에 남긴다. 지금까지 소설 원고는 브라우저에만
+                // 있어서 계정을 바꾸면 통째로 사라졌다 — 그 구멍이 여기서 메워진다.
+                this.pushTurnToServer(this.storyHistory.length - 1, result);
 
                 // Play magical ambient swell
                 this.playMagicChime();
@@ -1608,6 +1636,9 @@ JSON Schema:
     }
 
     // Fetch text embedding vector from server proxy (2단계)
+    // 대화를 숫자 다발로 바꿔 온다(지난 대화 중 닮은 것을 찾는 데 쓴다).
+    // 실패해도 대화 자체는 계속돼야 하므로 null을 돌려주되, **조용히 넘어가지는 않는다** —
+    // 예전에는 콘솔 경고 한 줄뿐이라 기억 검색이 8개월간 죽어 있는 걸 아무도 몰랐다.
     async fetchEmbedding(text) {
         if (!this.apiKey || !text) return null;
 
@@ -1622,17 +1653,49 @@ JSON Schema:
             });
 
             if (!response.ok) {
-                const errData = await response.json().catch(() => ({ error: '알 수 없는 임베딩 서버 에러' }));
-                console.warn(`[Embedding API Warning]: ${errData.error}`);
+                const errData = await response.json().catch(() => ({ error: '알 수 없는 임베딩 서버 오류' }));
+                this.reportMemorySearchOff(errData.error);
                 return null;
             }
 
             const data = await response.json();
-            return data.embedding || null;
+            if (!data.embedding || !Array.isArray(data.embedding) || data.embedding.length === 0) {
+                this.reportMemorySearchOff('빈 결과가 돌아왔습니다.');
+                return null;
+            }
+
+            this.clearMemorySearchOff(data.dimensions || data.embedding.length);
+            return data.embedding;
         } catch (e) {
-            console.warn("[Embedding API Catch Warning]: Network error or request failed.", e);
-            return null; // Graceful fallback
+            this.reportMemorySearchOff('서버에 닿지 못했습니다.');
+            return null; // 대화는 계속된다
         }
+    }
+
+    // 기억 검색이 꺼졌다는 표시를 화면 구석에 남긴다. 사유까지 적어야 무엇이 고장 났는지
+    // 나중에 알 수 있다(옛 사고: 모델 폐기 사실이 로그에만 있어 8개월간 묻혔다).
+    reportMemorySearchOff(reason) {
+        this.memorySearchOff = true;
+        console.warn('[기억 검색 꺼짐]', reason);
+        let badge = document.getElementById('memory-search-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'memory-search-badge';
+            badge.className = 'storage-warning-badge memory-off-badge';
+            document.body.appendChild(badge);
+        }
+        badge.textContent = '⚠ 기억 검색 꺼짐';
+        badge.title = `지난 대화를 찾아오는 기능이 멈췄습니다. 사유: ${reason}`;
+        badge.style.display = 'block';
+    }
+
+    clearMemorySearchOff(dimensions) {
+        if (this.memorySearchOff) {
+            console.log(`[기억 검색] 다시 작동합니다 (${dimensions}차원).`);
+        }
+        this.memorySearchOff = false;
+        const badge = document.getElementById('memory-search-badge');
+        if (badge) badge.style.display = 'none';
     }
 
     // Mathematical Cosine Similarity between two vector arrays (2단계)
@@ -1744,6 +1807,14 @@ JSON Schema:
         if (confirm(resetMsg)) {
             this.storyHistory = [];
             this.currentChapterIndex = 0;
+
+            // "처음부터 다시 쓰기"는 이제 **새 대화를 여는 것**으로 처리한다. 지금까지 쓴
+            // 것은 서버에 그대로 남아 왼쪽 서랍의 목록에서 언제든 다시 열 수 있다.
+            this.setCurrentConversation(null);
+            this.dialogueVectors = [];
+            this.redoAvailable = 0;
+            this.updateUndoRedoButtons();
+            this.refreshConversationList();
             if (this.modeType === 'chat') {
                 this.affinityValue = 50;
                 this.memoryList = ["첫 대화가 시작되었습니다."];
@@ -1786,7 +1857,7 @@ JSON Schema:
     }
 
     // Revert the last chapter decision
-    undoLastAction() {
+    async undoLastAction() {
         if (this.isGenerating) return;
         if (this.storyHistory.length === 0) {
             alert("실행 취소할 이전 상태가 없습니다.");
@@ -1799,6 +1870,23 @@ JSON Schema:
         // Pop the last chapter
         const popped = this.storyHistory.pop();
         this.currentChapterIndex = this.storyHistory.length;
+
+        // 서버에도 알린다. 되돌리기는 기록을 **지우는 것이 아니라** "몇 번째 말까지
+        // 보이게 할지"만 줄이는 것이다. 그래서 새로고침해도 되살아나지 않고, 되살리고
+        // 싶으면 숫자를 도로 올리기만 하면 된다(취소 되돌리기).
+        if (this.convId) {
+            const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, {
+                visibleTurns: this.storyHistory.length
+            });
+            if (r.ok) {
+                this.redoAvailable += 1;
+                this.clearStorageWarning();
+            } else {
+                this.showStorageWarning('되돌리기가 서버에 반영되지 않았습니다.');
+            }
+            this.updateUndoRedoButtons();
+            this.refreshConversationList();
+        }
 
         // Re-render Story Scroll Area
         if (this.storyHistory.length === 0) {
@@ -1949,6 +2037,36 @@ JSON Schema:
             const lastChapter = this.storyHistory[this.storyHistory.length - 1];
             this.renderChoiceCards(lastChapter.choices);
         }
+    }
+
+    // 되돌리기 취소 — 감췄던 말을 도로 보이게 한다.
+    // 기록장 방식이라 되돌려도 원문이 남아 있어서 숫자만 도로 올리면 되살아난다.
+    // 단, 되돌린 뒤 **새로 이어 썼다면** 그 갈래는 버려진 것이라 되살릴 수 없다.
+    async redoLastAction() {
+        if (this.isGenerating) return;
+        if (!this.convId || this.redoAvailable <= 0) {
+            alert('되살릴 취소 기록이 없습니다.');
+            return;
+        }
+
+        const target = this.storyHistory.length + 1;
+        const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, { visibleTurns: target });
+        if (!r.ok) {
+            alert('취소를 되돌리지 못했습니다. 되돌린 뒤 새로 이어 썼다면 되살릴 수 없습니다.');
+            this.redoAvailable = 0;
+            this.updateUndoRedoButtons();
+            return;
+        }
+
+        const g = await this.callApi('GET', `/api/conversations/${this.convId}`);
+        if (g.ok && g.data) {
+            this.applyConversation(g.data);
+        }
+        this.redoAvailable = Math.max(0, this.redoAvailable - 1);
+        this.rerenderFeedFromHistory();
+        this.appendChatMessage('system', '취소했던 내용을 되살렸습니다.');
+        this.updateUndoRedoButtons();
+        this.refreshConversationList();
     }
 
     // Export current story text file
@@ -2337,8 +2455,16 @@ JSON Schema:
                 // Render Choices
                 this.renderChoiceCards(result.choices);
 
-                // 1차 즉각 자동 저장 수행 (임베딩 수신 전 로컬스토리지 및 서버 백업 안전 확보)
-                const activePreset = this.selectPersonaPreset.value || `_temp_anonymous_${this.chatCharName}`;
+                // 서버에는 방금 나눈 이 한마디만 보낸다(번호를 붙여 지목한다).
+                // 브라우저 저장소에도 남기지만 그건 인터넷이 끊겼을 때를 위한 임시 보관이다.
+                const turnIndex = this.storyHistory.length - 1;
+                const turnSaved = this.pushTurnToServer(turnIndex, result);
+
+                // 저장 키를 읽을 때와 똑같이 맞춘다. 예전에는 쓸 때만 '_temp_anonymous_'를
+                // 붙이고 읽을 때는 그 이름을 보지 않아서, 프리셋을 안 고르고 대화하면 같은
+                // 대화가 두 갈래로 갈라졌다(실측: 한 인물에 421턴과 238턴이 따로 쌓임).
+                const activePreset = this.selectPersonaPreset.value
+                    || localStorage.getItem('recent_persona_preset') || this.chatCharName;
                 try {
                     const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
                     if (!presets[activePreset]) {
@@ -2364,8 +2490,7 @@ JSON Schema:
                     presets[activePreset].userName = this.characterName; // 프리셋 주인공 이름 동기화
 
                     localStorage.setItem('persona_presets', JSON.stringify(presets));
-                    this.pushPersonasToServer(); // 디바운싱 전송
-                    console.log(`[Auto-save 1차] 로컬 및 서버 백업 완료 (대화 수: ${this.storyHistory.length})`);
+                    console.log(`[임시 보관] 브라우저에 백업 완료 (대화 수: ${this.storyHistory.length})`);
                 } catch (e) {
                     console.error("1차 실시간 자동 저장 실패:", e);
                 }
@@ -2373,7 +2498,7 @@ JSON Schema:
                 // 2단계: 백그라운드 RAG 대화 임베딩 저장 (비동기 수행)
                 if (this.apiKey && actionText !== "대화를 시작하자.") {
                     const embedText = `유저: ${actionText}\n${this.chatCharName}: ${result.dialogue}`;
-                    this.fetchEmbedding(embedText).then(vector => {
+                    this.fetchEmbedding(embedText).then(async vector => {
                         if (vector) {
                             this.dialogueVectors = this.dialogueVectors || [];
                             this.dialogueVectors.push({
@@ -2382,6 +2507,11 @@ JSON Schema:
                                 dialogue: result.dialogue,
                                 vector: vector
                             });
+
+                            // 서버에는 이 벡터가 **몇 번째 말의 것인지**를 함께 보낸다.
+                            // 자리로 묶으면 한 번 어긋났을 때 조용히 영원히 밀린다.
+                            // 그 말이 실제로 들어간 대화에만 붙인다(그사이 다른 대화로 옮겼을 수 있다).
+                            this.pushVectorToServer(await turnSaved, turnIndex, vector);
 
                             // 2차 자동 저장 (RAG 벡터 추가 업데이트)
                             try {
@@ -2398,8 +2528,7 @@ JSON Schema:
                                     presets[activePreset].userName = this.characterName; // 프리셋 주인공 이름 동기화
 
                                     localStorage.setItem('persona_presets', JSON.stringify(presets));
-                                    this.pushPersonasToServer(); // 디바운싱 전송
-                                    console.log("[Auto-save 2차] RAG 벡터 백그라운드 동기화 완료");
+                                    console.log("[임시 보관] 검색용 벡터 브라우저 백업 완료");
                                 }
                             } catch (e) {
                                 console.error("2차 RAG 자동 저장 실패:", e);
@@ -3498,7 +3627,419 @@ JSON Schema:
         reader.readAsDataURL(file);
     }
 
-    // Push local persona presets to backend server
+    // ======================================================================
+    // 서버 대화 통로 — 대화의 정본은 서버다
+    // ======================================================================
+    //
+    // 예전에는 대화 전체를 통째로 서버에 밀어 넣고 서버가 그중 무엇이 새것인지 되짚었다.
+    // 이제는 말 한마디가 끝날 때마다 **그 한마디만** 번호를 붙여 보낸다. 같은 번호를 두 번
+    // 보내도 서버가 무시하므로 끊겼다 다시 보내도 안전하다.
+
+    async callApi(method, url, body) {
+        const options = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+        if (body !== undefined) options.body = JSON.stringify(body);
+        try {
+            const res = await fetch(url, options);
+            let data = null;
+            try { data = await res.json(); } catch (e) { /* 본문이 없을 수 있다 */ }
+            if (res.status === 401) {
+                this.showStorageWarning('로그인이 풀렸습니다. 새로고침해 다시 로그인해 주세요.');
+            }
+            return { ok: res.ok, status: res.status, data };
+        } catch (e) {
+            console.error(`[서버 통신 실패] ${method} ${url}`, e);
+            return { ok: false, status: 0, data: null };
+        }
+    }
+
+    // 서버에 저장이 안 되고 있으면 화면 구석에 표시를 남긴다. 조용히 삼키면 아무도 모른 채
+    // 몇 달을 굴러간다 — 실제로 기억 검색이 그렇게 8개월을 죽어 있었다.
+    showStorageWarning(message) {
+        let badge = document.getElementById('storage-warning-badge');
+        if (!badge) {
+            badge = document.createElement('div');
+            badge.id = 'storage-warning-badge';
+            badge.className = 'storage-warning-badge';
+            document.body.appendChild(badge);
+        }
+        badge.textContent = `⚠ ${message}`;
+        badge.style.display = 'block';
+    }
+
+    clearStorageWarning() {
+        const badge = document.getElementById('storage-warning-badge');
+        if (badge) badge.style.display = 'none';
+    }
+
+    // 지금 고른 프리셋에 해당하는 서버 인물 id
+    currentCharId() {
+        const presetName = (this.selectPersonaPreset && this.selectPersonaPreset.value)
+            || localStorage.getItem('recent_persona_preset') || '';
+        return presetName ? (this.serverPersonaIds[presetName] || null) : null;
+    }
+
+    conversationTitle() {
+        return this.modeType === 'chat' ? (this.chatCharName || '새 대화') : (this.characterName || '새 소설');
+    }
+
+    // 열어 둔 대화 id는 모드별로 따로 기억한다 — 소설과 대화가 서로의 자리를 뺏지 않게.
+    conversationIdKey() {
+        return `current_conv_id_${this.modeType}`;
+    }
+
+    setCurrentConversation(convId) {
+        this.convId = convId || null;
+        if (convId) localStorage.setItem(this.conversationIdKey(), convId);
+        else localStorage.removeItem(this.conversationIdKey());
+    }
+
+    // 서버가 내려준 대화 한 건을 화면 상태에 옮겨 담는다.
+    applyConversation(conv) {
+        if (!conv) return;
+        this.setCurrentConversation(conv.id);
+        this.storyHistory = Array.isArray(conv.turns) ? conv.turns : [];
+        this.currentChapterIndex = this.storyHistory.length;
+        if (typeof conv.affinityValue === 'number') this.affinityValue = conv.affinityValue;
+        if (Array.isArray(conv.memoryList) && conv.memoryList.length > 0) this.memoryList = [...conv.memoryList];
+        if (conv.userName) this.characterName = conv.userName;
+        if (conv.chatLevel && (this.isAdmin || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
+    }
+
+    // 서버에 저장된 검색용 벡터를 화면 쪽 모양으로 되살린다.
+    // 서버는 {말번호: 벡터}로 주는데, 화면의 기억 검색은 그때 나눈 말도 함께 필요하다.
+    // **같은 번호의 말**에서 가져다 붙인다 — 자리로 짐작하면 한 칸씩 밀린다.
+    // (벡터를 함께 받는 것은 대화를 열 때뿐이다. 탭을 볼 때마다 받으면 긴 대화에서
+    //  수 MB가 오간다 — 검색은 대화를 여는 순간에만 다시 채우면 된다.)
+    restoreVectorsFromServer(conv) {
+        const map = (conv && conv.vectors && typeof conv.vectors === 'object') ? conv.vectors : null;
+        if (!map) {
+            this.dialogueVectors = [];
+            return;
+        }
+        this.dialogueVectors = Object.keys(map).map(key => {
+            const n = Number(key);
+            const turn = this.storyHistory[n];
+            if (!turn || !Array.isArray(map[key]) || map[key].length === 0) return null;
+            return { id: n, actionText: turn.actionText, dialogue: turn.dialogue, vector: map[key] };
+        }).filter(Boolean);
+    }
+
+    // 화면(대화 흐름 / 소설 본문)을 지금 기록대로 다시 그린다.
+    rerenderFeedFromHistory() {
+        const last = this.storyHistory.length > 0 ? this.storyHistory[this.storyHistory.length - 1] : null;
+        if (this.modeType === 'chat') {
+            this.renderChatLeftPanel(last);
+        } else if (this.storyScrollArea) {
+            this.storyScrollArea.innerHTML = '';
+            this.storyHistory.forEach((chapter, index) => {
+                const chapterEl = document.createElement('article');
+                chapterEl.className = 'chapter-block';
+                chapterEl.style.opacity = 1;
+
+                const headerEl = document.createElement('div');
+                headerEl.className = 'chapter-header';
+                headerEl.innerHTML = `<span>Chapter ${index + 1}</span> <span>${chapter.chapterTitle || ''}</span>`;
+                chapterEl.appendChild(headerEl);
+
+                if (index > 0) {
+                    const decisionEl = document.createElement('div');
+                    decisionEl.className = 'user-decision-marker';
+                    decisionEl.textContent = `"${chapter.actionText || '이전 선택'}"`;
+                    chapterEl.appendChild(decisionEl);
+                }
+
+                const contentEl = document.createElement('div');
+                contentEl.className = 'chapter-content';
+                contentEl.innerHTML = this.parseMarkdown(chapter.story);
+                chapterEl.appendChild(contentEl);
+                this.storyScrollArea.appendChild(chapterEl);
+            });
+            this.storyScrollArea.scrollTop = this.storyScrollArea.scrollHeight;
+        }
+
+        if (last && last.choices) {
+            this.renderChoiceCards(last.choices);
+        } else if (this.choicesContainer) {
+            this.choicesContainer.innerHTML = '';
+        }
+    }
+
+    updateUndoRedoButtons() {
+        if (this.btnRedoStory) {
+            this.btnRedoStory.style.display = (this.convId && this.redoAvailable > 0) ? '' : 'none';
+        }
+    }
+
+    // 열어 둔 대화가 없으면 서버에 새로 하나 만든다.
+    async ensureConversation() {
+        if (this.convId) return this.convId;
+        const r = await this.callApi('POST', '/api/conversations', {
+            mode: this.modeType,
+            charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            title: this.conversationTitle(),
+            chatLevel: this.chatLevel,
+            userName: this.characterName
+        });
+        if (!r.ok || !r.data || !r.data.id) {
+            this.showStorageWarning('서버에 대화를 만들지 못했습니다.');
+            return null;
+        }
+        this.setCurrentConversation(r.data.id);
+        return this.convId;
+    }
+
+    // 말 한마디를 서버에 붙인다. index는 그 말의 순번(0부터).
+    async pushTurnToServer(index, turn) {
+        // 들어올 때 하던 준비(옛 대화 올리기 등)가 아직이면 기다린다. 안 기다리면 준비가
+        // 끝나기 전에 빈 대화를 새로 만들어 버려 번호가 어긋난다.
+        if (this.serverInitPromise) {
+            try { await this.serverInitPromise; } catch (e) { /* 준비 실패는 아래에서 표시된다 */ }
+        }
+        const convId = await this.ensureConversation();
+        if (!convId) return false;
+
+        const r = await this.callApi('POST', `/api/conversations/${convId}/turns`, {
+            n: index,
+            turn,
+            meta: {
+                affinityValue: this.affinityValue,
+                memoryList: [...this.memoryList],
+                chatLevel: this.chatLevel,
+                userName: this.characterName
+            }
+        });
+
+        if (!r.ok) {
+            // 400은 "번호에 구멍" — 화면이 든 기록과 서버 기록이 어긋났다는 뜻이다.
+            // 이때는 화면에 있는 것을 통째로 **새 대화**로 올려 구한다(서버 것은 안 건드린다).
+            if (r.status === 400 && index > 0 && await this.rescueByImport()) {
+                return this.convId;
+            }
+            this.showStorageWarning('마지막 말이 서버에 저장되지 않았습니다.');
+            return null;
+        }
+
+        this.clearStorageWarning();
+        this.redoAvailable = 0; // 새로 썼으면 취소 되돌리기는 더 이상 안 된다
+        this.updateUndoRedoButtons();
+        this.refreshConversationList();
+        return convId; // 이 말이 실제로 들어간 대화 — 벡터도 반드시 여기에 붙어야 한다
+    }
+
+    // 검색용 벡터는 말보다 늦게 도착하므로 따로 붙인다.
+    // 어느 대화에 붙일지를 **말이 들어간 그 대화로 못 박아** 받는다. 그사이 사용자가 다른
+    // 대화로 옮겼을 수 있는데, 그때 지금 열린 대화에 붙이면 남의 말에 벡터가 달린다.
+    async pushVectorToServer(convId, index, vector) {
+        if (!convId || !Array.isArray(vector) || vector.length === 0) return;
+        const r = await this.callApi('POST', `/api/conversations/${convId}/vectors`, { n: index, vector });
+        if (!r.ok) console.warn('[검색벡터] 서버 저장 실패:', r.status);
+    }
+
+    async fetchConversationList() {
+        const r = await this.callApi('GET', '/api/conversations');
+        return (r.ok && Array.isArray(r.data)) ? r.data : [];
+    }
+
+    async refreshConversationList() {
+        if (!this.conversationListEl) return;
+        this.conversationList = await this.fetchConversationList();
+        this.renderConversationList();
+    }
+
+    renderConversationList() {
+        if (!this.conversationListEl) return;
+        this.conversationListEl.innerHTML = '';
+        const mine = (this.conversationList || []).filter(c => c.mode === this.modeType);
+
+        if (mine.length === 0) {
+            const empty = document.createElement('div');
+            empty.className = 'conversation-list-empty';
+            empty.textContent = '아직 저장된 대화가 없습니다.';
+            this.conversationListEl.appendChild(empty);
+            return;
+        }
+
+        mine.forEach(conv => {
+            const item = document.createElement('button');
+            item.className = 'conversation-item' + (conv.id === this.convId ? ' active' : '');
+            const title = document.createElement('span');
+            title.className = 'conv-title';
+            // 사용자가 지은 제목이므로 글자 그대로 넣는다(HTML로 해석되지 않게)
+            title.textContent = conv.title || '이름 없는 대화';
+            const count = document.createElement('span');
+            count.className = 'conv-count';
+            count.textContent = `${conv.turnCount || 0}턴`;
+            item.appendChild(title);
+            item.appendChild(count);
+            item.addEventListener('click', () => this.openConversation(conv.id));
+            this.conversationListEl.appendChild(item);
+        });
+    }
+
+    async openConversation(convId) {
+        if (this.isGenerating) {
+            alert('AI가 답을 쓰는 중입니다. 잠시 뒤에 옮겨 주세요.');
+            return;
+        }
+        if (convId === this.convId) return;
+
+        const r = await this.callApi('GET', `/api/conversations/${convId}?vectors=1`);
+        if (!r.ok) {
+            alert('그 대화를 불러오지 못했습니다.');
+            return;
+        }
+        this.applyConversation(r.data);
+        this.restoreVectorsFromServer(r.data);
+        this.redoAvailable = 0;
+        this.rerenderFeedFromHistory();
+        this.updateUndoRedoButtons();
+        this.renderConversationList();
+    }
+
+    async startNewConversation() {
+        if (this.isGenerating) {
+            alert('AI가 답을 쓰는 중입니다. 잠시 뒤에 다시 눌러 주세요.');
+            return;
+        }
+        this.setCurrentConversation(null);
+        this.storyHistory = [];
+        this.currentChapterIndex = 0;
+        this.dialogueVectors = [];
+        this.redoAvailable = 0;
+        if (this.modeType === 'chat') {
+            this.affinityValue = 50;
+            this.memoryList = ["첫 대화가 시작되었습니다."];
+        }
+
+        const convId = await this.ensureConversation();
+        this.rerenderFeedFromHistory();
+        this.updateUndoRedoButtons();
+        await this.refreshConversationList();
+        if (convId) {
+            this.appendChatMessage('system', '새 대화를 시작했습니다. 첫 마디를 건네보세요.');
+        }
+    }
+
+    // 브라우저에만 남아 있던 옛 대화를 서버로 딱 한 번 올린다.
+    // 같은 이름표로 두 번 올리면 서버가 막으므로(409) 중복 이사가 안 생긴다.
+    localImportKey() {
+        if (this.modeType === 'chat') {
+            const presetName = (this.selectPersonaPreset && this.selectPersonaPreset.value)
+                || localStorage.getItem('recent_persona_preset') || this.chatCharName || '이름없음';
+            return `local:chat:${presetName}`;
+        }
+        return 'local:story';
+    }
+
+    // 옛 벡터는 "몇 번째"가 아니라 **그때 나눈 말**로 짝을 찾는다. 옛 화면은 첫 인사에는
+    // 벡터를 만들지 않아서 자리로 맞추면 한 칸씩 밀려 엉뚱한 말에 붙는다.
+    pairLocalVectorsToTurns() {
+        const byDialogue = new Map();
+        (this.dialogueVectors || []).forEach(v => {
+            if (v && Array.isArray(v.vector) && typeof v.dialogue === 'string') {
+                byDialogue.set(v.dialogue, v.vector);
+            }
+        });
+        if (byDialogue.size === 0) return [];
+        return this.storyHistory.map(turn => (turn && byDialogue.get(turn.dialogue)) || null);
+    }
+
+    async importLocalSessionsOnce() {
+        if (this.convId) return;                                     // 이미 서버 대화를 보고 있다
+        if (!this.storyHistory || this.storyHistory.length === 0) return;
+
+        const importKey = this.localImportKey();
+        const already = (await this.fetchConversationList()).find(c => c.importKey === importKey);
+        if (already) {
+            this.setCurrentConversation(already.id);
+            return;
+        }
+
+        const r = await this.callApi('POST', '/api/conversations/import', {
+            importKey,
+            mode: this.modeType,
+            charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            title: this.conversationTitle(),
+            turns: this.storyHistory,
+            vectors: this.pairLocalVectorsToTurns(),
+            affinityValue: this.affinityValue,
+            memoryList: this.memoryList,
+            chatLevel: this.chatLevel,
+            userName: this.characterName
+        });
+
+        if (r.ok && r.data && r.data.id) {
+            this.setCurrentConversation(r.data.id);
+            console.log('[이사] 브라우저에 있던 대화를 서버로 옮겼습니다.');
+            return;
+        }
+        if (r.status === 409) {
+            // 다른 기기에서 먼저 올렸다 — 그 대화를 연다
+            const dup = (await this.fetchConversationList()).find(c => c.importKey === importKey);
+            if (dup) this.setCurrentConversation(dup.id);
+            return;
+        }
+        this.showStorageWarning('브라우저에 있던 옛 대화를 서버로 옮기지 못했습니다.');
+    }
+
+    // 서버 기록과 화면이 어긋났을 때 화면에 있는 것을 새 대화로 올려 구한다.
+    async rescueByImport() {
+        const r = await this.callApi('POST', '/api/conversations/import', {
+            importKey: `rescue:${Date.now()}`,
+            mode: this.modeType,
+            charId: this.modeType === 'chat' ? this.currentCharId() : null,
+            title: `${this.conversationTitle()} (복구본)`,
+            turns: this.storyHistory,
+            vectors: this.pairLocalVectorsToTurns(),
+            affinityValue: this.affinityValue,
+            memoryList: this.memoryList,
+            chatLevel: this.chatLevel,
+            userName: this.characterName
+        });
+        if (!r.ok || !r.data || !r.data.id) return false;
+        this.setCurrentConversation(r.data.id);
+        this.clearStorageWarning();
+        await this.refreshConversationList();
+        console.warn('[복구] 서버 기록과 어긋나 지금 대화를 새 대화로 옮겨 담았습니다.');
+        return true;
+    }
+
+    // 스튜디오에 들어올 때 한 번: 인물 id를 받아오고, 열어 둔 대화를 서버에서 다시 읽고,
+    // 브라우저에만 있던 옛 대화를 올리고, 왼쪽 서랍 목록을 채운다.
+    async initServerConversation() {
+        try {
+            this.convId = localStorage.getItem(this.conversationIdKey()) || null;
+            await this.refreshServerPersonaIds();
+
+            if (this.convId) {
+                const r = await this.callApi('GET', `/api/conversations/${this.convId}?vectors=1`);
+                if (r.ok && r.data) {
+                    this.applyConversation(r.data);
+                    this.restoreVectorsFromServer(r.data);
+                    this.rerenderFeedFromHistory();
+                } else if (r.status === 404) {
+                    this.setCurrentConversation(null); // 서버에서 지워진 대화
+                }
+            }
+
+            await this.importLocalSessionsOnce();
+            await this.refreshConversationList();
+            this.updateUndoRedoButtons();
+        } catch (e) {
+            console.error('[서버 대화 준비 실패]', e);
+        }
+    }
+
+    async refreshServerPersonaIds() {
+        const r = await this.callApi('GET', '/api/personas');
+        if (!r.ok || !r.data || typeof r.data !== 'object') return;
+        const map = {};
+        Object.keys(r.data).forEach(name => {
+            if (r.data[name] && r.data[name].id) map[name] = r.data[name].id;
+        });
+        this.serverPersonaIds = map;
+    }
+
     // Push local persona presets to backend server
     async pushPersonasToServer() {
         if (this.pushDebounceTimer) {
@@ -3547,146 +4088,95 @@ JSON Schema:
         }, 500);
     }
 
-    // Handle tab focus or visibility changes to pull latest data from server
+    // 탭을 다시 볼 때 서버와 맞춘다.
+    // 예전에는 "대화가 긴 쪽이 이긴다"는 규칙으로 골랐는데, 그 규칙 때문에 되돌린 대화가
+    // 되살아났다. 이제 **서버가 정본**이므로 견주지 않고 서버 것을 그대로 가져온다.
     async handleVisibilitySync() {
-        if (this.isSyncing) return;
-        
-        // 대화 진행 중(active) 상태일 때만 서버로부터 최신 페르소나 정보를 머지
-        if (localStorage.getItem('studio_active_state') === 'active') {
-            // 소설 모드일 경우 동기화 패스 (현재는 챗 모드만 서버 동기화 지원)
-            if (this.modeType !== 'chat') return;
+        if (this.isSyncing || this.isGenerating) return;
+        if (localStorage.getItem('studio_active_state') !== 'active') return;
 
-            this.isSyncing = true;
-            console.log("[Sync] Tab focused or Input clicked. Syncing with server...");
-            
-            const previousHistoryLen = this.storyHistory.length;
-            
-            try {
-                // 서버와 동기화 실행 (기존 메서드 재활용)
-                await this.syncPersonaPresetsWithServer();
- 
-                // 동기화 후, 만약 대화 내역이 변경(서버에 새 대화가 있음)되었다면 현재 대화 화면 즉각 리렌더링
-                const activePreset = this.selectPersonaPreset.value || `_temp_anonymous_${this.chatCharName}`;
-                const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
-                if (presets[activePreset] && presets[activePreset].savedSession) {
-                    const session = presets[activePreset].savedSession;
-                    const newHistory = session.storyHistory || [];
-                    if (newHistory.length !== previousHistoryLen) {
-                        console.log(`[Sync] Dialogue updated via server sync (${previousHistoryLen} -> ${newHistory.length}). Re-rendering feed...`);
-                        
-                        this.storyHistory = [...newHistory];
-                        this.currentChapterIndex = this.storyHistory.length;
-                        this.affinityValue = session.affinityValue || 50;
-                        this.memoryList = [...(session.memoryList || [])];
-                        this.dialogueVectors = [...(session.dialogueVectors || [])];
-                        
-                        // 챗 피드 다시 그리기
-                        this.renderChatLeftPanel(this.storyHistory[this.storyHistory.length - 1]);
-                        if (this.storyHistory.length > 0) {
-                            this.renderChoiceCards(this.storyHistory[this.storyHistory.length - 1].choices);
-                        }
+        this.isSyncing = true;
+        try {
+            await this.refreshServerPersonaIds();
+
+            if (this.convId) {
+                const r = await this.callApi('GET', `/api/conversations/${this.convId}`);
+                if (r.ok && r.data && Array.isArray(r.data.turns)) {
+                    const changed = r.data.turns.length !== this.storyHistory.length;
+                    this.applyConversation(r.data);
+                    if (changed) {
+                        console.log(`[동기화] 서버 기록으로 화면을 다시 그립니다 (${this.storyHistory.length}턴).`);
+                        this.rerenderFeedFromHistory();
                     }
+                } else if (r.status === 404) {
+                    this.setCurrentConversation(null); // 다른 기기에서 지웠다
                 }
-            } catch (err) {
-                console.error("[Sync] Background sync failed:", err);
-            } finally {
-                this.isSyncing = false;
             }
+
+            await this.refreshConversationList();
+        } catch (err) {
+            console.error("[동기화] 배경 동기화 실패:", err);
+        } finally {
+            this.isSyncing = false;
         }
     }
 
-    // Fetch server personas and merge with local storage
+    // 서버의 인물 설정을 가져와 브라우저 목록과 맞춘다. **대화는 여기서 다루지 않는다** —
+    // 대화는 오직 대화 통로로만 오간다(주인이 둘이면 서로 덮어쓴다).
     async syncPersonaPresetsWithServer() {
+        const r = await this.callApi('GET', '/api/personas');
+        if (!r.ok) {
+            console.error("서버에서 인물 설정을 못 받았습니다. 상태:", r.status);
+            return;
+        }
+        const serverPresets = (r.data && typeof r.data === 'object') ? r.data : {};
+
+        // 인물 id는 대화를 만들 때 필요하므로 항상 최신으로 들고 있는다
+        const idMap = {};
+        Object.keys(serverPresets).forEach(name => {
+            if (serverPresets[name] && serverPresets[name].id) idMap[name] = serverPresets[name].id;
+        });
+        this.serverPersonaIds = idMap;
+
+        let localPresets = {};
         try {
-            const res = await fetch('/api/personas', {
-                method: 'GET',
-                credentials: 'include'
-            });
-            if (!res.ok) {
-                console.error("Failed to fetch personas from server, status:", res.status);
-                if (res.status === 401) {
-                    alert('데이터 동기화 실패: 세션이 만료되었습니다. 최신 기록을 불러오려면 다시 로그인해 주세요.');
-                }
-                return;
-            }
-            const serverPresets = await res.json();
-            
-            // If server returned empty and no error, but we have local presets, push them to server
-            const localPresetsStr = localStorage.getItem('persona_presets');
-            let localPresets = localPresetsStr ? JSON.parse(localPresetsStr) : {};
-
-            let hasChanges = false;
-
-            // [보안 필터 최우선 순위] 일반 계정인 경우 로컬 프리셋에서 19금 요소를 즉각 제거하여 동기화 찌꺼기 원천 방지
-            if (!this.isAdmin) {
-                Object.keys(localPresets).forEach(name => {
-                    const preset = localPresets[name];
-                    if (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19')) {
-                        delete localPresets[name];
-                        hasChanges = true;
-                    }
-                });
-                if (hasChanges) {
-                    localStorage.setItem('persona_presets', JSON.stringify(localPresets));
-                    this.loadPersonaPresets();
-                    console.log("[Sync] Removed local adult presets for family user.");
-                }
-            }
- 
-            if (Object.keys(serverPresets).length === 0) {
-                if (Object.keys(localPresets).length > 0) {
-                    console.log("Server presets empty. Pushing local presets to server...");
-                    await this.pushPersonasToServer();
-                }
-                return;
-            }
- 
-            const mergedPresets = { ...localPresets };
- 
-            // 1. Merge server presets into local
-            Object.keys(serverPresets).forEach(name => {
-                const serverPreset = serverPresets[name];
-                
-                // 일반 계정인 경우, 서버에서 내려온 19금 프리셋은 아예 병합하지 않음
-                if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금') || (serverPreset.savedSession && serverPreset.savedSession.chatLevel === 'adult-19'))) {
-                    return;
-                }
-
-                const localPreset = mergedPresets[name];
- 
-                if (!localPreset) {
-                    mergedPresets[name] = serverPreset;
-                    hasChanges = true;
-                } else {
-                    // Compare dialogue length or properties to pick the fresher one
-                    const serverSession = serverPreset.savedSession;
-                    const localSession = localPreset.savedSession;
- 
-                    const serverLen = (serverSession && serverSession.storyHistory) ? serverSession.storyHistory.length : 0;
-                    const localLen = (localSession && localSession.storyHistory) ? localSession.storyHistory.length : 0;
- 
-                    if (serverLen > localLen) {
-                        mergedPresets[name] = serverPreset;
-                        hasChanges = true;
-                    }
-                }
-            });
- 
-            // 2. Push local-only presets to server by marking hasChanges
-            Object.keys(mergedPresets).forEach(name => {
-                if (!serverPresets[name]) {
-                    hasChanges = true;
-                }
-            });
- 
-            if (hasChanges) {
-                localStorage.setItem('persona_presets', JSON.stringify(mergedPresets));
-                this.loadPersonaPresets();
-                console.log("Persona presets synced & updated from server.");
-                await this.pushPersonasToServer();
-            }
+            localPresets = JSON.parse(localStorage.getItem('persona_presets')) || {};
         } catch (e) {
-            console.error("Error syncing personas with server:", e);
+            localPresets = {};
+        }
+
+        let hasChanges = false;
+
+        // 일반 계정 화면에 19금 인물이 남아 있으면 즉시 지운다
+        if (!this.isAdmin) {
+            Object.keys(localPresets).forEach(name => {
+                const preset = localPresets[name];
+                if (preset.level === 'adult-19' || name.includes('19금')) {
+                    delete localPresets[name];
+                    hasChanges = true;
+                }
+            });
+        }
+
+        // 서버에만 있는 인물을 브라우저 목록에 더한다(있는 것은 건드리지 않는다)
+        Object.keys(serverPresets).forEach(name => {
+            const serverPreset = serverPresets[name];
+            if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금'))) return;
+            if (!localPresets[name]) {
+                localPresets[name] = { ...serverPreset };
+                hasChanges = true;
+            }
+        });
+
+        if (hasChanges) {
+            localStorage.setItem('persona_presets', JSON.stringify(localPresets));
+            this.loadPersonaPresets();
+        }
+
+        // 브라우저에만 있는 인물이 있으면 서버로 올린다
+        const hasLocalOnly = Object.keys(localPresets).some(name => !serverPresets[name]);
+        if (hasLocalOnly) {
+            await this.pushPersonasToServer();
         }
     }
 }
