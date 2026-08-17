@@ -170,6 +170,12 @@ class ChronicleApp {
         if (this.btnNewConversation) {
             this.btnNewConversation.addEventListener('click', () => this.startNewConversation());
         }
+        // 수위는 대화마다 따로 갖는다 — 설정창의 수위는 인물의 '기본값'일 뿐이고,
+        // 지금 보고 있는 대화의 수위는 이 항목으로 바꾼다(바꾼 값은 그 대화에만 남는다).
+        this.btnToggleChatLevel = document.getElementById('btn-toggle-chat-level');
+        if (this.btnToggleChatLevel) {
+            this.btnToggleChatLevel.addEventListener('click', () => this.toggleConversationChatLevel());
+        }
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
         // Setup Password Visibility Toggle
@@ -947,6 +953,7 @@ class ChronicleApp {
             this.hudTone.textContent = this.chatLevel === 'adult-19' ? "치명적 19금" : "일반 롤플레이";
             this.hudCharacter.textContent = `${this.chatCharName} & 주인공`;
             this.hudModel.textContent = this.selectModel.options[this.selectModel.selectedIndex].text;
+            this.updateChatLevelMenu();
 
             // Update left panel title
             const leftTitle = this.appContainer.querySelector('.story-ledger-container .section-title h2');
@@ -1112,6 +1119,8 @@ class ChronicleApp {
             if (this.modeType === 'chat') {
                 this.renderChatProfile('normal');
             }
+            // 소설 모드에서는 '이 대화 수위' 항목이 없어야 한다 — 모드에 맞게 다시 맞춘다.
+            this.updateChatLevelMenu();
             
             // 대화방에 진입 시 기존 대화가 있다면 스크롤을 맨 아래로 이동시킵니다.
             if (this.storyHistory.length > 0) {
@@ -3269,9 +3278,9 @@ JSON Schema:
             }
 
             const existingPreset = presets[trimmedPresetName];
+            // 설정창의 수위는 인물의 기본값이므로 이미 저장된 대화의 수위는 건드리지 않는다
+            // (그 대화의 수위는 대화창 메뉴의 '이 대화 수위'로 바꾼다).
             const savedSession = existingPreset ? existingPreset.savedSession : undefined;
-            // 설정에서 바꾼 수위를 예전 세션 저장값에도 반영 — 안 하면 대화 진입 시 옛 수위가 되살아난다.
-            if (savedSession) savedSession.chatLevel = level;
             presets[trimmedPresetName] = {
                 charName,
                 relation,
@@ -3377,8 +3386,9 @@ JSON Schema:
             const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
             const data = presets[selected];
             if (data) {
-                // 세션에 저장된 최종 수위가 있다면 이를 우선 로드, 없으면 프리셋 기본 등급으로 폴백
-                let finalLevel = (data.savedSession && data.savedSession.chatLevel) ? data.savedSession.chatLevel : (data.level || 'normal');
+                // 설정창의 수위는 그 인물의 '기본 수위'다 — 지난 대화에서 바꾼 수위를 여기에
+                // 끌어오지 않는다. 끌어오면 기본값을 고쳐도 옛 대화 값이 화면을 덮어 고칠 수 없다.
+                let finalLevel = data.level || 'normal';
                 // 세션에 저장된 최종 주인공 이름이 있다면 이를 우선 로드, 없으면 프리셋 기본 이름으로 폴백
                 let finalUserName = (data.savedSession && data.savedSession.userName) ? data.savedSession.userName : (data.userName || '');
                 let finalName = data.charName || '';
@@ -3794,6 +3804,70 @@ JSON Schema:
         if (this.inputChatUserName) this.inputChatUserName.value = this.characterName || '';
         if (this.hudTone) this.hudTone.textContent = this.chatLevel === 'adult-19' ? "치명적 19금" : "일반 롤플레이";
         if (this.hudCharacter) this.hudCharacter.textContent = `${this.chatCharName} & 주인공`;
+        this.updateChatLevelMenu();
+    }
+
+    // 인물에 저장된 '기본 수위'. 새 대화는 여기서 수위를 물려받는다.
+    // 서버 인물 → 브라우저 인물 순으로 보고, 둘 다 없으면 지금 값을 그대로 쓴다.
+    defaultChatLevelOfCurrentCharacter() {
+        let level = '';
+        const charId = this.currentCharId();
+        const serverChar = charId ? this.serverPersonasById[charId] : null;
+        if (serverChar && serverChar.level) level = serverChar.level;
+        if (!level) {
+            const presetName = (this.selectPersonaPreset && this.selectPersonaPreset.value)
+                || localStorage.getItem('recent_persona_preset') || '';
+            if (presetName) {
+                try {
+                    const presets = JSON.parse(localStorage.getItem('persona_presets')) || {};
+                    const preset = presets[presetName];
+                    if (preset && preset.level) level = preset.level;
+                } catch (e) { /* 저장값이 깨졌으면 기본값으로 떨어진다 */ }
+            }
+        }
+        if (!level) level = this.chatLevel || 'normal';
+        if (!this.isAdmin && level === 'adult-19') level = 'normal';
+        return level;
+    }
+
+    // 대화창 메뉴의 '이 대화 수위' 항목을 지금 대화의 수위로 맞춘다.
+    // 일반 계정에는 아예 보이지 않는다 — 19금으로 올릴 수 없고 서버도 거절한다.
+    updateChatLevelMenu() {
+        if (!this.btnToggleChatLevel) return;
+        const usable = this.isAdmin && this.modeType === 'chat';
+        this.btnToggleChatLevel.style.display = usable ? '' : 'none';
+        if (!usable) return;
+        const textEl = this.btnToggleChatLevel.querySelector('.text');
+        const label = this.chatLevel === 'adult-19' ? '19금 성인용' : '전체 이용가';
+        if (textEl) textEl.textContent = `이 대화 수위: ${label}`;
+    }
+
+    // 지금 보고 있는 대화의 수위만 바꾼다 — 인물의 기본 수위와 다른 대화는 건드리지 않는다.
+    async toggleConversationChatLevel() {
+        if (!this.isAdmin || this.modeType !== 'chat') return;
+        const before = this.chatLevel || 'normal';
+        const after = before === 'adult-19' ? 'normal' : 'adult-19';
+        const name = after === 'adult-19' ? '19금 성인용' : '전체 이용가';
+
+        this.chatLevel = after;
+        this.syncChatSettingsInputs();
+
+        // 아직 서버에 대화가 없으면(첫 마디 전) 화면 값만 바꿔 둔다 — 첫 마디를 보낼 때
+        // 이 값이 그 대화의 수위로 함께 저장된다.
+        if (!this.convId) {
+            this.appendChatMessage('system', `이 대화의 수위를 '${name}'로 정했습니다.`);
+            return;
+        }
+
+        const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, { chatLevel: after });
+        if (!r.ok) {
+            this.chatLevel = before;
+            this.syncChatSettingsInputs();
+            this.showStorageWarning('수위 변경이 서버에 반영되지 않았습니다.');
+            return;
+        }
+        this.clearStorageWarning();
+        this.appendChatMessage('system', `이 대화의 수위를 '${name}'로 바꿨습니다.`);
     }
 
     // 설정창의 감정별 그림 미리보기를 지금 인물 것으로 맞춘다.
@@ -4242,6 +4316,13 @@ JSON Schema:
             return;
         }
         this.clearConversationState();
+
+        // 새 대화는 인물의 기본 수위로 시작한다 — 직전에 보던 대화에서 바꾼 수위가
+        // 다음 대화까지 따라오지 않게(수위는 대화마다 따로 갖는 값이다).
+        if (this.modeType === 'chat') {
+            this.chatLevel = this.defaultChatLevelOfCurrentCharacter();
+            this.syncChatSettingsInputs();
+        }
 
         const convId = await this.ensureConversation();
         this.rerenderFeedFromHistory();
