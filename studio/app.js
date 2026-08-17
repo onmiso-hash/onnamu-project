@@ -3269,6 +3269,9 @@ JSON Schema:
             }
 
             const existingPreset = presets[trimmedPresetName];
+            const savedSession = existingPreset ? existingPreset.savedSession : undefined;
+            // 설정에서 바꾼 수위를 예전 세션 저장값에도 반영 — 안 하면 대화 진입 시 옛 수위가 되살아난다.
+            if (savedSession) savedSession.chatLevel = level;
             presets[trimmedPresetName] = {
                 charName,
                 relation,
@@ -3277,7 +3280,7 @@ JSON Schema:
                 userName,
                 imagePrompt: this.inputCharImagePrompt.value.trim(),
                 characterImages: this.characterImages || {},
-                savedSession: existingPreset ? existingPreset.savedSession : undefined
+                savedSession
             };
             localStorage.setItem('persona_presets', JSON.stringify(presets));
             
