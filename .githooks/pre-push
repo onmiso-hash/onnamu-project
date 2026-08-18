@@ -17,4 +17,19 @@ if [ -x "$ROOT/scripts/check_deploy_cmd_len.sh" ]; then
   "$ROOT/scripts/check_deploy_cmd_len.sh" || exit 1
 fi
 
+# 갤러리 신분 검사 — 다른 사람 출입증으로 들어가지는가(2026-08-18 사고).
+# 파이썬을 못 찾으면 조용히 넘어가지 않고 막는다. 이 검사는 건너뛰면 안 되는 종류다.
+if [ -f "$ROOT/scripts/check_gallery_identity.py" ]; then
+  PY=""
+  for cand in "$ROOT/.venv/bin/python" python3 python; do
+    if "$cand" -c "import flask" >/dev/null 2>&1; then PY="$cand"; break; fi
+  done
+  if [ -z "$PY" ]; then
+    echo "[갤러리 신분 검사] 막음 — flask를 가진 파이썬을 못 찾아 검사를 돌리지 못했습니다."
+    echo "  .venv를 만들거나 flask를 설치한 뒤 다시 push 하세요."
+    exit 1
+  fi
+  "$PY" "$ROOT/scripts/check_gallery_identity.py" || exit 1
+fi
+
 exit 0

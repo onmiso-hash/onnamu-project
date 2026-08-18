@@ -127,8 +127,11 @@ def verify_token(token, secret_key):
     except Exception:
         return None
 
-def _to_portal_login():
-    """로그인 화면으로 보낸다 — 출입증이 없을 때도, 계정이 없어지거나 잠겼을 때도 같은 길이다."""
+def _to_portal_login(sso_retry=False):
+    """로그인 화면으로 보낸다 — 출입증이 없을 때도, 계정이 없어지거나 잠겼을 때도 같은 길이다.
+
+    sso_retry: 돌아올 주소에 sso=1을 달아 둔다. '한 번은 손잡기를 시켜봤다'는 표시로,
+    이것이 붙은 채 또 실패하면 무한 왕복 대신 멈춘다."""
     portal_url = current_app.config.get('PORTAL_URL')
     if not portal_url:
         # 포털 자체일 수도 있으므로, 상대경로 fallback 또는 호스트명 기반
@@ -137,7 +140,53 @@ def _to_portal_login():
             portal_url = f"http://{host.split(':')[0]}:5001"
         else:
             portal_url = "https://onnamu.kr"
-    return redirect(f"{portal_url}/login?next={request.url}")
+    target = request.url
+    if sso_retry and request.args.get('sso') != '1':
+        target = f"{target}{'&' if '?' in target else '?'}sso=1"
+    # next 값은 통째로 감싼다 — 감싸지 않으면 target 안의 &가 포털의 다른 칸으로 잘려 나간다.
+    return redirect(f"{portal_url}/login?next={urllib.parse.quote(target, safe='')}")
+
+
+def _shares_portal_cookie(host):
+    """포털과 출입증을 같이 쓰는 구역인가.
+
+    onnamu.kr 밑에서는 포털이 심은 공용 출입증(auth_token)이 갤러리에도 함께 온다.
+    집 안에서 IP:포트로 바로 들어오는 경우에는 오지 않으므로 옛 방식을 그대로 둔다."""
+    return 'onnamu.kr' in (host or '')
+
+def current_identity(secret, host=None):
+    """이 요청의 '누구인가'를 정한다.
+
+    login_required를 지나는 화면과, 302를 피하려고 직접 검사하는 자리(청크 업로드)가
+    같은 규칙을 쓰게 하려고 함수로 뽑았다. 규칙이 두 벌이 되면 한쪽만 고쳐진다 —
+    2026-08-18 사고가 정확히 그 모양이었다.
+
+    돌려주는 값: (신분, 갈아 끼울 출입증, 확인불가 여부)
+      · 신분        : 없으면 None
+      · 갈아 끼울 표: 갤러리 사본이 낡았으면 새로 심을 값
+      · 확인불가    : True면 사본이 남아 있어도 절대 쓰면 안 된다(로그아웃 상태)
+    """
+    if host is None:
+        host = request.headers.get('Host', '')
+
+    payload = verify_token(request.cookies.get('gallery_auth_token'), secret)
+    refresh_token = None
+
+    # 갤러리 전용 출입증은 30일을 사는데, 그 사이 다른 사람이 포털에 로그인해도
+    # 그대로 남는다. 그것을 신분으로 믿었더니 guest1로 로그인한 브라우저가
+    # 앞서 쓰던 admin으로 갤러리에 들어가 private/family를 전부 봤다(2026-08-18 사고).
+    # 그래서 갤러리 전용 출입증은 '신분'이 아니라 '베껴 둔 사본'으로 격하한다.
+    if _shares_portal_cookie(host):
+        shared_token = request.cookies.get('auth_token')
+        shared = verify_token(shared_token, secret)
+        if not shared:
+            return None, None, True
+        if not payload or payload.get('username') != shared.get('username'):
+            payload = shared
+            refresh_token = shared_token
+
+    return payload, refresh_token, False
+
 
 def login_required(admin_only=False):
     def decorator(fn):
@@ -145,21 +194,35 @@ def login_required(admin_only=False):
         def wrapper(*args, **kwargs):
             secret = current_app.config.get('SECRET_KEY') or 'change-me-in-production'
             
+            host = request.headers.get('Host', '')
+
             # (1) URL 파라미터로 넘어온 토큰 우선 검증 및 로컬 쿠키 저장 처리 (SSO 프로토콜)
             url_token = request.args.get('token')
             if url_token:
                 payload = verify_token(url_token, secret)
                 if payload:
                     g.user = payload
-                    # 파라미터가 빠진 깨끗한 원래의 주소로 리다이렉트하여 로그인 루프 파괴
+                    # token만 떼고 나머지 칸은 그대로 들고 돌아간다.
+                    # 통째로 버리면 sso=1 표시까지 사라져 손잡기를 무한히 되풀이한다.
+                    rest = {k: v for k, v in request.args.items() if k != 'token'}
                     clean_url = request.base_url
+                    if rest:
+                        clean_url = f"{clean_url}?{urllib.parse.urlencode(rest)}"
                     resp = make_response(redirect(clean_url))
                     # HTTP/HTTPS 비보안 환경 간 완벽 동기화를 위해 쿠키 도메인을 지정하지 않고 갤러리 자체 로컬 오리진에 직접 세팅
                     resp.set_cookie('gallery_auth_token', url_token, httponly=True, max_age=30 * 24 * 3600)
                     return resp
-                    
-            token = request.cookies.get('gallery_auth_token')
-            payload = verify_token(token, secret)
+
+            # (2) '지금 누가 로그인해 있는가'는 포털과 함께 쓰는 출입증만이 답한다.
+            payload, refresh_token, unknown = current_identity(secret, host)
+
+            if unknown:
+                # 로그인 상태가 아니거나 확인할 수 없다.
+                # 갤러리 사본이 남아 있어도 쓰지 않는다 — 쓰면 사고가 그대로 되살아난다.
+                if request.args.get('sso') == '1':
+                    return ("⛔ 지금 누가 로그인했는지 확인할 수 없습니다. "
+                            "onnamu.kr 에서 다시 로그인해 주세요.", 403)
+                return _to_portal_login(sso_retry=True)
 
             if not payload:
                 return _to_portal_login()
@@ -174,6 +237,11 @@ def login_required(admin_only=False):
 
             # Flask의 글로벌 g 객체에 유저 페이로드 세팅
             g.user = user
-            return fn(*args, **kwargs)
+            result = fn(*args, **kwargs)
+            if refresh_token:
+                resp = make_response(result)
+                resp.set_cookie('gallery_auth_token', refresh_token, httponly=True, max_age=30 * 24 * 3600)
+                return resp
+            return result
         return wrapper
     return decorator

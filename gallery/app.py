@@ -26,7 +26,7 @@ from flask import (
     Flask, render_template, request,
     redirect, url_for, send_from_directory, abort, flash, jsonify, g
 )
-from auth_helper import login_required, verify_token, resolve_user, upload_allowed
+from auth_helper import login_required, verify_token, resolve_user, upload_allowed, current_identity
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -329,9 +329,10 @@ def upload():
 def upload_chunk():
     # AJAX 요청에 대한 API 전용 인증 검증 (302 리다이렉트 방지)
     secret = app.config.get('SECRET_KEY') or 'change-me-in-production'
-    token = request.cookies.get('gallery_auth_token')
-    payload = verify_token(token, secret)
-    if not payload:
+    # 갤러리 표를 그대로 읽지 않는다 — 그 표는 30일 전 사람 것일 수 있다(2026-08-18 사고).
+    # 화면 쪽 login_required와 똑같은 규칙을 쓴다.
+    payload, _refresh, unknown = current_identity(secret)
+    if unknown or not payload:
         return jsonify({"success": False, "error": "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}), 401
         
     upload_id = request.form.get("upload_id")
@@ -363,9 +364,10 @@ def upload_chunk():
 def upload_complete():
     # AJAX 요청에 대한 API 전용 인증 검증 (302 리다이렉트 방지)
     secret = app.config.get('SECRET_KEY') or 'change-me-in-production'
-    token = request.cookies.get('gallery_auth_token')
-    payload = verify_token(token, secret)
-    if not payload:
+    # 갤러리 표를 그대로 읽지 않는다 — 그 표는 30일 전 사람 것일 수 있다(2026-08-18 사고).
+    # 화면 쪽 login_required와 똑같은 규칙을 쓴다.
+    payload, _refresh, unknown = current_identity(secret)
+    if unknown or not payload:
         return jsonify({"success": False, "error": "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}), 401
 
     # 여기는 login_required를 지나지 않는 자리라(302를 막으려고 직접 검사한다)
