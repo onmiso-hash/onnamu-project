@@ -25,9 +25,12 @@
 그래서 `onnamu.kr` 밑에서는 **매 요청마다 포털 쿠키(`auth_token`)를 신분으로 삼고**,
 사본의 이름이 다르면 갈아 끼운다. 포털 쿠키가 없으면(=로그아웃) 사본이 남아 있어도 쓰지 않는다.
 
+- 판정 규칙의 **원본은 `shared/auth_common.py`** 한 벌이다(2026-08-19). `gallery/auth_common.py`는
+  도커 빌드 때문에 둔 사본이라 직접 고치면 push가 막힌다 — 원본을 고치고 `scripts/sync_auth_common.sh`.
 - 판정 함수: `auth_helper.py`의 `current_identity()` — **화면이든 API든 이것만 쓸 것.**
   쿠키를 직접 읽으면 규칙이 두 벌이 되어 한쪽만 고쳐진다(사고의 원인이 정확히 이것).
-- 막는 검사: `scripts/check_gallery_identity.py` (push 전 자동 실행, 실패 시 push 중단)
+- 막는 검사: `scripts/check_gallery_identity.py` + `scripts/check_identity_common.py`
+  (둘 다 push 전 자동 실행, 실패 시 push 중단)
 
 ---
 

@@ -32,4 +32,18 @@ if [ -f "$ROOT/scripts/check_gallery_identity.py" ]; then
   "$PY" "$ROOT/scripts/check_gallery_identity.py" || exit 1
 fi
 
+# 신분·권한 공통 규칙 검사 — 같은 규칙이 두 벌이 되지 않는가, 지금 권한을 실제로 묻는가.
+# 위와 같은 이유로 파이썬을 못 찾으면 조용히 넘어가지 않고 막는다.
+if [ -f "$ROOT/scripts/check_identity_common.py" ]; then
+  PY=""
+  for cand in "$ROOT/.venv/bin/python" python3 python; do
+    if "$cand" -c "import flask" >/dev/null 2>&1; then PY="$cand"; break; fi
+  done
+  if [ -z "$PY" ]; then
+    echo "[공통 신분 검사] 막음 — flask를 가진 파이썬을 못 찾아 검사를 돌리지 못했습니다."
+    exit 1
+  fi
+  "$PY" "$ROOT/scripts/check_identity_common.py" || exit 1
+fi
+
 exit 0

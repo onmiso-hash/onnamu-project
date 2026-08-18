@@ -36,6 +36,15 @@ function verifyAuthToken(token, secretKey) {
 const PERM_TTL_MS = 60 * 1000;
 const permCache = new Map();   // 아이디 -> { at, perms }
 
+// 기계끼리 부르는 출입증의 아이디 앞머리. 계정표에 없는 것이 정상이라 권한을 묻지 않는다.
+// (포털이 계정을 지우며 여기 자료 정리를 시킬 때 system_portal 이름으로 온다.
+//  묻던 시절에는 '없는 계정'으로 401을 돌려줘 정리가 조용히 실패했다 — 2026-08-19 실측.)
+// 이 규칙의 원본은 shared/auth_common.py 의 is_machine_identity 다.
+const MACHINE_PREFIX = 'system_';
+function isMachineIdentity(username) {
+    return !!username && username.startsWith(MACHINE_PREFIX);
+}
+
 // 로그인 화면 주소 — 출입증이 없을 때와 계정이 없어졌을 때가 같은 곳으로 간다.
 function portalLoginBase(req) {
     let portalUrl = process.env.PORTAL_URL || '';
@@ -133,7 +142,9 @@ function authMiddleware(options = {}) {
         
         // 지금 권한을 포털에 물어 덮어쓴다. 계정이 없어졌거나 잠겼으면 여기서 끝난다.
         const user = { ...payload };
-        const perms = await fetchPermissions(payload.username, secretKey);
+        const perms = isMachineIdentity(payload.username)
+            ? null
+            : await fetchPermissions(payload.username, secretKey);
         if (perms) {
             if (!perms.exists || perms.locked) {
                 if (isApi) {
@@ -163,4 +174,4 @@ function authMiddleware(options = {}) {
     };
 }
 
-module.exports = { authMiddleware, verifyAuthToken };
+module.exports = { authMiddleware, verifyAuthToken, isMachineIdentity };

@@ -6,7 +6,9 @@ import os
 import re
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
-from auth_helper import generate_auth_token, login_required, verify_token
+from auth_helper import (generate_auth_token, login_required, verify_token,
+                         set_permission_source, is_machine_identity,
+                         current_identity, resolve_user, shared_token)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -126,6 +128,32 @@ def get_account(username):
         "can_upload": bool(row[5]), "locked": bool(row[6]), "perm_version": row[7],
     }
 
+def account_permissions(username):
+    """이 사람이 지금 무엇을 할 수 있는지 한 꾸러미로 돌려준다.
+
+    포털 자신(login_required)과 다른 서비스가 묻는 통로(/api/auth/permissions)가
+    같은 답을 쓰게 하려고 함수로 뽑았다. 두 벌이 되면 한쪽만 고쳐진다."""
+    account = get_account(username)
+    if not account:
+        # 지워진 계정. 부르는 쪽이 '없어졌다'와 '못 물었다'를 구분할 수 있어야 한다.
+        return {"exists": False}
+    return {
+        "exists": True,
+        "username": account['username'],
+        "is_admin": account['is_admin'],
+        "adult_ok": account['adult_ok'],
+        "folders": account['folders'],
+        "can_upload": account['can_upload'],
+        "locked": account['locked'],
+        "perm_version": account['perm_version'],
+    }
+
+
+# 출입증에 박힌 권한은 최대 30일 묵은 값이다. 포털도 갤러리·스튜디오처럼
+# 매 요청 지금 표를 보게 여기서 꽂아 준다.
+set_permission_source(account_permissions)
+
+
 def touch_last_login(username):
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
     c.execute("UPDATE accounts SET last_login_at = CURRENT_TIMESTAMP WHERE username = ?", (username,))
@@ -229,10 +257,16 @@ def delete_studio_data(username):
 # 색·모서리·너비는 static/tokens.css 한 장에 모여 있고 두 화면이 같이 읽는다.
 @app.route('/')
 def index():
-    token = request.cookies.get('auth_token')
-    payload = verify_token(token, app.secret_key)
+    payload, _refresh, _unknown = current_identity(app.secret_key)
     username = payload.get('username') if payload else None
-    is_admin = payload.get('is_admin', False) if payload else False
+    # 관리자 메뉴를 보일지도 지금 표를 보고 정한다 — 출입증에 박힌 값은 30일 묵을 수 있다.
+    is_admin = False
+    if payload:
+        user, blocked = resolve_user(payload)
+        if blocked:
+            username = None
+        else:
+            is_admin = user.get('is_admin', False)
     return render_template('index.html', username=username, is_admin=is_admin)
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -241,8 +275,8 @@ def login():
     next_url = request.args.get('next', '')
     
     # 이미 유효한 토큰이 있다면 next로 리다이렉트
-    token = request.cookies.get('auth_token')
-    payload = verify_token(token, app.secret_key)
+    payload, _refresh, _unknown = current_identity(app.secret_key)
+    token = shared_token()   # 손잡기로 그대로 건네줄 원문
     if payload:
         if next_url:
             # next_url에 token 파라미터 추가하여 스킴 격리 시에도 쿠키 주입 가능하게 함
@@ -429,6 +463,10 @@ def admin_accounts_create():
 
     if not USERNAME_RE.match(username):
         flash("아이디는 영문·숫자·밑줄·붙임표만 쓸 수 있고 2~32글자여야 합니다.", "error")
+    elif is_machine_identity(username):
+        # system_ 으로 시작하는 이름은 기계끼리 부를 때 쓴다(권한 조회를 건너뛴다).
+        # 사람이 그 이름을 가지면 권한을 내려도 반영되지 않는다.
+        flash("'system_' 으로 시작하는 아이디는 기계 전용이라 만들 수 없습니다.", "error")
     elif len(password) < 4:
         flash("비밀번호는 4글자 이상이어야 합니다.", "error")
     elif get_account(username):
@@ -540,21 +578,8 @@ def auth_permissions(username):
     if not key_clean or key_clean != secret_clean:
         return jsonify({"error": "이 통로는 서비스끼리만 씁니다."}), 403
 
-    account = get_account(username)
-    if not account:
-        # 지워진 계정. 부르는 쪽이 '없어졌다'와 '못 물었다'를 구분할 수 있어야 한다.
-        return jsonify({"exists": False})
-
-    return jsonify({
-        "exists": True,
-        "username": account['username'],
-        "is_admin": account['is_admin'],
-        "adult_ok": account['adult_ok'],
-        "folders": account['folders'],
-        "can_upload": account['can_upload'],
-        "locked": account['locked'],
-        "perm_version": account['perm_version'],
-    })
+    # 포털 자신이 쓰는 답과 같은 함수에서 나온다 — 두 벌이 되면 한쪽만 고쳐진다.
+    return jsonify(account_permissions(username))
 
 # =====================================================================
 # 내 계정 — 비밀번호 바꾸기 (관리자가 아니어도 쓴다)
