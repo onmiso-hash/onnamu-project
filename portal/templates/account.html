@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | 내 계정</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('onnamu-theme');
+                if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg) 100%);
+            color: var(--fg); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .card {
+            background: var(--bg-card); backdrop-filter: blur(16px);
+            border-radius: var(--radius-2xl); padding: 34px 30px; border: 1px solid var(--border);
+            box-shadow: var(--shadow-lg); width: 100%; max-width: var(--maxw-card);
+        }
+        h2 { font-weight: 700; font-size: 1.35rem; letter-spacing: -0.5px; margin-bottom: 6px; }
+        .who { font-size: 0.85rem; color: var(--fg-soft); margin-bottom: 6px; }
+        .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 24px; }
+        .tag { font-size: 0.68rem; padding: 3px 8px; border-radius: var(--radius-full);
+               border: 1px solid var(--border-soft); color: var(--fg-soft); }
+        .tag.on { border-color: var(--accent-line); color: var(--accent); background: var(--accent-tint-soft); }
+
+        .msg { padding: 11px 14px; border-radius: var(--radius-md); font-size: 0.85rem; margin-bottom: 16px; line-height: 1.55; }
+        .msg.ok { background: var(--accent-tint); border: 1px solid var(--accent-line); color: var(--fg); }
+        .msg.error { background: var(--danger-soft); border: 1px solid var(--danger-line); color: var(--danger); }
+
+        .input-group { margin-bottom: 16px; }
+        .input-group label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--fg-soft);
+                             text-transform: uppercase; letter-spacing: 1px; margin-bottom: 7px; }
+        .input-group input {
+            width: 100%; padding: 12px 14px; border-radius: var(--radius-lg); border: 1px solid var(--border);
+            background: var(--bg-sunken); color: var(--fg); font-size: 0.92rem; outline: none;
+        }
+        .input-group input:focus { border-color: var(--accent); background: var(--bg-field); box-shadow: 0 0 10px var(--accent-ring); }
+        .btn-submit {
+            width: 100%; padding: 13px; border-radius: var(--radius-lg); border: none;
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+            color: var(--on-accent); font-size: 0.95rem; font-weight: 700; cursor: pointer; margin-top: 6px;
+            box-shadow: 0 4px 15px var(--accent-shadow);
+        }
+        .btn-submit:hover { transform: translateY(-1px); }
+        .links { margin-top: 24px; display: flex; gap: 14px; font-size: 0.78rem; }
+        .links a { color: var(--fg-soft); text-decoration: none; }
+        .links a:hover { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>내 계정</h2>
+        <p class="who">{{ account.username }}</p>
+        <div class="tags">
+            {% if account.is_admin %}<span class="tag on">관리자</span>{% endif %}
+            {% if account.adult_ok %}<span class="tag on">19금</span>{% endif %}
+            {% if account.can_upload %}<span class="tag on">올리기</span>{% endif %}
+            <span class="tag">{{ account.folders|join(' · ') if account.folders else '폴더 없음' }}</span>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="msg {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="input-group">
+                <label for="current">지금 비밀번호</label>
+                <input type="password" id="current" name="current_password" required autocomplete="current-password">
+            </div>
+            <div class="input-group">
+                <label for="new1">새 비밀번호</label>
+                <input type="password" id="new1" name="new_password" required
+                       placeholder="4글자 이상" autocomplete="new-password">
+            </div>
+            <div class="input-group">
+                <label for="new2">새 비밀번호 다시</label>
+                <input type="password" id="new2" name="new_password_again" required autocomplete="new-password">
+            </div>
+            <button type="submit" class="btn-submit">비밀번호 바꾸기</button>
+        </form>
+
+        <div class="links">
+            <a href="/">← 대문으로</a>
+            {% if account.is_admin %}<a href="/admin/accounts">계정 관리</a>{% endif %}
+        </div>
+    </div>
+</body>
+</html>

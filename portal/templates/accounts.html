@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | 계정 관리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+    <!-- 대문에서 고른 밝게/어둡게를 그대로 따른다. 화면이 그려지기 전에 돌아야 번쩍임이 없다. -->
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('onnamu-theme');
+                if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg) 100%);
+            color: var(--fg); min-height: 100vh; padding: 24px 16px 60px;
+        }
+        .wrap { max-width: var(--maxw); margin: 0 auto; }
+
+        header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+        h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
+        .home-link { font-size: 0.8rem; color: var(--fg-soft); text-decoration: none; }
+        .home-link:hover { color: var(--accent); }
+        .lede { font-size: 0.85rem; color: var(--fg-soft); margin-bottom: 22px; line-height: 1.6; }
+
+        .card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: var(--radius-xl); padding: 20px; margin-bottom: 18px;
+            box-shadow: var(--shadow);
+        }
+        .card h2 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+        .card .hint { font-size: 0.78rem; color: var(--fg-faint); margin-bottom: 14px; line-height: 1.6; }
+
+        .msg { padding: 11px 14px; border-radius: var(--radius-md); font-size: 0.85rem; margin-bottom: 12px; line-height: 1.55; }
+        .msg.ok { background: var(--accent-tint); border: 1px solid var(--accent-line); color: var(--fg); }
+        .msg.error { background: var(--danger-soft); border: 1px solid var(--danger-line); color: var(--danger); }
+
+        label.field { display: block; font-size: 0.72rem; font-weight: 700; color: var(--fg-soft);
+                      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        input[type=text], input[type=password] {
+            padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border);
+            background: var(--bg-sunken); color: var(--fg); font-size: 0.9rem; outline: none; width: 100%;
+        }
+        input[type=text]:focus, input[type=password]:focus {
+            border-color: var(--accent); background: var(--bg-field); box-shadow: 0 0 8px var(--accent-ring);
+        }
+        .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+        .row > div { flex: 1 1 180px; }
+
+        button {
+            padding: 10px 16px; border-radius: var(--radius-md); border: 1px solid var(--border);
+            background: var(--bg-elev); color: var(--fg); font-size: 0.85rem; font-weight: 600;
+            cursor: pointer; transition: all 0.15s; white-space: nowrap;
+        }
+        button:hover { border-color: var(--accent); color: var(--accent); }
+        button.primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
+            color: var(--on-accent); border: none; box-shadow: 0 3px 12px var(--accent-shadow);
+        }
+        button.primary:hover { color: var(--on-accent); transform: translateY(-1px); }
+        button.danger { border-color: var(--danger-line); color: var(--danger); background: var(--danger-soft); }
+        button.danger:hover { border-color: var(--danger); color: var(--danger); }
+
+        .acct { border: 1px solid var(--border); border-radius: var(--radius-lg);
+                background: var(--bg-sunken); margin-bottom: 12px; overflow: hidden; }
+        .acct.locked { opacity: 0.62; }
+        .acct > summary { list-style: none; cursor: pointer; padding: 14px 16px;
+                          display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .acct > summary::-webkit-details-marker { display: none; }
+        .acct > summary::before { content: '▸'; color: var(--fg-faint); font-size: 0.8rem; }
+        .acct[open] > summary::before { content: '▾'; }
+        .acct > summary:hover { background: var(--bg-elev); }
+        .name { font-weight: 700; font-size: 0.98rem; }
+        .tag { font-size: 0.68rem; padding: 3px 8px; border-radius: var(--radius-full);
+               border: 1px solid var(--border-soft); color: var(--fg-soft); }
+        .tag.on { border-color: var(--accent-line); color: var(--accent); background: var(--accent-tint-soft); }
+        .tag.warn { border-color: var(--danger-line); color: var(--danger); background: var(--danger-soft); }
+        .when { margin-left: auto; font-size: 0.72rem; color: var(--fg-faint); }
+
+        .panel { padding: 4px 16px 18px; border-top: 1px solid var(--border-soft); }
+        .panel section { padding: 14px 0; border-bottom: 1px dashed var(--border-soft); }
+        .panel section:last-child { border-bottom: none; padding-bottom: 4px; }
+        .panel h3 { font-size: 0.78rem; font-weight: 700; color: var(--fg-soft);
+                    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .checks { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+        .checks label { display: flex; align-items: center; gap: 6px; font-size: 0.86rem; cursor: pointer; }
+        .checks input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+        .sub { font-size: 0.75rem; color: var(--fg-faint); margin-top: 8px; line-height: 1.6; }
+
+        dialog {
+            border: 1px solid var(--danger-line); border-radius: var(--radius-xl); padding: 24px;
+            background: var(--bg-soft); color: var(--fg); max-width: var(--maxw-modal); width: 92%;
+            box-shadow: var(--shadow-lg);
+        }
+        dialog::backdrop { background: var(--overlay); }
+        dialog h3 { font-size: 1.05rem; margin-bottom: 10px; color: var(--danger); }
+        dialog p { font-size: 0.85rem; color: var(--fg-muted); line-height: 1.7; margin-bottom: 14px; }
+        dialog .checks { margin: 14px 0; }
+        .dlg-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+        .notice { font-size: 0.78rem; color: var(--fg-faint); line-height: 1.7;
+                  border-left: 2px solid var(--border); padding-left: 12px; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <header>
+        <h1>계정 관리</h1>
+        <a class="home-link" href="/">← 대문으로</a>
+        <a class="home-link" href="/account">내 비밀번호 바꾸기</a>
+    </header>
+    <p class="lede">
+        여기서 만든 계정은 포털·갤러리·Chronicle AI에 모두 쓰입니다.
+        <strong>권한을 바꾸거나 계정을 잠가도 갤러리와 Chronicle AI에는 그 사람이 다시 로그인해야 반영됩니다</strong>
+        (출입증에 권한이 적혀 있고 30일간 유효하기 때문입니다).
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="msg {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="card">
+        <h2>계정 만들기</h2>
+        <p class="hint">
+            새 계정은 <strong>public 폴더만</strong> 볼 수 있고, 올리기·19금·관리자는 모두 꺼진 채로 시작합니다.
+            더 열어주려면 아래 목록에서 그 계정을 펼쳐 바꾸세요.
+        </p>
+        <form method="POST" action="{{ url_for('admin_accounts_create') }}">
+            <div class="row">
+                <div>
+                    <label class="field" for="new-username">아이디</label>
+                    <input type="text" id="new-username" name="username" required
+                           placeholder="영문·숫자·_·- 2~32글자" autocomplete="off">
+                </div>
+                <div>
+                    <label class="field" for="new-password">비밀번호</label>
+                    <input type="password" id="new-password" name="password" required
+                           placeholder="4글자 이상" autocomplete="new-password">
+                </div>
+                <div style="flex: 0 0 auto;">
+                    <button type="submit" class="primary">만들기</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h2>계정 {{ accounts|length }}개</h2>
+        <p class="hint">줄을 눌러 펼치면 권한을 바꾸고 잠그고 지울 수 있습니다.</p>
+
+        {% for a in accounts %}
+        <details class="acct {% if a.locked %}locked{% endif %}">
+            <summary>
+                <span class="name">{{ a.username }}</span>
+                {% if a.username == me %}<span class="tag on">나</span>{% endif %}
+                {% if a.is_admin %}<span class="tag on">관리자</span>{% endif %}
+                {% if a.adult_ok %}<span class="tag on">19금</span>{% endif %}
+                {% if a.can_upload %}<span class="tag on">올리기</span>{% endif %}
+                {% if a.locked %}<span class="tag warn">잠김</span>{% endif %}
+                <span class="tag">{{ a.folders|join(' · ') if a.folders else '폴더 없음' }}</span>
+                <span class="when">
+                    {% if a.last_login_at %}마지막 로그인 {{ a.last_login_at }}{% else %}로그인한 적 없음{% endif %}
+                </span>
+            </summary>
+
+            <div class="panel">
+                <section>
+                    <h3>권한</h3>
+                    <form method="POST" action="{{ url_for('admin_accounts_update') }}">
+                        <input type="hidden" name="username" value="{{ a.username }}">
+                        <div class="checks">
+                            <label><input type="checkbox" name="is_admin" {% if a.is_admin %}checked{% endif %}> 관리자</label>
+                            <label><input type="checkbox" name="adult_ok" {% if a.adult_ok %}checked{% endif %}> 19금 볼 수 있음</label>
+                            <label><input type="checkbox" name="can_upload" {% if a.can_upload %}checked{% endif %}> 갤러리에 올릴 수 있음</label>
+                        </div>
+                        <div class="checks">
+                            {% for f in all_folders %}
+                            <label>
+                                <input type="checkbox" name="folders" value="{{ f }}"
+                                       {% if f in a.folders %}checked{% endif %}> {{ f }} 폴더 보기
+                            </label>
+                            {% endfor %}
+                        </div>
+                        <button type="submit" class="primary">권한 저장</button>
+                        <p class="sub">
+                            올리기는 <strong>public이 아닌 폴더</strong>가 하나라도 있어야 실제로 쓸 수 있습니다.
+                        </p>
+                    </form>
+                </section>
+
+                <section>
+                    <h3>비밀번호 초기화</h3>
+                    <form method="POST" action="{{ url_for('admin_accounts_reset') }}">
+                        <input type="hidden" name="username" value="{{ a.username }}">
+                        <div class="row">
+                            <div>
+                                <input type="password" name="password" required
+                                       placeholder="새 비밀번호 (4글자 이상)" autocomplete="new-password">
+                            </div>
+                            <div style="flex: 0 0 auto;"><button type="submit">바꾸기</button></div>
+                        </div>
+                        <p class="sub">바꾼 비밀번호는 화면에 다시 나오지 않습니다 — 그 사람에게 직접 알려주세요.</p>
+                    </form>
+                </section>
+
+                <section>
+                    <h3>잠그기 · 지우기</h3>
+                    <div class="row" style="gap: 10px;">
+                        <div style="flex: 0 0 auto;">
+                            <form method="POST" action="{{ url_for('admin_accounts_lock') }}">
+                                <input type="hidden" name="username" value="{{ a.username }}">
+                                <button type="submit">{{ '잠금 풀기' if a.locked else '잠그기' }}</button>
+                            </form>
+                        </div>
+                        <div style="flex: 0 0 auto;">
+                            <button type="button" class="danger"
+                                    onclick="document.getElementById('del-{{ a.username }}').showModal()">
+                                계정 지우기
+                            </button>
+                        </div>
+                    </div>
+                    <p class="sub">
+                        잠그면 로그인이 막힙니다. 자료는 그대로 있어 언제든 풀 수 있습니다.
+                    </p>
+                </section>
+            </div>
+        </details>
+
+        <dialog id="del-{{ a.username }}">
+            <h3>'{{ a.username }}' 계정을 지웁니다</h3>
+            <p>
+                이 계정으로는 더 이상 로그인할 수 없게 됩니다.<br>
+                <strong>갤러리에 올린 사진·영상은 지워지지 않고 그대로 남습니다</strong>
+                — 누가 올렸는지 기록이 없어 골라낼 수 없기 때문입니다.
+            </p>
+            <form method="POST" action="{{ url_for('admin_accounts_delete') }}">
+                <input type="hidden" name="username" value="{{ a.username }}">
+                <label class="field" for="confirm-{{ a.username }}">확인 — 아이디를 그대로 입력하세요</label>
+                <input type="text" id="confirm-{{ a.username }}" name="confirm_username"
+                       autocomplete="off" placeholder="{{ a.username }}" required>
+                <div class="checks">
+                    <label>
+                        <input type="checkbox" name="wipe_studio">
+                        이 사람의 Chronicle AI 인물·대화도 함께 지우기 (되돌릴 수 없음)
+                    </label>
+                </div>
+                <div class="dlg-actions">
+                    <button type="button" onclick="this.closest('dialog').close()">그만두기</button>
+                    <button type="submit" class="danger">지웁니다</button>
+                </div>
+            </form>
+        </dialog>
+        {% endfor %}
+    </div>
+
+    <p class="notice">
+        마지막 관리자는 잠그거나 지울 수 없습니다 — 아무도 이 화면에 못 들어오는 상태를 막기 위해서입니다.
+        자기 자신도 잠그거나 지울 수 없습니다.
+    </p>
+</div>
+</body>
+</html>

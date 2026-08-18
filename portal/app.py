@@ -1,7 +1,9 @@
-from flask import Flask, jsonify, render_template, request, redirect, url_for, make_response, Response
+from flask import Flask, jsonify, render_template, request, redirect, url_for, make_response, Response, flash, g
+from functools import wraps
 import psutil
 import sqlite3
 import os
+import re
 import json
 from werkzeug.security import generate_password_hash, check_password_hash
 from auth_helper import generate_auth_token, login_required, verify_token
@@ -128,6 +130,100 @@ def touch_last_login(username):
     conn = sqlite3.connect(DB_PATH); c = conn.cursor()
     c.execute("UPDATE accounts SET last_login_at = CURRENT_TIMESTAMP WHERE username = ?", (username,))
     conn.commit(); conn.close()
+
+# --- 계정 관리 ---
+# 아이디는 스튜디오가 폴더 이름으로 그대로 쓴다(studio/store.js의 users/<아이디>/).
+# 그래서 거기서 허용하는 글자(A-Za-z0-9_.@-)보다 좁게 잡는다 — 점과 @를 빼면
+# 경로가 위로 올라가거나 폴더 자신을 가리키는 경우를 생각할 필요가 아예 없어진다.
+USERNAME_RE = re.compile(r'^[A-Za-z0-9_-]{2,32}$')
+ALLOWED_FOLDERS = ("public", "private", "family")
+
+def list_accounts():
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("""SELECT username, is_admin, adult_ok, folders, can_upload, locked,
+                        perm_version, created_at, last_login_at
+                 FROM accounts ORDER BY is_admin DESC, username""")
+    rows = c.fetchall(); conn.close()
+    return [{
+        "username": r[0], "is_admin": bool(r[1]), "adult_ok": bool(r[2]),
+        "folders": json.loads(r[3] or '[]'), "can_upload": bool(r[4]),
+        "locked": bool(r[5]), "perm_version": r[6],
+        "created_at": r[7], "last_login_at": r[8],
+    } for r in rows]
+
+def count_admins(exclude=None):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    if exclude:
+        c.execute("SELECT COUNT(*) FROM accounts WHERE is_admin = 1 AND locked = 0 AND username != ?", (exclude,))
+    else:
+        c.execute("SELECT COUNT(*) FROM accounts WHERE is_admin = 1 AND locked = 0")
+    n = c.fetchone()[0]; conn.close()
+    return n
+
+def clean_folders(raw):
+    """화면에서 온 폴더 목록을 허용된 것만 남기고 정해진 차례로 돌려준다."""
+    picked = set(raw or [])
+    return [f for f in ALLOWED_FOLDERS if f in picked]
+
+def create_account(username, password, is_admin, adult_ok, folders, can_upload):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("""INSERT INTO accounts (username, password_hash, is_admin, adult_ok, folders, can_upload)
+                 VALUES (?, ?, ?, ?, ?, ?)""",
+              (username, generate_password_hash(password),
+               1 if is_admin else 0, 1 if adult_ok else 0,
+               json.dumps(folders), 1 if can_upload else 0))
+    conn.commit(); conn.close()
+
+def update_account_perms(username, is_admin, adult_ok, folders, can_upload):
+    # 권한을 바꿀 때마다 도장 번호를 올린다 — 3묶음에서 각 서비스가 이 번호로
+    # "내가 든 출입증이 낡았는가"를 판정한다.
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("""UPDATE accounts
+                 SET is_admin = ?, adult_ok = ?, folders = ?, can_upload = ?,
+                     perm_version = perm_version + 1
+                 WHERE username = ?""",
+              (1 if is_admin else 0, 1 if adult_ok else 0,
+               json.dumps(folders), 1 if can_upload else 0, username))
+    conn.commit(); conn.close()
+
+def set_locked(username, locked):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("UPDATE accounts SET locked = ?, perm_version = perm_version + 1 WHERE username = ?",
+              (1 if locked else 0, username))
+    conn.commit(); conn.close()
+
+def set_password(username, password):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("UPDATE accounts SET password_hash = ? WHERE username = ?",
+              (generate_password_hash(password), username))
+    conn.commit(); conn.close()
+
+def delete_account(username):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("DELETE FROM accounts WHERE username = ?", (username,))
+    conn.commit(); conn.close()
+
+def delete_studio_data(username):
+    """Chronicle AI에 있는 그 사람의 인물·대화 폴더를 지운다.
+    스튜디오는 다른 컨테이너라 HTTP로 부른다 — 출입증은 포털이 직접 만들어 붙인다
+    (두 서비스가 같은 SECRET_KEY를 쓰므로 스튜디오가 그대로 알아본다).
+    돌려주는 값: (성공 여부, 사람이 읽을 설명)"""
+    import urllib.request, urllib.error
+    base = os.environ.get("STUDIO_URL", "http://host.docker.internal:8080")
+    token = generate_auth_token("system_portal", app.secret_key, is_admin=True, folders=[])
+    req = urllib.request.Request(
+        f"{base}/api/admin/user-data/{username}",
+        method="DELETE",
+        headers={"Cookie": f"auth_token={token}"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=15) as res:
+            body = json.loads(res.read().decode('utf-8') or '{}')
+            return True, body.get('message', '지웠습니다.')
+    except urllib.error.HTTPError as e:
+        return False, f"Chronicle AI가 거절했습니다 ({e.code})"
+    except Exception as e:
+        return False, f"Chronicle AI에 닿지 못했습니다 ({e})"
 
 # --- 화면 템플릿은 templates/index.html · templates/login.html 에 있다 ---
 # 색·모서리·너비는 static/tokens.css 한 장에 모여 있고 두 화면이 같이 읽는다.
@@ -298,6 +394,162 @@ def get_deploy_log():
         return f"<pre style='background:#1e1e1e; color:#d4d4d4; padding:20px; font-family:monospace; line-height:1.5;'>{content}</pre>"
     except Exception as e:
         return f"Error reading log: {str(e)}", 500
+
+# =====================================================================
+# 계정 관리 화면 (관리자 전용)
+# =====================================================================
+
+def account_admin_required(fn):
+    """관리자 전용 + API 열쇠 우회 차단 + 표에 살아 있는 계정인지 확인.
+    출입증에 박힌 is_admin만 믿으면 이미 지워졌거나 잠긴 관리자도 통과한다
+    (출입증이 30일짜리라서). 계정 관리만은 표를 직접 본다."""
+    @wraps(fn)
+    @login_required(admin_only=True, allow_api_key=False)
+    def wrapper(*args, **kwargs):
+        me = get_account(g.user.get('username'))
+        if not me or me['locked'] or not me['is_admin']:
+            return "⛔ 이 계정은 더 이상 관리자가 아닙니다. 다시 로그인하세요.", 403
+        g.me = me
+        return fn(*args, **kwargs)
+    return wrapper
+
+@app.route('/admin/accounts')
+@account_admin_required
+def admin_accounts():
+    return render_template('accounts.html',
+                           accounts=list_accounts(),
+                           me=g.me['username'],
+                           all_folders=ALLOWED_FOLDERS)
+
+@app.route('/admin/accounts/create', methods=['POST'])
+@account_admin_required
+def admin_accounts_create():
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+
+    if not USERNAME_RE.match(username):
+        flash("아이디는 영문·숫자·밑줄·붙임표만 쓸 수 있고 2~32글자여야 합니다.", "error")
+    elif len(password) < 4:
+        flash("비밀번호는 4글자 이상이어야 합니다.", "error")
+    elif get_account(username):
+        flash(f"'{username}'은 이미 있는 아이디입니다.", "error")
+    else:
+        # 새 계정 기본값 — 볼 폴더는 public만, 나머지는 전부 꺼짐 (설계 확정)
+        create_account(username, password,
+                       is_admin=False, adult_ok=False,
+                       folders=["public"], can_upload=False)
+        flash(f"'{username}' 계정을 만들었습니다. 볼 수 있는 폴더는 public 하나입니다.", "ok")
+    return redirect(url_for('admin_accounts'))
+
+@app.route('/admin/accounts/update', methods=['POST'])
+@account_admin_required
+def admin_accounts_update():
+    username = request.form.get('username', '').strip()
+    account = get_account(username)
+    if not account:
+        flash("그런 계정이 없습니다.", "error")
+        return redirect(url_for('admin_accounts'))
+
+    is_admin = bool(request.form.get('is_admin'))
+    folders = clean_folders(request.form.getlist('folders'))
+
+    # 자기 자신의 관리자 표시를 스스로 떼면 관리 화면에서 잠겨 나온다.
+    if username == g.me['username'] and not is_admin:
+        flash("자기 자신의 관리자 표시는 뗄 수 없습니다.", "error")
+    elif account['is_admin'] and not is_admin and count_admins(exclude=username) == 0:
+        flash("마지막 관리자입니다. 관리자 표시를 뗄 수 없습니다.", "error")
+    else:
+        update_account_perms(username, is_admin,
+                             adult_ok=bool(request.form.get('adult_ok')),
+                             folders=folders,
+                             can_upload=bool(request.form.get('can_upload')))
+        flash(f"'{username}'의 권한을 바꿨습니다. 갤러리·Chronicle AI에는 다시 로그인해야 반영됩니다.", "ok")
+    return redirect(url_for('admin_accounts'))
+
+@app.route('/admin/accounts/lock', methods=['POST'])
+@account_admin_required
+def admin_accounts_lock():
+    username = request.form.get('username', '').strip()
+    account = get_account(username)
+    if not account:
+        flash("그런 계정이 없습니다.", "error")
+    elif username == g.me['username']:
+        flash("자기 자신은 잠글 수 없습니다.", "error")
+    elif not account['locked'] and account['is_admin'] and count_admins(exclude=username) == 0:
+        flash("마지막 관리자입니다. 잠그면 아무도 관리 화면에 들어올 수 없습니다.", "error")
+    else:
+        set_locked(username, not account['locked'])
+        flash(f"'{username}' 계정을 {'잠갔습니다' if not account['locked'] else '풀었습니다'}.", "ok")
+    return redirect(url_for('admin_accounts'))
+
+@app.route('/admin/accounts/reset', methods=['POST'])
+@account_admin_required
+def admin_accounts_reset():
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '')
+    if not get_account(username):
+        flash("그런 계정이 없습니다.", "error")
+    elif len(password) < 4:
+        flash("비밀번호는 4글자 이상이어야 합니다.", "error")
+    else:
+        set_password(username, password)
+        flash(f"'{username}'의 비밀번호를 바꿨습니다. 그 사람에게 직접 알려주세요.", "ok")
+    return redirect(url_for('admin_accounts'))
+
+@app.route('/admin/accounts/delete', methods=['POST'])
+@account_admin_required
+def admin_accounts_delete():
+    username = request.form.get('username', '').strip()
+    typed = request.form.get('confirm_username', '').strip()
+    wipe_studio = bool(request.form.get('wipe_studio'))
+    account = get_account(username)
+
+    if not account:
+        flash("그런 계정이 없습니다.", "error")
+    elif typed != username:
+        flash("확인란에 적은 아이디가 다릅니다. 지우지 않았습니다.", "error")
+    elif username == g.me['username']:
+        flash("자기 자신은 지울 수 없습니다.", "error")
+    elif account['is_admin'] and count_admins(exclude=username) == 0:
+        flash("마지막 관리자입니다. 지우면 아무도 관리 화면에 들어올 수 없습니다.", "error")
+    else:
+        note = ""
+        if wipe_studio:
+            ok, msg = delete_studio_data(username)
+            note = (" Chronicle AI 자료도 지웠습니다." if ok
+                    else f" 다만 Chronicle AI 자료는 지우지 못했습니다 — {msg}")
+        delete_account(username)
+        flash(f"'{username}' 계정을 지웠습니다.{note} 갤러리에 올린 파일은 남아 있습니다.", "ok")
+    return redirect(url_for('admin_accounts'))
+
+# =====================================================================
+# 내 계정 — 비밀번호 바꾸기 (관리자가 아니어도 쓴다)
+# =====================================================================
+
+@app.route('/account', methods=['GET', 'POST'])
+@login_required(allow_api_key=False)
+def my_account():
+    me = get_account(g.user.get('username'))
+    if not me:
+        return "⛔ 이 계정은 더 이상 없습니다. 다시 로그인하세요.", 403
+
+    if request.method == 'POST':
+        current = request.form.get('current_password', '')
+        new = request.form.get('new_password', '')
+        again = request.form.get('new_password_again', '')
+
+        if not check_password_hash(me['password_hash'], current):
+            flash("지금 비밀번호가 틀렸습니다.", "error")
+        elif len(new) < 4:
+            flash("새 비밀번호는 4글자 이상이어야 합니다.", "error")
+        elif new != again:
+            flash("새 비밀번호 두 칸이 서로 다릅니다.", "error")
+        else:
+            set_password(me['username'], new)
+            flash("비밀번호를 바꿨습니다.", "ok")
+        return redirect(url_for('my_account'))
+
+    return render_template('account.html', account=me)
 
 WHOIS_ENDPOINTS = ('domain_name', 'ip_address', 'as_number')
 

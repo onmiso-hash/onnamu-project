@@ -94,6 +94,10 @@
             <div style="display:flex; align-items:center; gap:12px;">
                 {% if username %}
                 <span style="font-size:0.8rem; color:var(--fg-muted);">👤 {{ username }}{% if is_admin %} (관리자){% endif %}</span>
+                {% if is_admin %}
+                <a href="/admin/accounts" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">계정 관리</a>
+                {% endif %}
+                <a href="/account" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">내 계정</a>
                 <a href="/logout" style="font-size:0.8rem; color:var(--accent); text-decoration:none; font-weight:700;">로그아웃</a>
                 {% else %}
                 <a href="/login" style="font-size:0.8rem; color:var(--accent); text-decoration:none; font-weight:700;">로그인</a>

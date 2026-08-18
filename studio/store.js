@@ -929,8 +929,31 @@ function compact(username, convId) {
     };
 }
 
+// 그 사람의 자료를 통째로 지운다 — 포털의 계정 지우기가 부른다.
+// users/<아이디>/ 폴더와 personas_<아이디>.json 두 곳이 전부다(설계 실측).
+// 되돌릴 수 없다. 무엇을 지웠는지 세어서 돌려준다.
+function deleteUserData(username) {
+    assertValidUsername(username);
+    const result = { userDir: false, personas: false };
+
+    const dir = userDirPath(username);
+    if (fs.existsSync(dir)) {
+        fs.rmSync(dir, { recursive: true, force: true });
+        result.userDir = true;
+    }
+
+    const personas = legacyPersonaFilePath(username);
+    if (fs.existsSync(personas)) {
+        fs.rmSync(personas, { force: true });
+        result.personas = true;
+    }
+
+    return result;
+}
+
 module.exports = {
     ensureUser,
+    deleteUserData,
     isAdult19Character,
     // 인물
     listCharacters,

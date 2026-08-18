@@ -668,6 +668,33 @@ app.delete('/api/conversations/:id', (req, res) => {
     }
 });
 
+// DELETE: 어떤 계정의 자료를 통째로 지운다 — 포털의 '계정 지우기'가 부른다.
+// 관리자만 부를 수 있고, 자기 자신은 이 통로로 지울 수 없다(실수 방지).
+app.delete('/api/admin/user-data/:username', (req, res) => {
+    const u = requireUser(req, res);
+    if (!u) return;
+    if (!u.isAdmin) {
+        return res.status(403).json({ error: '관리자만 쓸 수 있습니다.' });
+    }
+    const target = req.params.username;
+    if (target === u.username) {
+        return res.status(400).json({ error: '자기 자신의 자료는 이 통로로 지울 수 없습니다.' });
+    }
+    try {
+        const result = store.deleteUserData(target);
+        const parts = [];
+        if (result.userDir) parts.push('인물·대화 폴더');
+        if (result.personas) parts.push('옛 인물 파일');
+        res.json({
+            success: true,
+            message: parts.length ? `${parts.join('과 ')}를 지웠습니다.` : '지울 자료가 없었습니다.',
+            ...result
+        });
+    } catch (error) {
+        sendStoreError(res, error, 'Delete User Data Error');
+    }
+});
+
 // Quick response to favicon requests to prevent browser infinite loading spinner
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 

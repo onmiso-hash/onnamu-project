@@ -61,26 +61,29 @@ def verify_token(token, secret_key):
     except Exception:
         return None
 
-def login_required(admin_only=False):
+def login_required(admin_only=False, allow_api_key=True):
+    """allow_api_key=False면 X-API-Key 우회를 받지 않는다.
+    계정 관리 통로에 쓴다 — 열쇠 하나로 계정 생성·권한 상승이 되면 안 되기 때문에
+    그 통로만은 사람이 쿠키로 로그인한 경우만 통과시킨다."""
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
             token = request.cookies.get('auth_token')
             secret = current_app.config.get('SECRET_KEY') or 'change-me-in-production'
             payload = verify_token(token, secret)
-            
+
             # API Key 우회 검증 추가 (배포 자동화 스크립트용, 따옴표/개행문자 유연화)
             api_key = request.headers.get('X-API-Key')
             api_key_clean = api_key.strip('"\'- \r\n') if api_key else None
             secret_clean = secret.strip('"\'- \r\n') if secret else None
-            
-            if api_key_clean and api_key_clean == secret_clean:
+
+            if allow_api_key and api_key_clean and api_key_clean == secret_clean:
                 payload = {
                     "username": "system_deploy",
                     "is_admin": True,
                     "folders": ["public", "private", "family"]
                 }
-            
+
             if not payload:
                 # 로그인 안 됨 -> 포털 로그인 페이지로 리다이렉트
                 portal_url = current_app.config.get('PORTAL_URL')
