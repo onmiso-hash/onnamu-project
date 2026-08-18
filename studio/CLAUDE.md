@@ -6,7 +6,8 @@
 
 ## 구조
 
-- **`server.js`**: Express 백엔드. Gemini API CORS 프록시. 어드민 전용(`adminOnly: true`).
+- **`server.js`**: Express 백엔드. Gemini API CORS 프록시. **로그인한 사람은 누구나 들어온다**(빗장 해제, 2026-08-18).
+  - 관리용 통로만 관리자 전용: `DELETE /api/admin/user-data/:username` (포털의 계정 지우기가 부른다)
   - 프록시: `/api/generate`, `/api/embed`, `/api/generate-image`, `/api/upload-image`
   - 인물: `GET|POST /api/personas` — **인물 설정만.** 대화(`savedSession`)는 싣지 않는다.
   - 대화: `GET|POST /api/conversations`, `POST /api/conversations/import`,
@@ -35,7 +36,10 @@
   브라우저에만 있던 대화는 `POST /api/conversations/import`로 한 방향 이사(같은 `importKey`면 409, 덮어쓰기 없음).
 - **19금**: 판정은 `store.js`의 `isAdult19Character` 하나로 일원화(레벨 `adult-19` 또는 이름에 `19금`).
   일반 계정에는 19금 인물의 대화와 `chatLevel`이 19금인 대화를 감추며, 감춤과 없음의 응답을 404로 통일한다.
-  (지금은 `adminOnly` 빗장 때문에 이 갈래가 실행되지 않는다 — 빗장을 풀 때 실측 검증할 것.)
+  **열람 여부는 `canAdult`가 판정한다 — `isAdmin`이 아니다.** 둘은 2026-08-18에 갈렸다:
+  `isAdmin`은 관리자인가(관리용 통로 전용), `canAdult`는 19금을 볼 수 있는가(`adult_ok` 또는 관리자).
+  화면(`app.js`)에도 `this.canAdult`로 들어간다 — 여기서 `isAdmin`을 다시 쓰지 말 것.
+  안 보이던 19금 인물은 그 계정이 인물을 저장해도 **지워지지 않는다**(교체 대상에서 뺀다).
 - **RAG**: 임베딩 모델 `gemini-embedding-001` + `outputDimensionality: 768`
   (구모델 `text-embedding-004`는 2026-01-14 구글이 폐기 → 404. 차원 줄이기는 `gemini-embedding` 계열에만 싣는다).
   벡터는 `vectors.jsonl`에 남고 대화를 열 때 `?vectors=1`로 되살아난다. 유사도는 코사인이라 **정규화 불필요.**
@@ -59,4 +63,9 @@
   자유롭게 바꾸는 값이라 식별에 쓰면 대화가 주인을 잃는다(실제 결함, `history/TASK_20260817.md` 참조).
 - **대화 지우기**: 보고 있던 대화를 지우면 같은 인물의 다른 대화로 옮겨가고, 없으면 빈 화면으로 떨어진다
   (서버에 새 대화를 만들지 않는다 — 빈 껍데기가 쌓인다). `last_conv_chat_*` 기억도 함께 뗀다.
-- **인증**: `authHelper.js`로 포털 SSO 토큰 검증. 어드민 여부(`is_admin`)로 기능 분기.
+- **인증**: `authHelper.js`로 포털 SSO 토큰 검증. **출입증은 '누구인가'만 담는다** —
+  권한(`is_admin`·`adult_ok`·`folders`·`can_upload`·`locked`)은 포털의
+  `GET /api/auth/permissions/<아이디>`에 물어 온다(60초 캐시, `X-API-Key`=`SECRET_KEY`).
+  출입증이 30일짜리라 그 안의 값은 발급 시점의 사실일 뿐이다.
+  포털에 못 물으면 마지막에 들은 답으로, 그것도 없으면 출입증 값으로 버티되
+  **새 권한(`adult_ok`)은 꺼진 쪽으로 둔다 — 모르면 열지 않는다.**

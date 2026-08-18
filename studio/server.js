@@ -23,7 +23,9 @@ app.use('/data/uploads', express.static(UPLOAD_DIR));
 const { authMiddleware } = require('./authHelper');
 
 // Authentication Middleware
-app.use(authMiddleware({ adminOnly: true }));
+// 빗장을 푼다 — 이제 로그인한 사람은 누구나 자기 자료로 들어온다.
+// 19금 열람은 계정마다 따로 켠다(canAdult). 관리자는 자동으로 참이다.
+app.use(authMiddleware());
 
 // Disable caching for HTML and JS files to ensure immediate updates
 app.use((req, res, next) => {
@@ -70,7 +72,8 @@ app.get('/api/user-info', (req, res) => {
     }
     res.json({ 
         username: req.user.username,
-        isAdmin: !!req.user.is_admin
+        isAdmin: !!req.user.is_admin,
+        canAdult: !!(req.user.adult_ok || req.user.is_admin)
     });
 });
 
@@ -387,20 +390,26 @@ function sendStoreError(res, err, logLabel) {
     res.status(status).json({ error: err.message });
 }
 
-// 로그인 확인. 통과하면 {username, isAdmin}, 아니면 401을 보내고 null을 돌려준다.
+// 로그인 확인. 통과하면 {username, isAdmin, canAdult}, 아니면 401을 보내고 null을 돌려준다.
 function requireUser(req, res) {
     if (!req.user || !req.user.username) {
         res.status(401).json({ error: '인증되지 않은 사용자입니다.' });
         return null;
     }
-    return { username: req.user.username, isAdmin: !!req.user.is_admin };
+    // isAdmin = 관리자인가(관리용 통로에만 쓴다)
+    // canAdult = 19금을 볼 수 있는가(관리자는 자동으로 참)
+    return {
+        username: req.user.username,
+        isAdmin: !!req.user.is_admin,
+        canAdult: !!(req.user.adult_ok || req.user.is_admin)
+    };
 }
 
 // 일반 계정에 감춰야 하는 대화인지 본다. 두 갈래다.
 //  - 19금 인물의 대화: 인물 자체가 안 보이므로 그 대화도 안 보여야 한다
 //  - 수위가 19금인 대화: 인물은 평범해도 그 대화만 19금일 수 있다(옛 chatLevel 신호)
-function isConversationHidden(username, meta, isAdmin) {
-    if (isAdmin || !meta) return false;
+function isConversationHidden(username, meta, canAdult) {
+    if (canAdult || !meta) return false;
     if (meta.chatLevel === 'adult-19') return true;
     if (meta.charId && store.isAdult19Character(store.getCharacter(username, meta.charId))) return true;
     return false;
@@ -408,9 +417,9 @@ function isConversationHidden(username, meta, isAdmin) {
 
 // 대화 하나를 꺼내되, 그 계정이 봐서는 안 되는 것이면 없는 것처럼 404를 낸다.
 // 감춤과 없음의 답을 똑같이 맞춰야 "있긴 있구나"가 새어나가지 않는다.
-function loadVisibleConversation(username, convId, isAdmin, res) {
+function loadVisibleConversation(username, convId, canAdult, res) {
     const meta = store.getConversation(username, convId);
-    if (!meta || isConversationHidden(username, meta, isAdmin)) {
+    if (!meta || isConversationHidden(username, meta, canAdult)) {
         res.status(404).json({ error: '대화를 찾을 수 없습니다.' });
         return null;
     }
@@ -418,8 +427,8 @@ function loadVisibleConversation(username, convId, isAdmin, res) {
 }
 
 // 일반 계정이 대화 수위를 19금으로 올리는 것은 막는다(옛 저장 거부와 같은 취지).
-function blocksAdultLevel(res, patch, isAdmin) {
-    if (!isAdmin && patch && patch.chatLevel === 'adult-19') {
+function blocksAdultLevel(res, patch, canAdult) {
+    if (!canAdult && patch && patch.chatLevel === 'adult-19') {
         res.status(403).json({ error: '이 계정은 19금 대화를 저장할 수 없습니다.' });
         return true;
     }
@@ -436,7 +445,7 @@ app.get('/api/personas', (req, res) => {
     if (!u) return;
     try {
         const personas = {};
-        store.listCharacters(u.username, { isAdmin: u.isAdmin }).forEach(c => {
+        store.listCharacters(u.username, { canAdult: u.canAdult }).forEach(c => {
             personas[c.presetName] = {
                 id: c.id,
                 charName: c.charName,
@@ -465,7 +474,7 @@ app.post('/api/personas', (req, res) => {
         // 따로 입력받아 독립적으로 유지됐다. 같은 키로 다시 오면 같은 id를 이어받아 같은
         // 파일을 덮게 한다. charName으로 짝지으면 이름만 바꿔 저장했을 때 별개 인물로 갈라진다.
         const existingByPresetName = {};
-        store.listCharacters(u.username, { isAdmin: u.isAdmin })
+        store.listCharacters(u.username, { canAdult: u.canAdult })
             .forEach(c => { existingByPresetName[c.presetName] = c; });
 
         const characterDocs = Object.keys(personasData).map(name => {
@@ -486,7 +495,7 @@ app.post('/api/personas', (req, res) => {
             return doc;
         });
 
-        const saved = store.saveCharacters(u.username, characterDocs, { isAdmin: u.isAdmin });
+        const saved = store.saveCharacters(u.username, characterDocs, { canAdult: u.canAdult });
         res.json({ success: true, count: saved.length });
     } catch (error) {
         sendStoreError(res, error, 'Save Personas Error');
@@ -503,8 +512,8 @@ app.get('/api/conversations', (req, res) => {
     if (!u) return;
     try {
         let list = store.listConversations(u.username);
-        if (!u.isAdmin) {
-            const visibleCharIds = new Set(store.listCharacters(u.username, { isAdmin: false }).map(c => c.id));
+        if (!u.canAdult) {
+            const visibleCharIds = new Set(store.listCharacters(u.username, { canAdult: false }).map(c => c.id));
             list = list.filter(c => c.chatLevel !== 'adult-19' && (!c.charId || visibleCharIds.has(c.charId)));
         }
         res.json(list);
@@ -519,7 +528,7 @@ app.post('/api/conversations', (req, res) => {
     if (!u) return;
     try {
         const body = req.body || {};
-        if (blocksAdultLevel(res, body, u.isAdmin)) return;
+        if (blocksAdultLevel(res, body, u.canAdult)) return;
         res.json(store.createConversation(u.username, {
             mode: body.mode,
             charId: body.charId,
@@ -542,7 +551,7 @@ app.post('/api/conversations/import', (req, res) => {
     if (!u) return;
     try {
         const body = req.body || {};
-        if (blocksAdultLevel(res, body, u.isAdmin)) return;
+        if (blocksAdultLevel(res, body, u.canAdult)) return;
         res.json(store.importConversation(u.username, {
             importKey: body.importKey,
             mode: body.mode,
@@ -566,7 +575,7 @@ app.get('/api/conversations/:id', (req, res) => {
     const u = requireUser(req, res);
     if (!u) return;
     try {
-        const meta = loadVisibleConversation(u.username, req.params.id, u.isAdmin, res);
+        const meta = loadVisibleConversation(u.username, req.params.id, u.canAdult, res);
         if (!meta) return;
         const payload = { ...meta, turns: store.readTurns(u.username, req.params.id) };
         if (req.query.vectors === '1') {
@@ -586,9 +595,9 @@ app.post('/api/conversations/:id/turns', (req, res) => {
     if (!u) return;
     try {
         const body = req.body || {};
-        const meta = loadVisibleConversation(u.username, req.params.id, u.isAdmin, res);
+        const meta = loadVisibleConversation(u.username, req.params.id, u.canAdult, res);
         if (!meta) return;
-        if (blocksAdultLevel(res, body.meta, u.isAdmin)) return;
+        if (blocksAdultLevel(res, body.meta, u.canAdult)) return;
         if (body.turn === undefined || body.turn === null) {
             return res.status(400).json({ error: 'turn 값이 필요합니다.' });
         }
@@ -617,7 +626,7 @@ app.post('/api/conversations/:id/vectors', (req, res) => {
     if (!u) return;
     try {
         const body = req.body || {};
-        const meta = loadVisibleConversation(u.username, req.params.id, u.isAdmin, res);
+        const meta = loadVisibleConversation(u.username, req.params.id, u.canAdult, res);
         if (!meta) return;
         store.appendVector(u.username, req.params.id, body.n, body.vector);
         res.json({ success: true });
@@ -633,9 +642,9 @@ app.patch('/api/conversations/:id', (req, res) => {
     if (!u) return;
     try {
         const body = req.body || {};
-        const meta = loadVisibleConversation(u.username, req.params.id, u.isAdmin, res);
+        const meta = loadVisibleConversation(u.username, req.params.id, u.canAdult, res);
         if (!meta) return;
-        if (blocksAdultLevel(res, body, u.isAdmin)) return;
+        if (blocksAdultLevel(res, body, u.canAdult)) return;
 
         let updated = meta;
         if (body.visibleTurns !== undefined) {
@@ -659,7 +668,7 @@ app.delete('/api/conversations/:id', (req, res) => {
     const u = requireUser(req, res);
     if (!u) return;
     try {
-        const meta = loadVisibleConversation(u.username, req.params.id, u.isAdmin, res);
+        const meta = loadVisibleConversation(u.username, req.params.id, u.canAdult, res);
         if (!meta) return;
         store.deleteConversation(u.username, req.params.id);
         res.json({ success: true });

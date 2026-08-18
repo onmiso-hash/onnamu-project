@@ -6,7 +6,7 @@
 class ChronicleApp {
     constructor() {
         // App State
-        this.isAdmin = false;
+        this.canAdult = false;
         this.apiKey = localStorage.getItem('gemini_api_key') || '';
         this.model = localStorage.getItem('gemini_api_model') || 'gemini-3.5-flash';
         this.genre = 'dark-fantasy';
@@ -356,7 +356,9 @@ class ChronicleApp {
             const res = await fetch('/api/user-info');
             if (res.ok) {
                 const data = await res.json();
-                this.isAdmin = data.isAdmin || false;
+                // 19금 열람 가능 여부. 서버가 관리자면 자동으로 참으로 보내준다.
+                // 옛 화면이 남아 있을 때를 대비해 isAdmin도 함께 본다.
+                this.canAdult = (data.canAdult !== undefined) ? !!data.canAdult : !!data.isAdmin;
                 
                 const displayNameEl = document.getElementById('user-display-name');
                 if (displayNameEl && data.username) {
@@ -399,7 +401,7 @@ class ChronicleApp {
                 const recentMode = localStorage.getItem('recent_mode_type');
                 
                 // 일반 사용자 로그인 시 19금 세션 복구 차단 보안 필터
-                if (!this.isAdmin && activeState === 'active') {
+                if (!this.canAdult && activeState === 'active') {
                     const recLevel = localStorage.getItem('recent_chat_level') || '';
                     const recGenre = localStorage.getItem('recent_story_genre') || '';
                     const recTone = localStorage.getItem('recent_story_tone') || '';
@@ -480,7 +482,7 @@ class ChronicleApp {
                     if (this.selectGenre) this.selectGenre.value = recentStoryGenre;
                     if (this.selectTone) this.selectTone.value = recentStoryTone;
 
-                    if (!this.isAdmin) {
+                    if (!this.canAdult) {
                         const adultGenre = document.querySelector('#select-genre option[value="adult-19"]');
                         if (adultGenre) adultGenre.remove();
                         const adultTone = document.querySelector('#select-tone option[value="sensual"]');
@@ -541,7 +543,7 @@ class ChronicleApp {
             }
         } catch (e) {
             console.error("Failed to fetch user info:", e);
-            this.isAdmin = false;
+            this.canAdult = false;
             this.loadPersonaPresets();
         }
     }
@@ -854,7 +856,7 @@ class ChronicleApp {
             let finalDesc = inputDesc;
             let finalUserName = inputUserName;
 
-            if (!this.isAdmin) {
+            if (!this.canAdult) {
                 if (finalLevel === 'adult-19') {
                     alert('⚠️ 일반 계정은 19금 설정을 사용할 수 없습니다. 일반 등급으로 강제 전환합니다.');
                     finalLevel = 'normal';
@@ -904,7 +906,7 @@ class ChronicleApp {
                 const presetData = presets[targetPreset];
                 if (presetData) {
                     // 19금 프리셋 복원 원천 차단
-                    if (!this.isAdmin && (presetData.level === 'adult-19' || targetPreset.includes('19금'))) {
+                    if (!this.canAdult && (presetData.level === 'adult-19' || targetPreset.includes('19금'))) {
                         console.warn("[Security] Prevented loading adult-19 preset for family user");
                     } else {
                         // Restore character images for active session (Only if not already populated)
@@ -919,7 +921,7 @@ class ChronicleApp {
                             // Restore chat level from session if available
                             if (session.chatLevel) {
                                 let restoredLevel = session.chatLevel;
-                                if (!this.isAdmin && restoredLevel === 'adult-19') {
+                                if (!this.canAdult && restoredLevel === 'adult-19') {
                                     restoredLevel = 'normal';
                                 }
                                 this.chatLevel = restoredLevel;
@@ -971,7 +973,7 @@ class ChronicleApp {
             let finalTone = this.selectTone.value;
             
             // 일반 사용자 소설 모드 19금 우회 차단
-            if (!this.isAdmin) {
+            if (!this.canAdult) {
                 if (finalGenre === 'adult-19') {
                     alert('⚠️ 일반 계정은 19금 소설 장르를 사용할 수 없습니다. 판타지 장르로 강제 전환합니다.');
                     finalGenre = 'fantasy';
@@ -997,7 +999,7 @@ class ChronicleApp {
                         const session = JSON.parse(savedStory);
                         
                         // 복원 데이터 19금 검증
-                        if (!this.isAdmin && (session.genre === 'adult-19' || session.tone === 'sensual')) {
+                        if (!this.canAdult && (session.genre === 'adult-19' || session.tone === 'sensual')) {
                             console.warn("[Security] Prevented loading adult-19 story session for family user");
                         } else {
                             this.storyHistory = [...(session.storyHistory || [])];
@@ -3233,7 +3235,7 @@ JSON Schema:
                 }
                 const preset = presets[name];
                 // 관리자가 아니고 19금 설정이 있는 경우 렌더링 스킵 (세션 수위 검사 결합)
-                if (!this.isAdmin && (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19'))) {
+                if (!this.canAdult && (preset.level === 'adult-19' || name.includes('19금') || (preset.savedSession && preset.savedSession.chatLevel === 'adult-19'))) {
                     return;
                 }
                 const opt = document.createElement('option');
@@ -3395,7 +3397,7 @@ JSON Schema:
                 let finalRelation = data.relation || '';
                 let finalDesc = data.desc || '';
 
-                if (!this.isAdmin) {
+                if (!this.canAdult) {
                     if (finalLevel === 'adult-19') {
                         console.warn("[Security] Force normal level on preset load for family user");
                         finalLevel = 'normal';
@@ -3763,7 +3765,7 @@ JSON Schema:
         // 인물을 먼저 갈아끼우고, 그 위에 이 대화에 저장된 값(주인공 이름·수위)을 덮는다.
         this.applyCharacterOfConversation(conv);
         if (conv.userName) this.characterName = conv.userName;
-        if (conv.chatLevel && (this.isAdmin || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
+        if (conv.chatLevel && (this.canAdult || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
         this.syncChatSettingsInputs();
     }
 
@@ -3780,7 +3782,7 @@ JSON Schema:
         this.chatRelation = char.relation || '';
         this.chatCharDesc = char.desc || '';
         this.characterImages = char.characterImages || {};
-        if (char.level && (this.isAdmin || char.level !== 'adult-19')) this.chatLevel = char.level;
+        if (char.level && (this.canAdult || char.level !== 'adult-19')) this.chatLevel = char.level;
         if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = char.imagePrompt || '';
 
         // 인물 고르기 칸도 함께 옮긴다 — 다음에 하는 말이 남의 인물로 나가지 않게.
@@ -3826,7 +3828,7 @@ JSON Schema:
             }
         }
         if (!level) level = this.chatLevel || 'normal';
-        if (!this.isAdmin && level === 'adult-19') level = 'normal';
+        if (!this.canAdult && level === 'adult-19') level = 'normal';
         return level;
     }
 
@@ -3834,7 +3836,7 @@ JSON Schema:
     // 일반 계정에는 아예 보이지 않는다 — 19금으로 올릴 수 없고 서버도 거절한다.
     updateChatLevelMenu() {
         if (!this.btnToggleChatLevel) return;
-        const usable = this.isAdmin && this.modeType === 'chat';
+        const usable = this.canAdult && this.modeType === 'chat';
         this.btnToggleChatLevel.style.display = usable ? '' : 'none';
         if (!usable) return;
         const textEl = this.btnToggleChatLevel.querySelector('.text');
@@ -3844,7 +3846,7 @@ JSON Schema:
 
     // 지금 보고 있는 대화의 수위만 바꾼다 — 인물의 기본 수위와 다른 대화는 건드리지 않는다.
     async toggleConversationChatLevel() {
-        if (!this.isAdmin || this.modeType !== 'chat') return;
+        if (!this.canAdult || this.modeType !== 'chat') return;
         const before = this.chatLevel || 'normal';
         const after = before === 'adult-19' ? 'normal' : 'adult-19';
         const name = after === 'adult-19' ? '19금 성인용' : '전체 이용가';
@@ -4499,7 +4501,7 @@ JSON Schema:
                 if (!presets) return;
                 
                 let presetsObj = JSON.parse(presets);
-                if (!this.isAdmin) {
+                if (!this.canAdult) {
                     let filtered = false;
                     Object.keys(presetsObj).forEach(name => {
                         const preset = presetsObj[name];
@@ -4592,7 +4594,7 @@ JSON Schema:
         let hasChanges = false;
 
         // 일반 계정 화면에 19금 인물이 남아 있으면 즉시 지운다
-        if (!this.isAdmin) {
+        if (!this.canAdult) {
             Object.keys(localPresets).forEach(name => {
                 const preset = localPresets[name];
                 if (preset.level === 'adult-19' || name.includes('19금')) {
@@ -4605,7 +4607,7 @@ JSON Schema:
         // 서버에만 있는 인물을 브라우저 목록에 더한다(있는 것은 건드리지 않는다)
         Object.keys(serverPresets).forEach(name => {
             const serverPreset = serverPresets[name];
-            if (!this.isAdmin && (serverPreset.level === 'adult-19' || name.includes('19금'))) return;
+            if (!this.canAdult && (serverPreset.level === 'adult-19' || name.includes('19금'))) return;
             if (!localPresets[name]) {
                 localPresets[name] = { ...serverPreset };
                 hasChanges = true;

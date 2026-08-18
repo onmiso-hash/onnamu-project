@@ -474,14 +474,14 @@ function ensureUser(username) {
 
 function listCharacters(username, opts) {
     ensureUser(username);
-    const isAdmin = !!(opts && opts.isAdmin);
+    const canAdult = !!(opts && opts.canAdult);
     const dir = charactersDirPath(username);
     let characters = safeReaddir(dir)
         .filter(e => e.isFile() && e.name.endsWith('.json'))
         .map(e => readCharacterDoc(path.join(dir, e.name)))
         .filter(Boolean);
     // 일반 계정에는 19금 인물을 감춘다
-    if (!isAdmin) {
+    if (!canAdult) {
         characters = characters.filter(c => !isAdult19Character(c));
     }
     return characters;
@@ -494,14 +494,14 @@ function getCharacter(username, charId) {
 }
 
 // 전체 교체: 넘어온 배열을 새 목록으로 삼는다. id가 없는 항목은 새로 발급한다.
-// isAdmin이 거짓이면 adult-19 인물은 저장을 거부한다. 단, 그 계정 눈에 애초에 보이지
+// canAdult(19금 열람 가능)가 거짓이면 adult-19 인물은 저장을 거부한다. 단, 그 계정 눈에 애초에 보이지
 // 않던 기존 19금 파일은 "교체 대상"에서 빼 지우지 않는다.
 function saveCharacters(username, characters, opts) {
     ensureUser(username);
     if (!Array.isArray(characters)) {
         throw fail('INVALID', 'characters는 배열이어야 합니다.');
     }
-    const isAdmin = !!(opts && opts.isAdmin);
+    const canAdult = !!(opts && opts.canAdult);
     const dir = charactersDirPath(username);
 
     const existingById = {};
@@ -512,7 +512,7 @@ function saveCharacters(username, characters, opts) {
         if (doc) existingById[id] = doc;
     }
     const visibleExistingIds = new Set(
-        Object.keys(existingById).filter(id => isAdmin || !isAdult19Character(existingById[id]))
+        Object.keys(existingById).filter(id => canAdult || !isAdult19Character(existingById[id]))
     );
 
     const now = new Date().toISOString();
@@ -521,7 +521,7 @@ function saveCharacters(username, characters, opts) {
 
     for (const c of characters) {
         if (!c || typeof c !== 'object') continue;
-        if (!isAdmin && isAdult19Character(c)) continue;
+        if (!canAdult && isAdult19Character(c)) continue;
 
         let id = c.id;
         if (id) {
