@@ -98,6 +98,10 @@
 - 2026-05-23: Games 마이크로서비스 추가 및 포털 연동 (Snake, 2048, Pong, Flappy Clone). 상세 내용은 `history/GAMES_INTEGRATION_20260523.md` 참조.
 - 2026-05-23: 1943 스타일 슈팅 게임 '1943 Retro' 추가. 상세 내용은 `history/GAMES_1943_ADDITION_20260523.md` 참조.
 - 2026-05-23: 모든 게임에 시작 버튼 추가 및 Snake 게임 버그 수정. 상세 내용은 `history/GAMES_START_BUTTON_20260523.md` 참조.
+- **2026-08-18**: 🔴 갤러리 신분 유출 결함 수정 — 갤러리 전용 30일 출입증을 신분으로 믿어
+  다른 사람으로 로그인해도 앞사람 권한으로 들어가졌다. 포털 쿠키를 신분으로 삼도록 고치고
+  판정을 `current_identity()` 한 곳으로 모았으며, push를 막는 검사 10개를 걸었다.
+  상세: `history/TASK_20260818.md`
 - 2026-05-17: 미디어 서비스 통합 및 디자인 개편 (Media Gallery + Movie Theater -> Media Home). 상세 내용은 `history/MEDIA_MERGE_20260517.md` 참조.
 - 2026-05-17: 포털 뉴스 헤더 인식 로직 단순화 (이모지 기반). 상세 내용은 `history/PORTAL_NEWS_LOGIC_20260517.md` 참조.
 - 2026-05-11: 프로젝트 통합 가이드 `GEMINI.md` 생성 및 히스토리 관리 체계 수립.
