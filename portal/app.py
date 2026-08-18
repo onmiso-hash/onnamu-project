@@ -523,6 +523,40 @@ def admin_accounts_delete():
     return redirect(url_for('admin_accounts'))
 
 # =====================================================================
+# 권한 조회 통로 — 갤러리·Chronicle AI가 부른다
+# =====================================================================
+
+@app.route('/api/auth/permissions/<username>')
+def auth_permissions(username):
+    """이 사람이 지금 무엇을 할 수 있는지 알려준다.
+
+    출입증에 권한을 새겨 30일을 쓰면 권한을 바꿔도 그동안 반영되지 않는다.
+    그래서 출입증은 '누구인가'만 담고, '무엇을 할 수 있는가'는 각 서비스가
+    여기에 물어 온다. 서비스끼리 부르는 통로라 사람이 브라우저로 열 일이 없다.
+    """
+    key = request.headers.get('X-API-Key', '')
+    key_clean = key.strip('"\'- \r\n') if key else None
+    secret_clean = (app.secret_key or '').strip('"\'- \r\n')
+    if not key_clean or key_clean != secret_clean:
+        return jsonify({"error": "이 통로는 서비스끼리만 씁니다."}), 403
+
+    account = get_account(username)
+    if not account:
+        # 지워진 계정. 부르는 쪽이 '없어졌다'와 '못 물었다'를 구분할 수 있어야 한다.
+        return jsonify({"exists": False})
+
+    return jsonify({
+        "exists": True,
+        "username": account['username'],
+        "is_admin": account['is_admin'],
+        "adult_ok": account['adult_ok'],
+        "folders": account['folders'],
+        "can_upload": account['can_upload'],
+        "locked": account['locked'],
+        "perm_version": account['perm_version'],
+    })
+
+# =====================================================================
 # 내 계정 — 비밀번호 바꾸기 (관리자가 아니어도 쓴다)
 # =====================================================================
 

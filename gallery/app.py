@@ -26,7 +26,7 @@ from flask import (
     Flask, render_template, request,
     redirect, url_for, send_from_directory, abort, flash, jsonify, g
 )
-from auth_helper import login_required, verify_token
+from auth_helper import login_required, verify_token, resolve_user, upload_allowed
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -218,7 +218,7 @@ def gallery():
     start = (page - 1) * PER_PAGE
     files = all_files[start:start + PER_PAGE]
     
-    return render_template("gallery.html", files=files, media_type=media_type, tab=tab, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, available_folders=folders)
+    return render_template("gallery.html", files=files, media_type=media_type, tab=tab, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, available_folders=folders, can_upload=upload_allowed(g.user))
 
 @app.route("/movies")
 @login_required()
@@ -235,7 +235,7 @@ def movies():
     start = (page - 1) * PER_PAGE
     movies_page = all_movies[start:start + PER_PAGE]
 
-    return render_template("movies.html", movies=movies_page, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, format_size=format_size)
+    return render_template("movies.html", movies=movies_page, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, format_size=format_size, can_upload=upload_allowed(g.user))
 
 @app.route("/player/<folder>/<path:filename>")
 @login_required()
@@ -267,10 +267,14 @@ def upload():
     username = g.user.get("username")
     folders = g.user.get("folders", [])
     is_admin_user = g.user.get("is_admin", False)
-    
+
+    # 올릴 수 있는 사람인지 먼저 본다. 여기서 막으면 아래 폴더 고르기까지 갈 일이 없다.
+    if not upload_allowed(g.user):
+        return render_template("no_upload.html", username=username), 403
+
     if request.method == "GET":
         return render_template("upload.html", is_admin=is_admin_user, available_folders=folders, username=username)
-        
+
     if "file" not in request.files:
         flash("⚠️ 파일이 선택되지 않았습니다.", "warning")
         return redirect(request.url)
@@ -285,14 +289,20 @@ def upload():
         flash(f"⚠️ 허용되지 않는 파일 형식입니다: {ext}", "warning")
         return redirect(request.url)
         
+    # 일반 계정은 public에 올리지 않는다. 위 upload_allowed가 이미 막았으므로
+    # 쓸 폴더가 없는 채로 여기 오지 않지만, 그래도 public으로 되돌리지는 않는다
+    # — 옛 코드는 쓸 폴더가 없으면 folders[0](=public)으로 떨어졌다.
+    writable = [f for f in folders if f != "public"]
     if is_admin_user:
         target_folder = request.form.get("folder", "public")
         if target_folder not in folders:
-            target_folder = folders[0]
+            target_folder = writable[0] if writable else "public"
     else:
-        writable = [f for f in folders if f != "public"]
-        target_folder = writable[0] if writable else folders[0]
-        
+        if not writable:
+            flash("⚠️ 올릴 수 있는 폴더가 없습니다. 관리자에게 문의하세요.", "warning")
+            return redirect(request.url)
+        target_folder = writable[0]
+
     media_type_select = request.form.get("media_type_select", "gallery")
     if media_type_select == "movies" and ext in VIDEO_EXTS:
         media_type = "movies"
@@ -357,9 +367,17 @@ def upload_complete():
     payload = verify_token(token, secret)
     if not payload:
         return jsonify({"success": False, "error": "로그인 세션이 만료되었습니다. 다시 로그인해 주세요."}), 401
-        
-    folders = payload.get("folders", [])
-    is_admin_user = payload.get("is_admin", False)
+
+    # 여기는 login_required를 지나지 않는 자리라(302를 막으려고 직접 검사한다)
+    # 지금 권한도 직접 물어야 한다.
+    user, blocked = resolve_user(payload, secret)
+    if blocked:
+        return jsonify({"success": False, "error": "계정을 쓸 수 없습니다. 다시 로그인해 주세요."}), 401
+    if not upload_allowed(user):
+        return jsonify({"success": False, "error": "이 계정은 갤러리에 올릴 수 없습니다."}), 403
+
+    folders = user.get("folders", [])
+    is_admin_user = user.get("is_admin", False)
     
     # JSON 요청 또는 Form 요청 모두 호환 가능하게 파싱
     data = request.get_json() or request.form
@@ -377,13 +395,15 @@ def upload_complete():
     except ValueError:
         return jsonify({"success": False, "error": "유효하지 않은 total_chunks 값입니다."}), 400
         
+    writable = [f for f in folders if f != "public"]
     if is_admin_user:
         if target_folder not in folders:
-            target_folder = folders[0]
+            target_folder = writable[0] if writable else "public"
     else:
-        writable = [f for f in folders if f != "public"]
-        target_folder = writable[0] if writable else folders[0]
-        
+        if not writable:
+            return jsonify({"success": False, "error": "올릴 수 있는 폴더가 없습니다."}), 403
+        target_folder = writable[0]
+
     filename = get_safe_filename(raw_filename)
     ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_UPLOAD_EXTS:

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu 갤러리 | 올리기 권한 없음</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: #f1f5f9; min-height: 100vh;
+            display: flex; align-items: center; justify-content: center; padding: 20px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 22px; padding: 40px 32px; max-width: 460px; width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4); text-align: center;
+        }
+        .icon { font-size: 44px; margin-bottom: 16px; }
+        h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; }
+        p { font-size: 0.9rem; color: #94a3b8; line-height: 1.75; margin-bottom: 10px; }
+        .who { font-size: 0.8rem; color: #64748b; margin-top: 18px; }
+        a {
+            display: inline-block; margin-top: 24px; padding: 12px 24px; border-radius: 12px;
+            background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+            color: #fff; text-decoration: none; font-weight: 700; font-size: 0.9rem;
+        }
+        a:hover { transform: translateY(-1px); }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">🔒</div>
+        <h1>이 계정은 갤러리에 올릴 수 없습니다</h1>
+        <p>
+            올리기는 관리자가 계정마다 따로 열어줍니다.<br>
+            올릴 폴더도 함께 정해 주어야 합니다.
+        </p>
+        <p>필요하시면 관리자에게 말씀해 주세요.</p>
+        <p class="who">{{ username }}</p>
+        <a href="/">← 갤러리로 돌아가기</a>
+    </div>
+</body>
+</html>

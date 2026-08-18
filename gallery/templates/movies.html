@@ -126,8 +126,9 @@
     <div class="header-right">
         <a href="/" class="header-btn">📹 일반 갤러리</a>
         <a href="/movies" class="header-btn active">🎬 영화관</a>
+        {# 올리기는 관리자 여부가 아니라 '올리기 허락'을 따른다(gallery.html과 같은 규칙). #}
+        {% if can_upload %}<a href="/upload" class="header-btn">📤 업로드</a>{% endif %}
         {% if is_admin %}
-        <a href="/upload" class="header-btn">📤 업로드</a>
         <a href="/manage" class="header-btn">⚙️ 관리</a>
         {% endif %}
         <a href="/logout" class="header-btn" style="color:#f87171; border-color: rgba(248, 113, 113, 0.2);">로그아웃</a>

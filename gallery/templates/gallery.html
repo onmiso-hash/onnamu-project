@@ -189,8 +189,10 @@
         <a href="/movies">🎬 영화관</a>
     </nav>
     <div class="header-right">
+        {# 올리기는 관리자 여부가 아니라 '올리기 허락'을 따른다.
+           허락받은 일반 계정도 단추가 보여야 한다. 관리 단추는 종전대로 관리자만. #}
+        {% if can_upload %}<a class="header-btn" href="/upload">📤 업로드</a>{% endif %}
         {% if is_admin %}
-        <a class="header-btn" href="/upload">📤 업로드</a>
         <a class="header-btn" href="/manage">⚙️ 관리</a>
         {% endif %}
         <a class="header-btn logout" href="/logout">로그아웃</a>
