@@ -3,6 +3,7 @@ import psutil
 import sqlite3
 import os
 import json
+from werkzeug.security import generate_password_hash, check_password_hash
 from auth_helper import generate_auth_token, login_required, verify_token
 
 app = Flask(__name__)
@@ -36,9 +37,21 @@ def init_db():
     # 뉴스 아카이브 테이블 (기존 데이터 보존용)
     c.execute('''CREATE TABLE IF NOT EXISTS news_archive
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  category TEXT, title TEXT, content TEXT, 
+                  category TEXT, title TEXT, content TEXT,
                   published_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
-    
+    # 계정 테이블 (2026-08-18 신설) — 원래 users.json에 평문으로 있던 계정이 여기로 옮겨온다
+    c.execute('''CREATE TABLE IF NOT EXISTS accounts
+                 (username TEXT PRIMARY KEY,
+                  password_hash TEXT NOT NULL,
+                  is_admin INTEGER DEFAULT 0,
+                  adult_ok INTEGER DEFAULT 0,
+                  folders TEXT DEFAULT '["public"]',
+                  can_upload INTEGER DEFAULT 0,
+                  locked INTEGER DEFAULT 0,
+                  perm_version INTEGER DEFAULT 1,
+                  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                  last_login_at DATETIME)''')
+
     # 기존에 누적된 무거운 디버그(배포 로그) 데이터 청소
     c.execute("DELETE FROM work_history WHERE category = '디버그'")
     # 인코딩이 깨져 물음표(??)로 들어갔거나 배포 로그 키워드가 포함된 지저분한 로그 청소
@@ -70,6 +83,52 @@ def load_users_from_file():
         }
     }
 
+# --- 계정 저장소 ---
+# users.json은 컨테이너에 읽기 전용으로 붙어 있어 원본에 이관 표시를 쓸 수 없다.
+# 그래서 "표가 비어 있는가"를 이관 여부의 판정으로 쓴다 — 두 번 돌아도 덮어쓰지 않는다.
+def migrate_users_once():
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM accounts")
+    if c.fetchone()[0] > 0:
+        conn.close(); return
+    users = load_users_from_file()
+    for username, u in users.items():
+        is_admin = 1 if u.get('is_admin') else 0
+        folders = u.get('folders', [])
+        c.execute("""INSERT INTO accounts
+                     (username, password_hash, is_admin, adult_ok, folders, can_upload)
+                     VALUES (?, ?, ?, ?, ?, ?)""",
+                  (username,
+                   generate_password_hash(u.get('password', '')),
+                   is_admin,
+                   # 19금 열람: 지금 스튜디오가 관리자에게만 열려 있으므로 관리자만 참으로 옮긴다
+                   is_admin,
+                   json.dumps(folders),
+                   # 지금 올릴 수 있던 계정(public 아닌 폴더 보유)은 그대로 올릴 수 있게 옮긴다
+                   1 if [f for f in folders if f != 'public'] else 0))
+    conn.commit(); conn.close()
+    print(f"✅ 계정 이관 완료: {len(users)}개 (원본 users.json은 그대로 둔다)")
+
+def get_account(username):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("""SELECT username, password_hash, is_admin, adult_ok, folders,
+                        can_upload, locked, perm_version
+                 FROM accounts WHERE username = ?""", (username,))
+    row = c.fetchone(); conn.close()
+    if not row:
+        return None
+    return {
+        "username": row[0], "password_hash": row[1],
+        "is_admin": bool(row[2]), "adult_ok": bool(row[3]),
+        "folders": json.loads(row[4] or '[]'),
+        "can_upload": bool(row[5]), "locked": bool(row[6]), "perm_version": row[7],
+    }
+
+def touch_last_login(username):
+    conn = sqlite3.connect(DB_PATH); c = conn.cursor()
+    c.execute("UPDATE accounts SET last_login_at = CURRENT_TIMESTAMP WHERE username = ?", (username,))
+    conn.commit(); conn.close()
+
 # --- 화면 템플릿은 templates/index.html · templates/login.html 에 있다 ---
 # 색·모서리·너비는 static/tokens.css 한 장에 모여 있고 두 화면이 같이 읽는다.
 @app.route('/')
@@ -99,13 +158,17 @@ def login():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
         
-        users = load_users_from_file()
-        user = users.get(username)
-        
-        if user and user.get('password') == password:
-            is_admin = user.get('is_admin', False)
-            folders = user.get('folders', [])
-            
+        account = get_account(username)
+
+        if account and account['locked']:
+            return render_template('login.html',
+                                   error="잠긴 계정입니다. 관리자에게 문의하세요.")
+
+        if account and check_password_hash(account['password_hash'], password):
+            is_admin = account['is_admin']
+            folders = account['folders']
+            touch_last_login(username)
+
             # SSO 토큰 생성 (folders 정보 주입)
             auth_token = generate_auth_token(username, app.secret_key, is_admin=is_admin, folders=folders)
             
@@ -265,4 +328,4 @@ def whois_domain():
         return Response(json.dumps({"error": str(e)}), status=502, content_type='application/json')
 
 if __name__ == '__main__':
-    init_db(); app.run(host='0.0.0.0', port=5001)
+    init_db(); migrate_users_once(); app.run(host='0.0.0.0', port=5001)
