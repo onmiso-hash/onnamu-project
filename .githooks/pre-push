@@ -46,4 +46,18 @@ if [ -f "$ROOT/scripts/check_identity_common.py" ]; then
   "$PY" "$ROOT/scripts/check_identity_common.py" || exit 1
 fi
 
+# 갤러리 캐시 검사 — 화면(HTML)이 브라우저에 얼어붙지 않는가(2026-08-20 사고).
+# 파이썬 기본 기능만 쓰므로 flask가 없어도 돈다. 못 돌리면 조용히 넘어가지 않고 막는다.
+if [ -f "$ROOT/scripts/check_gallery_cache.py" ]; then
+  PY=""
+  for cand in "$ROOT/.venv/bin/python" python3 python; do
+    if command -v "$cand" >/dev/null 2>&1; then PY="$cand"; break; fi
+  done
+  if [ -z "$PY" ]; then
+    echo "[갤러리 캐시 검사] 막음 — 파이썬을 못 찾아 검사를 돌리지 못했습니다."
+    exit 1
+  fi
+  "$PY" "$ROOT/scripts/check_gallery_cache.py" || exit 1
+fi
+
 exit 0

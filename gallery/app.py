@@ -27,6 +27,7 @@ from flask import (
     redirect, url_for, send_from_directory, abort, flash, jsonify, g
 )
 from auth_helper import login_required, verify_token, resolve_user, upload_allowed, current_identity
+from cache_policy import is_immutable_media, IMMUTABLE, NO_STORE
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -58,6 +59,11 @@ PER_PAGE = 24
 THUMBNAIL_DIR = Path("/app/.thumbnails")
 THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
 
+# 썸네일 판번호. 썸네일을 '어떻게 만드는가'를 고치면 이 번호를 1 올린다.
+# 썸네일 주소는 30일 캐시라, 번호를 안 올리면 폰이 옛 썸네일을 30일 더 보여준다.
+# (화면·코드 수정은 번호와 무관하게 바로 반영된다 — 화면은 캐시하지 않으므로)
+THUMB_VERSION = "1"
+
 # ffmpeg 썸네일 생성 동시 실행 제한.
 # 영화관 첫 진입 시 카드 여러 장이 한꺼번에 요청을 걸어 미니PC가 몰리는 것을 막는다.
 THUMBNAIL_WORKERS = threading.Semaphore(2)
@@ -68,18 +74,23 @@ STREAM_SECRET = os.environ.get("STREAM_SECRET", "")
 # 영화 한 편을 다 볼 시간은 넉넉히 준다. 재생 중에 기한이 끝나면 건너뛰기가 막힌다.
 STREAM_TTL = int(os.environ.get("STREAM_TTL", 12 * 3600))
 
+@app.context_processor
+def inject_thumb_version():
+    """모든 화면이 썸네일 판번호를 쓸 수 있게 한다."""
+    return {"thumb_v": THUMB_VERSION}
+
 @app.after_request
 def add_no_cache(response):
-    # 미디어 파일 원본, 썸네일, 자막 등의 정적 미디어 요청은 10배 이상 부드러운 로딩과 서버 보호를 위해 극강의 30일 캐싱을 보장합니다.
-    path = request.path.lower()
-    if response.status_code < 400 and (any(keyword in path for keyword in ['/thumbnail', '/media', '/subtitles']) or path.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.mkv', '.mov', '.vtt', '.srt'))):
-        # 썸네일 및 대용량 스트리밍 미디어는 30일(2592000초) 동안 절대 변하지 않는 자원(immutable)으로 강력 캐싱 지시
-        response.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+    # 미디어 파일 원본·썸네일·자막만 30일 캐싱한다(부드러운 로딩과 서버 보호).
+    # 판정은 cache_policy 한 벌에만 있다 — 확장자로 가르면 /player/영화.mp4 같은
+    # 화면까지 얼어붙는다(2026-08-20 사고). 자세한 경위는 cache_policy.py 참고.
+    if is_immutable_media(request.path, response.status_code):
+        response.headers['Cache-Control'] = IMMUTABLE
         if 'Pragma' in response.headers: del response.headers['Pragma']
         if 'Expires' in response.headers: del response.headers['Expires']
     else:
-        # 그 외 웹 UI 정적 코드(JS, CSS, HTML)는 변경 시 즉시 반영되도록 실시간 재검증 및 캐시 차단
-        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0, proxy-revalidate'
+        # 화면(HTML)과 그 안의 코드는 고치면 즉시 반영되어야 하므로 캐시를 막는다.
+        response.headers['Cache-Control'] = NO_STORE
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
         response.headers['Surrogate-Control'] = 'no-store'
@@ -237,9 +248,13 @@ def movies():
 
     return render_template("movies.html", movies=movies_page, page=page, total_pages=total_pages, total=total, username=username, is_admin=is_admin, format_size=format_size, can_upload=upload_allowed(g.user))
 
-@app.route("/player/<folder>/<path:filename>")
+@app.route("/watch/<folder>/<path:filename>")
 @login_required()
 def player(folder, filename):
+    # 주소가 /player/… 에서 /watch/… 로 바뀐 이유(2026-08-20):
+    # 옛 주소로 받아 간 화면이 폰과 클라우드플레어에 30일 얼어붙어 있었다.
+    # 규칙(cache_policy)만 고치면 새 화면은 안 얼지만, 이미 얼어붙은 것은
+    # 같은 주소인 한 30일이 지나야 풀린다. 주소를 바꿔 그것들을 즉시 버린다.
     username = g.user.get("username")
     folders = g.user.get("folders", [])
     if folder not in folders:
@@ -251,6 +266,11 @@ def player(folder, filename):
     # 직행 통로가 열려 있으면 그쪽에서, 아니면 종전처럼 이 서버에서 영상을 받는다.
     video_url = build_stream_url(folder, filename) or f"/media/{quote(folder)}/movies/{quote(filename)}"
     return render_template("player.html", folder=folder, filename=filename, subtitle=subtitle, username=username, video_url=video_url)
+
+@app.route("/player/<folder>/<path:filename>")
+def player_moved(folder, filename):
+    """옛 재생 주소로 들어온 즐겨찾기·방문기록을 새 주소로 보낸다."""
+    return redirect(url_for("player", folder=folder, filename=filename))
 
 @app.route("/subtitle/<folder>/<path:filename>")
 @login_required()
