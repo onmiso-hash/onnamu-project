@@ -1085,6 +1085,13 @@ select {
     .mobile-hide {
         display: none !important;
     }
+
+    /* 손가락으로 쓰는 화면에서 스크롤이 두 겹이면 안쪽 목록이 잘 안 넘어간다.
+       휴대폰에서는 목록의 제 높이를 다 쓰게 두고 서랍 하나만 스크롤되게 한다. */
+    .conversation-list {
+        max-height: none;
+        overflow-y: visible;
+    }
     
     .hud-action-buttons .hud-btn {
         padding: 0.3rem 0.6rem;
@@ -1589,6 +1596,16 @@ select {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+}
+
+/* 서랍 안 항목은 **줄어들지 않는다**. 이 한 줄이 없으면 화면이 짧은 휴대폰에서
+   자리가 모자랄 때 대화 목록만 높이 0으로 눌려 통째로 사라진다(버튼들은 글자 높이가
+   최소 크기라 버티는데, 대화 목록은 안쪽 스크롤 때문에 최소 크기가 0이 된다).
+   눌리지 않게 해 두면 대신 서랍(.sidebar-menu)이 통째로 스크롤된다. */
+.menu-section-title,
+.sidebar-menu-item,
+.conversation-list {
+    flex-shrink: 0;
 }
 
 .menu-section-title {

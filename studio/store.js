@@ -929,6 +929,53 @@ function compact(username, convId) {
     };
 }
 
+// ---- 마지막으로 보던 자리 ----
+// 어느 대화를 열어 두었는지가 지금까지 **그 기기 브라우저 안에만** 있었다. 그래서 폰으로
+// 들어오면 늘 처음 설정 화면부터 시작했고, 인물을 똑같이 고르지 않으면 새 대화가 만들어졌다.
+// 이 파일 하나가 기기를 건너 자리를 잇는다.
+// **화면을 되살리는 데 필요한 값만** 담는다 — 대화 내용은 여기 넣지 않는다(주인이 둘이면 서로 덮는다).
+// 값은 전부 글자다(브라우저 기억창고가 글자만 담기 때문). 아는 이름 말고는 받지 않는다.
+const STUDIO_STATE_KEYS = [
+    'activeState', 'modeType', 'convIdChat', 'convIdStory',
+    'charName', 'relation', 'charDesc', 'chatLevel', 'userName', 'personaPreset',
+    'storyGenre', 'storyTone', 'storyCharacter'
+];
+const STUDIO_STATE_MAX = 4000;
+
+function studioStateFilePath(username) {
+    return path.join(userDirPath(username), 'studio-state.json');
+}
+
+// 없으면 null. 깨져 있어도 화면이 멈추면 안 되므로 null로 넘긴다.
+function readStudioState(username) {
+    ensureUser(username);
+    let doc = null;
+    try {
+        doc = readJson(studioStateFilePath(username), null);
+    } catch (e) {
+        return null;
+    }
+    if (!doc || typeof doc !== 'object') return null;
+    const out = {};
+    STUDIO_STATE_KEYS.forEach(k => {
+        if (typeof doc[k] === 'string') out[k] = doc[k];
+    });
+    if (typeof doc.updatedAt === 'string') out.updatedAt = doc.updatedAt;
+    return out;
+}
+
+function writeStudioState(username, state) {
+    ensureUser(username);
+    const clean = {};
+    STUDIO_STATE_KEYS.forEach(k => {
+        const v = state ? state[k] : undefined;
+        if (typeof v === 'string' && v) clean[k] = v.slice(0, STUDIO_STATE_MAX);
+    });
+    clean.updatedAt = new Date().toISOString();
+    writeJsonAtomic(studioStateFilePath(username), clean);
+    return clean;
+}
+
 // 그 사람의 자료를 통째로 지운다 — 포털의 계정 지우기가 부른다.
 // users/<아이디>/ 폴더와 personas_<아이디>.json 두 곳이 전부다(설계 실측).
 // 되돌릴 수 없다. 무엇을 지웠는지 세어서 돌려준다.
@@ -974,6 +1021,9 @@ module.exports = {
     readVectors,
     setVisibleTurns,
     compact,
+    // 마지막으로 보던 자리
+    readStudioState,
+    writeStudioState,
     // 옛 데이터 이사 (ensureUser가 자동으로 부른다 — 검사·수동 실행용으로 열어둔다)
     importLegacyIfNeeded
 };

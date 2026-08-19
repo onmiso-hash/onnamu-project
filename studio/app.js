@@ -394,6 +394,11 @@ class ChronicleApp {
                 }
                 localStorage.setItem('logged_in_username', currentUser);
 
+                // 이 기기에 아무 기억이 없어도 **마지막으로 보던 자리**로 이어간다.
+                // 아래 activeState 판정보다 반드시 먼저 와야 한다 — 판정이 읽는 값을 여기서 채우기 때문이고,
+                // 19금 세션 복구 차단 필터도 그 판정 안에 있어 채워 넣은 값까지 함께 걸러진다.
+                await this.pullStudioState();
+
                 // 유저 정보 수신 완료 후 페르소나 프리셋 로드
                 this.loadPersonaPresets();
 
@@ -1094,6 +1099,7 @@ class ChronicleApp {
         if (this.selectPersonaPreset) {
             localStorage.setItem('recent_persona_preset', this.selectPersonaPreset.value);
         }
+        this.pushStudioState();
 
         // Save key locally
         if (this.apiKey) {
@@ -1157,6 +1163,7 @@ class ChronicleApp {
         this.appContainer.classList.remove('visible');
 
         localStorage.setItem('studio_active_state', 'setup');
+        this.pushStudioState();
     }
 
     // Generate story next segment
@@ -3664,6 +3671,53 @@ JSON Schema:
     // 이제는 말 한마디가 끝날 때마다 **그 한마디만** 번호를 붙여 보낸다. 같은 번호를 두 번
     // 보내도 서버가 무시하므로 끊겼다 다시 보내도 안전하다.
 
+    // ---- 마지막으로 보던 자리 (기기를 건너 이어보기) ----
+    // 브라우저 기억창고의 이름과 서버 칸 이름을 한 벌로 묶어 둔다. 두 곳에 따로 적으면
+    // 한쪽만 고쳐져 값이 조용히 새는 것이 이 프로젝트의 반복 결함이라 표를 하나만 둔다.
+    studioStateFields() {
+        return [
+            ['activeState', 'studio_active_state'],
+            ['modeType', 'recent_mode_type'],
+            ['convIdChat', 'current_conv_id_chat'],
+            ['convIdStory', 'current_conv_id_story'],
+            ['charName', 'recent_chat_char_name'],
+            ['relation', 'recent_chat_relation'],
+            ['charDesc', 'recent_chat_char_desc'],
+            ['chatLevel', 'recent_chat_level'],
+            ['userName', 'recent_chat_user_name'],
+            ['personaPreset', 'recent_persona_preset'],
+            ['storyGenre', 'recent_story_genre'],
+            ['storyTone', 'recent_story_tone'],
+            ['storyCharacter', 'recent_story_character']
+        ];
+    }
+
+    // 서버에 적힌 자리를 이 기기의 기억창고로 옮긴다.
+    // **서버에 값이 있으면 서버 것을 쓰고, 없으면 이 기기 것을 그대로 둔다.**
+    // 서버가 정본인 것은 대화 내용에 이미 쓰고 있는 규칙이고, 값이 없을 때까지 지워버리면
+    // 서버가 잠깐 답을 못 준 순간에 이 기기의 자리까지 날아간다.
+    async pullStudioState() {
+        const r = await this.callApi('GET', '/api/studio-state');
+        if (!r.ok || !r.data || typeof r.data !== 'object') return;
+        this.studioStateFields().forEach(([field, key]) => {
+            const v = r.data[field];
+            if (typeof v === 'string' && v) localStorage.setItem(key, v);
+        });
+    }
+
+    // 이 기기의 자리를 서버에 적는다. 잇달아 불려도 마지막 한 번만 나간다.
+    pushStudioState() {
+        clearTimeout(this.studioStatePushTimer);
+        this.studioStatePushTimer = setTimeout(async () => {
+            const body = {};
+            this.studioStateFields().forEach(([field, key]) => {
+                body[field] = localStorage.getItem(key) || '';
+            });
+            const r = await this.callApi('PUT', '/api/studio-state', body);
+            if (!r.ok) console.warn('[보던 자리] 서버 저장 실패:', r.status);
+        }, 400);
+    }
+
     async callApi(method, url, body) {
         const options = { method, credentials: 'include', headers: { 'Content-Type': 'application/json' } };
         if (body !== undefined) options.body = JSON.stringify(body);
@@ -3747,6 +3801,8 @@ JSON Schema:
         // 아직 앞 인물 이름이 남아 있어 그 인물의 기억이 대신 지워진다.
         const key = this.lastConversationKeyForCharacter();
         if (convId && this.modeType === 'chat' && key) localStorage.setItem(key, convId);
+
+        this.pushStudioState();
     }
 
     // 서버가 내려준 대화 한 건을 화면 상태에 옮겨 담는다.

@@ -677,6 +677,34 @@ app.delete('/api/conversations/:id', (req, res) => {
     }
 });
 
+// --------------------------------------------------------------------------
+// 마지막으로 보던 자리 — 기기를 건너 이어보기
+// 대화 내용은 원래부터 서버에 있었지만 "무엇을 열어 두었나"가 기기 안에만 있었다.
+// 그 한 줄을 서버에 두어, 폰으로 들어와도 보던 대화가 그대로 열리게 한다.
+// --------------------------------------------------------------------------
+
+// GET: 마지막으로 보던 자리(없으면 빈 것)
+app.get('/api/studio-state', (req, res) => {
+    const u = requireUser(req, res);
+    if (!u) return;
+    try {
+        res.json(store.readStudioState(u.username) || {});
+    } catch (error) {
+        sendStoreError(res, error, 'Get Studio State Error');
+    }
+});
+
+// PUT: 마지막으로 보던 자리를 적는다. 아는 이름의 글자 값만 받는다.
+app.put('/api/studio-state', (req, res) => {
+    const u = requireUser(req, res);
+    if (!u) return;
+    try {
+        res.json(store.writeStudioState(u.username, req.body || {}));
+    } catch (error) {
+        sendStoreError(res, error, 'Save Studio State Error');
+    }
+});
+
 // DELETE: 어떤 계정의 자료를 통째로 지운다 — 포털의 '계정 지우기'가 부른다.
 // 관리자만 부를 수 있고, 자기 자신은 이 통로로 지울 수 없다(실수 방지).
 app.delete('/api/admin/user-data/:username', (req, res) => {
