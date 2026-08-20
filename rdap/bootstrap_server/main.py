@@ -160,6 +160,13 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
+    # 내려가기 전에 아직 저장 안 된 통계를 마저 남긴다.
+    # (갑작스러운 정지나 감시 장치의 강제 종료 때는 이 절차가 돌지 않는다)
+    if bootstrap_manager:
+        try:
+            bootstrap_manager.flush_stats()
+        except Exception as e:
+            logger.error(f"Failed to flush stats on shutdown: {e}")
     await async_client.aclose()
 
 from fastapi.staticfiles import StaticFiles

@@ -16,6 +16,12 @@ DATA_DIR = Path(__file__).parent / "data"
 # IANA 목록에 아직 없는 RDAP 서버를 직접 적어두는 파일 (IANA 동기화 대상이 아님)
 LOCAL_SERVICES_FILE = DATA_DIR / "local_services.json"
 
+# 통계를 디스크에 모아서 저장하는 주기(초).
+# 예전에는 조회 한 건마다 통계 파일(약 19KB)을 통째로 다시 썼다. 이 폴더는 윈도우
+# 폴더를 그대로 갖다 쓴 것이라 도커에서 가장 느린 경로이고, 쓰는 동안 서버 본체가
+# 붙잡혀 첫 화면까지 같이 멈춘다. 실측 결과 조회 한 건에 24ms가 들었다(2026-08-20).
+STATS_FLUSH_INTERVAL = 30
+
 class BootstrapManager:
     def __init__(self):
         self.data = {}
@@ -23,6 +29,8 @@ class BootstrapManager:
         # 직접 추가한 RDAP 서버 목록과, 파일이 바뀐 것을 알아채기 위한 수정 시각
         self.local_services = []
         self._local_services_mtime = None
+        # 마지막 저장 이후 통계가 바뀌었는지. 바뀐 것이 없으면 저장하지 않는다.
+        self._stats_dirty = False
         # 통계 데이터 초기화
         self.stats = {
             "total_hits": 0,
@@ -65,13 +73,13 @@ class BootstrapManager:
                 self.stats["top_objects"][category][object_key] = self.stats["top_objects"][category].get(object_key, 0) + 1
             # 전체 Top 100
             self.stats["top_objects"]["all"][object_key] = self.stats["top_objects"]["all"].get(object_key, 0) + 1
-            
-        self.save_stats()
+
+        self._stats_dirty = True
 
     def record_miss(self):
         """조회 실패 시 통계를 기록합니다."""
         self.stats["total_misses"] += 1
-        self.save_stats()
+        self._stats_dirty = True
 
     def save_stats(self):
         """통계를 로컬 파일에 저장합니다."""
@@ -79,8 +87,28 @@ class BootstrapManager:
             stats_path = DATA_DIR / "stats.json"
             with open(stats_path, "w", encoding="utf-8") as f:
                 json.dump(self.stats, f, ensure_ascii=False, indent=2)
+            self._stats_dirty = False
         except Exception as e:
             logger.error(f"Failed to save stats: {e}")
+
+    def flush_stats(self):
+        """바뀐 것이 있을 때만 저장한다."""
+        if self._stats_dirty:
+            self.save_stats()
+
+    async def _stats_flush_loop(self):
+        """통계를 주기적으로 모아서 저장한다.
+
+        요청마다 저장하면 그 사이 모든 요청이 같이 멈춘다. 숫자는 메모리에 그대로
+        쌓이고 디스크에 쓰는 횟수만 줄어든다. 대신 서버가 갑자기 죽으면 마지막
+        주기만큼의 집계 숫자가 남지 않는다(조회 기능·데이터에는 영향 없음).
+        """
+        while True:
+            await asyncio.sleep(STATS_FLUSH_INTERVAL)
+            try:
+                self.flush_stats()
+            except Exception as e:
+                logger.error(f"Periodic stats flush failed: {e}")
 
     def load_stats(self):
         """로컬 파일에서 통계를 로드합니다."""
@@ -211,5 +239,8 @@ class BootstrapManager:
         scheduler.add_job(self.fetch_all, 'interval', hours=24)
         scheduler.start()
         logger.info("Bootstrap Update Scheduler started (24h interval)")
+
+        asyncio.create_task(self._stats_flush_loop())
+        logger.info(f"Stats flush loop started ({STATS_FLUSH_INTERVAL}s interval)")
 
 bootstrap_manager = BootstrapManager()
