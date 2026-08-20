@@ -1,5 +1,7 @@
 import sys
 import os
+import time
+import threading
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,9 +23,57 @@ app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 국제기구 데이터 파일을 앞단(CDN)이 대신 내주도록 허용하는 시간(초).
+# IANA 발행 주기는 길지만, 짧게 잡아 두어야 갱신이 늦게 반영되는 일이 없다.
+BOOTSTRAP_CACHE_SECONDS = 3600
+
+# 바깥 RDAP 서버를 동시에 몇 개까지 부를지. CPU가 1개뿐인 기계라
+# 이 상한이 없으면 요청이 몰릴 때 전부 밀려서 서버가 응답을 멈춘다(2026-08-20 장애).
+PROXY_MAX_CONCURRENCY = 8
+proxy_semaphore = asyncio.Semaphore(PROXY_MAX_CONCURRENCY)
+
+# 바깥 서버를 기다리는 최대 시간(초). 길면 한 요청이 자리를 오래 차지한다.
+PROXY_UPSTREAM_TIMEOUT = 8.0
+# 자리가 찼을 때 기다려 보는 시간(초). 이 시간을 넘기면 줄 세우지 않고 바로 거절한다 —
+# 줄을 세우면 요청이 무한정 쌓여 서버 전체가 대답을 멈춘다.
+PROXY_QUEUE_WAIT_SECONDS = 2.0
+
+# ── 스스로 멈춤을 알아채는 감시 장치 ────────────────────────────────
+# 서버가 '죽는' 것은 도커가 다시 띄워 주지만, '멈춘' 것은 아무도 살려주지 않는다.
+# 2026-08-20 장애가 정확히 그 모양이었다(3시간 먹통).
+# 그래서 본체는 규칙적으로 살아있다는 표시를 남기고, 별도의 실 하나가 그 표시가
+# 멈췄는지 지켜본다. 별도의 실이라야 본체가 멈춰도 같이 멈추지 않는다.
+WATCHDOG_HEARTBEAT_INTERVAL = 5      # 살아있다는 표시를 남기는 주기(초)
+WATCHDOG_CHECK_INTERVAL = 15         # 감시하는 주기(초)
+WATCHDOG_STALL_SECONDS = 90          # 이만큼 표시가 안 남으면 멈춘 것으로 본다
+
+_last_heartbeat = time.monotonic()
+
+
+async def _heartbeat_loop():
+    """본체가 살아있다는 표시를 규칙적으로 남긴다."""
+    global _last_heartbeat
+    while True:
+        _last_heartbeat = time.monotonic()
+        await asyncio.sleep(WATCHDOG_HEARTBEAT_INTERVAL)
+
+
+def _watchdog_loop():
+    """표시가 멈추면 프로세스를 끝낸다. 그러면 도커가 다시 띄운다."""
+    while True:
+        time.sleep(WATCHDOG_CHECK_INTERVAL)
+        stalled_for = time.monotonic() - _last_heartbeat
+        if stalled_for > WATCHDOG_STALL_SECONDS:
+            logger.critical(
+                f"Event loop stalled for {stalled_for:.0f}s - exiting so Docker can restart this container"
+            )
+            # 멈춘 상태라 정상 종료 절차가 돌지 않는다. 즉시 끝낸다.
+            os._exit(1)
+# ────────────────────────────────────────────────────────────────
+
 # 공용 AsyncClient 생성 (타임아웃 연장 및 SSL 검증 완화 옵션 검토)
 async_client = httpx.AsyncClient(
-    timeout=20.0, 
+    timeout=PROXY_UPSTREAM_TIMEOUT, 
     follow_redirects=True,
     verify=False  # 일부 RDAP 서버의 인증서 문제로 인한 502 방지
 )
@@ -38,6 +88,32 @@ app.add_middleware(
 )
 
 async def proxy_rdap_request(target_url: str):
+    """동시 처리 상한을 지키며 프록시를 수행한다.
+
+    자리가 없으면 줄을 세우지 않고 즉시 거절한다. 줄을 세우면 CPU가 1개뿐인
+    이 기계에서는 요청이 무한정 쌓여 서버가 통째로 응답을 멈춘다(2026-08-20 장애).
+    """
+    try:
+        await asyncio.wait_for(proxy_semaphore.acquire(), timeout=PROXY_QUEUE_WAIT_SECONDS)
+    except asyncio.TimeoutError:
+        logger.warning(f"Proxy busy, rejecting request: {target_url}")
+        return JSONResponse(
+            status_code=503,
+            content={
+                "errorCode": 503,
+                "title": "Service Busy",
+                "description": ["The server is handling too many lookups right now. Please retry shortly."],
+            },
+            headers={"Retry-After": "5"},
+        )
+
+    try:
+        return await _proxy_rdap_request(target_url)
+    finally:
+        proxy_semaphore.release()
+
+
+async def _proxy_rdap_request(target_url: str):
     """외부 RDAP 서버에 요청을 보내고 결과를 반환하는 프록시 함수"""
     try:
         logger.info(f"Proxying request to: {target_url}")
@@ -69,6 +145,13 @@ async def proxy_rdap_request(target_url: str):
 
 @app.on_event("startup")
 async def startup_event():
+    # 멈춤 감시 시작 — 본체의 표시와, 그것을 지켜보는 별도의 실.
+    asyncio.create_task(_heartbeat_loop())
+    threading.Thread(target=_watchdog_loop, daemon=True, name="stall-watchdog").start()
+    logger.info(
+        f"Stall watchdog started (restart if unresponsive for {WATCHDOG_STALL_SECONDS}s)"
+    )
+
     if bootstrap_manager:
         try:
             asyncio.create_task(bootstrap_manager.initialize())
@@ -447,7 +530,16 @@ async def get_help():
 async def get_bootstrap_file(filename: str):
     if not filename.endswith(".json"): filename += ".json"
     if bootstrap_manager and filename in bootstrap_manager.data:
-        return bootstrap_manager.data[filename]
+        # 이 파일들은 국제기구(IANA)가 발행할 때만 바뀌고, 우리 소스를 고쳐도 바뀌지 않는다.
+        # 따라서 앞단(CDN)이 대신 내주게 해도 '고쳤는데 반영이 안 되는' 문제가 생기지 않는다.
+        # 화면 파일(HTML/CSS/JS)은 여기에 해당하지 않으며 캐시 금지를 그대로 유지한다.
+        return JSONResponse(
+            content=bootstrap_manager.data[filename],
+            headers={
+                "Cache-Control": f"public, max-age={BOOTSTRAP_CACHE_SECONDS}",
+                "Content-Type": "application/json",
+            },
+        )
     raise HTTPException(status_code=404, detail="Not found")
 
 if __name__ == "__main__":

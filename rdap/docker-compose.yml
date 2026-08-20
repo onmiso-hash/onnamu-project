@@ -11,6 +11,14 @@ services:
       - ./bootstrap_server/data:/app/bootstrap_server/data
     networks:
       - rdap-network
+    # 살아있는지 규칙적으로 물어본다. 대답이 없으면 docker ps에 unhealthy로 표시된다.
+    # 실제 되살리기는 서버 안의 감시 장치가 맡는다(main.py의 stall watchdog).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/help', timeout=5)"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
 
 networks:
   rdap-network:
