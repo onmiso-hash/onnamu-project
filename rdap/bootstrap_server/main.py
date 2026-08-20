@@ -177,6 +177,46 @@ def get_client_ip(request: Request):
         return request.client.host
     return "127.0.0.1"
 
+# 최상위 도메인(TLD)을 담당하는 RDAP 서버 주소를 찾습니다.
+# 국제기구(IANA) 목록을 먼저 보고, 없을 때만 직접 추가한 목록을 봅니다.
+# 이 순서 덕분에 나중에 IANA가 해당 TLD를 등재하면 별도 조치 없이 IANA 쪽으로 자동 전환됩니다.
+def resolve_tld_service(tld: str):
+    """(RDAP 서버 주소, 출처) 를 돌려주고, 못 찾으면 (None, None)."""
+    dns_data = bootstrap_manager.data.get("dns.json")
+    if dns_data:
+        for service in dns_data.get("services", []):
+            if tld in service[0]:
+                return service[1][0], "iana"
+
+    bootstrap_manager.load_local_services()
+    for service in bootstrap_manager.local_services:
+        try:
+            if tld in service[0]:
+                return service[1][0], "local"
+        except (IndexError, TypeError):
+            continue
+
+    return None, None
+
+
+# 조회할 RDAP 서버가 없을 때, 왜 없는지를 화면이 알아볼 수 있게 담아 돌려줍니다.
+# (도메인이 없는 것이 아니라 그 최상위 도메인이 RDAP를 제공하지 않는 것입니다.)
+def tld_unsupported_response(tld: str, name: str):
+    return JSONResponse(
+        status_code=404,
+        content={
+            "errorCode": 404,
+            "title": "TLD_NOT_IN_BOOTSTRAP",
+            "tld": tld,
+            "object": name,
+            "description": [
+                f"No RDAP server is registered for the .{tld} top-level domain.",
+                "This does not mean the object does not exist - the registry for this TLD does not publish an RDAP service.",
+            ],
+        },
+    )
+
+
 # 1. 도메인 조회 (기본 Redirect, proxy=true인 경우 Proxy 방식 적용)
 @app.get("/domain/{name}")
 async def get_domain(name: str, request: Request, proxy: bool = False):
@@ -185,18 +225,16 @@ async def get_domain(name: str, request: Request, proxy: bool = False):
         raise HTTPException(status_code=503, detail="Loading...")
     
     tld = name.split(".")[-1].lower()
-    dns_data = bootstrap_manager.data.get("dns.json")
-    if dns_data:
-        for service in dns_data.get("services", []):
-            if tld in service[0]:
-                bootstrap_manager.record_hit("domain", client_ip, object_key=name)
-                target_url = f"{service[1][0]}domain/{name}"
-                if proxy:
-                    return await proxy_rdap_request(target_url)
-                return RedirectResponse(url=target_url, status_code=307)
-                
+    base_url, source = resolve_tld_service(tld)
+    if base_url:
+        bootstrap_manager.record_hit("domain", client_ip, object_key=name)
+        target_url = f"{base_url}domain/{name}"
+        if proxy:
+            return await proxy_rdap_request(target_url)
+        return RedirectResponse(url=target_url, status_code=307)
+
     bootstrap_manager.record_miss()
-    raise HTTPException(status_code=404, detail="Not found")
+    return tld_unsupported_response(tld, name)
 
 # 1-2. 네임서버 조회
 @app.get("/nameserver/{name}")
@@ -206,18 +244,16 @@ async def get_nameserver(name: str, request: Request, proxy: bool = False):
         raise HTTPException(status_code=503, detail="Loading...")
         
     tld = name.split(".")[-1].lower()
-    dns_data = bootstrap_manager.data.get("dns.json")
-    if dns_data:
-        for service in dns_data.get("services", []):
-            if tld in service[0]:
-                bootstrap_manager.record_hit("nameserver", client_ip, object_key=name)
-                target_url = f"{service[1][0]}nameserver/{name}"
-                if proxy:
-                    return await proxy_rdap_request(target_url)
-                return RedirectResponse(url=target_url, status_code=307)
-                
+    base_url, source = resolve_tld_service(tld)
+    if base_url:
+        bootstrap_manager.record_hit("nameserver", client_ip, object_key=name)
+        target_url = f"{base_url}nameserver/{name}"
+        if proxy:
+            return await proxy_rdap_request(target_url)
+        return RedirectResponse(url=target_url, status_code=307)
+
     bootstrap_manager.record_miss()
-    raise HTTPException(status_code=404, detail="RDAP server for this nameserver TLD not found")
+    return tld_unsupported_response(tld, name)
 
 # 2. IP 조회
 @app.get("/ip/{address}")

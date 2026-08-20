@@ -13,11 +13,16 @@ IANA_BASE_URL = "https://data.iana.org/rdap/"
 FILES = ["dns.json", "ipv4.json", "ipv6.json", "asn.json", "object-tags.json"]
 # manager.py 파일 위치 기준으로 data 폴더 경로 설정
 DATA_DIR = Path(__file__).parent / "data"
+# IANA 목록에 아직 없는 RDAP 서버를 직접 적어두는 파일 (IANA 동기화 대상이 아님)
+LOCAL_SERVICES_FILE = DATA_DIR / "local_services.json"
 
 class BootstrapManager:
     def __init__(self):
         self.data = {}
         self.last_updated = {}
+        # 직접 추가한 RDAP 서버 목록과, 파일이 바뀐 것을 알아채기 위한 수정 시각
+        self.local_services = []
+        self._local_services_mtime = None
         # 통계 데이터 초기화
         self.stats = {
             "total_hits": 0,
@@ -121,6 +126,64 @@ class BootstrapManager:
                 except Exception as e:
                     logger.error(f"Error fetching {filename}: {str(e)}")
 
+    def seed_local_services(self):
+        """직접 추가 목록 파일이 없으면 설명이 담긴 빈 파일을 만들어 둡니다.
+
+        이 파일이 놓이는 data 폴더는 git 추적 대상이 아니라 서버에 붙어 있는
+        저장 공간입니다. 그래서 배포(git reset --hard)로 덮어써지지 않고,
+        관리자가 적어넣은 내용이 재배포·재빌드 후에도 그대로 남습니다.
+        """
+        if LOCAL_SERVICES_FILE.exists():
+            return
+        template = {
+            "_안내": "국제기구(IANA) 목록에 아직 없는 RDAP 서버를 직접 적어두는 곳입니다. IANA 동기화가 이 파일을 덮어쓰지 않으며, 저장하는 즉시 반영됩니다(서버 재시작 불필요).",
+            "_조회순서": "국제기구 목록을 먼저 찾고, 없을 때만 이 파일을 봅니다. 따라서 나중에 IANA에 같은 최상위 도메인이 등장하면 IANA 쪽이 자동으로 우선하므로, 여기 적어둔 줄은 지우지 않아도 무방합니다.",
+            "_적는법": "services 안에 [ [\"최상위도메인\"], [\"RDAP서버주소(끝에 / 필수)\"] ] 형태로 넣습니다.",
+            "_예시": "\"services\": [ [ [\"kr\"], [\"https://rdap.kr-registry.example/\"] ] ]",
+            "services": [],
+        }
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            with open(LOCAL_SERVICES_FILE, "w", encoding="utf-8") as f:
+                json.dump(template, f, ensure_ascii=False, indent=2)
+            logger.info(f"Created empty local_services.json at {LOCAL_SERVICES_FILE}")
+        except Exception as e:
+            logger.error(f"Failed to create local_services.json: {e}")
+
+    def load_local_services(self):
+        """직접 추가한 RDAP 서버 목록을 읽습니다.
+
+        파일이 바뀌었을 때만 다시 읽으므로 조회할 때마다 불러도 부담이 없고,
+        관리자가 파일을 저장하면 서버를 재시작하지 않아도 바로 반영됩니다.
+        """
+        try:
+            if not LOCAL_SERVICES_FILE.exists():
+                if self.local_services:
+                    logger.info("local_services.json removed; cleared manual entries")
+                self.local_services = []
+                self._local_services_mtime = None
+                return
+
+            mtime = LOCAL_SERVICES_FILE.stat().st_mtime
+            if mtime == self._local_services_mtime:
+                return
+
+            with open(LOCAL_SERVICES_FILE, "r", encoding="utf-8") as f:
+                content = json.load(f)
+
+            services = content.get("services", [])
+            if not isinstance(services, list):
+                raise ValueError("'services' must be a list")
+
+            self.local_services = services
+            self._local_services_mtime = mtime
+            tlds = [t for entry in services for t in entry[0]]
+            logger.info(f"Loaded local_services.json ({len(services)} entries, TLDs: {tlds})")
+        except Exception as e:
+            # 형식이 잘못돼도 서비스 전체가 멈추지 않도록 직전 목록을 유지합니다.
+            logger.error(f"Failed to load local_services.json, keeping previous entries: {e}")
+            self._local_services_mtime = None
+
     def load_local(self):
         """로컬에 저장된 파일이 있으면 로드합니다."""
         for filename in FILES:
@@ -138,6 +201,8 @@ class BootstrapManager:
     async def initialize(self):
         """초기 데이터 로드 및 스케줄러 설정을 수행합니다."""
         self.load_local()
+        self.seed_local_services()
+        self.load_local_services()
         self.load_stats()
         await self.fetch_all() # 시작 시 항상 최신 데이터 시도
 

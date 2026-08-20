@@ -12,6 +12,16 @@
 <script type="text/javascript">
 $(document).ready(function(){
 
+	/* 주소에 ?query=도메인 이 붙어 오면 조회창에 채우고 바로 조회한다.
+	   (RDAP 화면에서 .kr 처럼 RDAP를 제공하지 않는 도메인을 넘겨줄 때 쓰인다) */
+	var presetQuery = new URLSearchParams(window.location.search).get('query');
+	if(presetQuery){
+		$('#query').val(presetQuery);
+		$('#result').hide();
+		$('#api_response').hide();
+		getDomainInfo();
+	}
+
 	$(document).ajaxStart(function() {
 		$('#loading').show();
 	}).ajaxStop(function(){

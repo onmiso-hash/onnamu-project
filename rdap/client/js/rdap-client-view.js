@@ -236,6 +236,51 @@ window.onpopstate = function(e) {
 		if(object) div.appendChild(createErrorPannel(object));
 	}
 
+	// RDAP를 제공하지 않는 최상위 도메인을 조회했을 때의 안내.
+	// 서버가 이유(TLD_NOT_IN_BOOTSTRAP)를 담아 보내주므로 여기서 특정 도메인을
+	// 코드에 적어둘 필요가 없다. 해당 TLD가 부트스트랩 목록에 등재되는 순간
+	// 서버가 정상 조회로 응답하게 되고 이 안내는 저절로 나타나지 않는다.
+	function handleUnsupportedTLD(response) {
+		var ko = ('1' == document.getElementById('lang').value);
+		var tld = response.tld || '';
+		var object = response.object || '';
+
+		var div = document.getElementById('output-div');
+		div.innerHTML = '';
+
+		var box = document.createElement('div');
+		box.classList.add('alert', 'alert-warning');
+
+		var title = document.createElement('p');
+		title.setAttribute('style', 'font-weight: bold; margin-bottom: 8px;');
+		title.appendChild(document.createTextNode(ko
+			? '\u26a0 .' + tld + ' 도메인은 RDAP 조회를 제공하지 않습니다.'
+			: '\u26a0 The .' + tld + ' top-level domain does not provide RDAP.'));
+		box.appendChild(title);
+
+		var desc = document.createElement('p');
+		desc.setAttribute('style', 'margin-bottom: 0px;');
+		desc.appendChild(document.createTextNode(ko
+			? '도메인이 없다는 뜻이 아닙니다. 해당 국가/기관의 등록소가 RDAP 서버를 국제기구(IANA) 목록에 등재하지 않았기 때문입니다.'
+			: 'This does not mean the domain is unregistered. The registry for this TLD has not published an RDAP server to the IANA bootstrap registry.'));
+		box.appendChild(desc);
+
+		// .kr 계열은 후이즈(WHOIS) 조회로 이어준다.
+		if('kr' == tld) {
+			var link = document.createElement('a');
+			link.classList.add('btn', 'btn-primary');
+			link.setAttribute('style', 'margin-top: 14px;');
+			link.href = 'https://onnamu.kr/static/whois.html' + (object ? '?query=' + encodeURIComponent(object) : '');
+			link.target = '_blank';
+			link.appendChild(document.createTextNode(ko
+				? '후이즈(WHOIS)로 조회하기 \u2192'
+				: 'Look up via WHOIS \u2192'));
+			box.appendChild(link);
+		}
+
+		div.appendChild(box);
+	}
+
 	function createErrorNode(error) {
 		el = document.createElement('p');
 		el.classList.add('error', 'alert', 'alert-warning');
@@ -338,7 +383,12 @@ window.onpopstate = function(e) {
 			handleError(changeLanguage('A network error occurred or the RDAP server does not allow CORS requests.'));
 		}else if(404 == xhr.status) {
 			console.log('handleResponse: 404 Error');
-			if(xhr.response) handleError(changeLanguage('This Object does not exist.'), xhr.response);
+			// 그 최상위 도메인을 담당하는 RDAP 서버가 아예 없는 경우.
+			// 도메인이 없다는 뜻이 아니므로 'This Object does not exist.'로 안내하면 안 된다.
+			if(xhr.response && 'TLD_NOT_IN_BOOTSTRAP' == xhr.response.title) {
+				handleUnsupportedTLD(xhr.response);
+			}
+			else if(xhr.response) handleError(changeLanguage('This Object does not exist.'), xhr.response);
 			else handleError(changeLanguage('Page not found'));
 		}else if(200 != xhr.status) {
 			handleError(xhr.status + ' error: ' + xhr.statusText, xhr.response);
