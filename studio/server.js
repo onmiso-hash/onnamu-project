@@ -11,6 +11,14 @@ const PORT = process.env.PORT || 8080;
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// 접속 한 건마다 나라·주소를 보관함에 한 줄 적는다(관리자 화면의 접속자 지도용).
+// 로그인 전 요청도 세어야 하므로 빗장(authMiddleware)보다 앞에 둔다.
+const trafficLog = require('./trafficLog.js');
+app.use((req, res, next) => {
+    trafficLog.record('studio', req.path, req);
+    next();
+});
+
 // Ensure upload directory exists
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {

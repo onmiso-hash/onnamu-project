@@ -9,6 +9,9 @@ services:
     restart: always
     volumes:
       - studio_data:/app/data
+      # 접속 기록 보관함 — 포털·도메인 조회·스튜디오가 같은 폴더에 쌓고,
+      # 관리자 화면(접속자 지도)이 이 폴더를 읽는다.
+      - "C:/Users/onmis/project/traffic:/traffic"
 
 volumes:
   studio_data:

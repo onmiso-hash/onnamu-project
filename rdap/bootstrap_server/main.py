@@ -19,6 +19,12 @@ except ImportError as e:
     logging.error(f"Import Error: {e}")
     bootstrap_manager = None
 
+try:
+    import traffic_log
+except ImportError as e:
+    logging.error(f"Import Error: {e}")
+    traffic_log = None
+
 app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -86,6 +92,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# 접속 한 건마다 나라·주소를 보관함에 한 줄 적는다(관리자 화면의 접속자 지도용).
+# 여기서 세는 것은 이미 있던 stats.json과 별개다 — 그쪽은 무엇을 조회했는지를
+# 세고, 이쪽은 누가 어디서 얼마나 두드리는지를 센다.
+@app.middleware("http")
+async def record_traffic(request: Request, call_next):
+    if traffic_log is not None:
+        traffic_log.record("rdap", request.url.path, request.headers.get)
+    return await call_next(request)
 
 async def proxy_rdap_request(target_url: str):
     """동시 처리 상한을 지키며 프록시를 수행한다.

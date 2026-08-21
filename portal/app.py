@@ -9,11 +9,19 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from auth_helper import (generate_auth_token, login_required, verify_token,
                          set_permission_source, is_machine_identity,
                          current_identity, resolve_user, shared_token)
+import traffic_log
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
 app.secret_key = app.config['SECRET_KEY']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+@app.before_request
+def record_traffic():
+    """접속 한 건을 보관함에 적는다(관리자 화면의 접속자 지도용).
+    기록은 곁다리라 실패해도 화면에 영향을 주지 않는다 — traffic_log가 삼킨다."""
+    traffic_log.record("portal", request.path, request.headers.get)
+
 
 @app.after_request
 def add_header(response):
@@ -414,26 +422,6 @@ def get_work_events():
     c.execute("SELECT DISTINCT work_date FROM work_history")
     rows = c.fetchall(); conn.close()
     return jsonify([{"date": r[0]} for r in rows])
-
-# ---------------------------------------------------------------------
-# [임시] 접속자 지도 1단계 확인용 — Cloudflare가 방문자의 나라·위치를 붙여
-# 보내는지 재기 위한 주소. 부르는 사람 자신의 정보만 돌려주므로 남의 자료가
-# 새지 않는다. 2단계(접속 기록 남기기)에서 지운다.
-# ---------------------------------------------------------------------
-@app.route('/api/geo-check')
-def geo_check():
-    want = ["CF-Connecting-IP", "CF-IPCountry", "CF-IPCity", "CF-IPContinent",
-            "CF-IPLatitude", "CF-IPLongitude", "CF-Region", "CF-Postal-Code",
-            "X-Forwarded-For", "X-Real-IP", "CF-Ray"]
-    seen = {name: request.headers.get(name) for name in want}
-    return jsonify(
-        붙어온것={k: v for k, v in seen.items() if v},
-        안붙은것=[k for k, v in seen.items() if not v],
-        지도점찍기가능=bool(seen["CF-IPLatitude"] and seen["CF-IPLongitude"]),
-        나라알수있음=bool(seen["CF-IPCountry"]),
-        직접보이는주소=request.remote_addr,
-    )
-
 
 @app.route('/api/debug/deploy-log')
 @login_required(admin_only=True)
