@@ -4,7 +4,8 @@
 관리자 화면이 그 폴더를 읽어 나라·주소·횟수를 센다.
 
   한 줄  = {"t":시각, "svc":서비스, "ip":접속주소, "cc":나라,
-            "city":도시, "lat":위도, "lon":경도, "path":경로}
+            "city":도시, "lat":위도, "lon":경도, "path":경로,
+            "via":"cf" 또는 "direct"}
   한 파일 = <보관함>/<서비스>-YYYY-MM-DD.jsonl  (하루 한 장)
 
 지켜야 할 것 셋:
@@ -77,10 +78,23 @@ def is_asset(path):
     return lowered.endswith(_ASSET_SUFFIXES)
 
 
-def record(service, path, get_header):
-    """접속 한 건을 적는다. 실패해도 예외를 밖으로 내보내지 않는다."""
+def record(service, path, get_header, direct_ip=None):
+    """접속 한 건을 적는다. 실패해도 예외를 밖으로 내보내지 않는다.
+
+    direct_ip 는 서버가 직접 본 주소다. Cloudflare를 거쳐 오면 그것은 터널의
+    주소라 쓸모가 없지만, 공유기에 열린 포트로 곧장 들어온 접속에는 그것이
+    유일한 단서다. 그래서 머리말이 없을 때만 쓰고 'direct'로 표시해 둔다.
+    """
     try:
         if is_asset(path):
+            return
+        via_cf = True
+        ip = client_ip(get_header)
+        if not ip:
+            via_cf = False
+            ip = (direct_ip or "").strip()
+        # 우리 서버가 스스로에게 보내는 생존 확인은 방문자가 아니다.
+        if not ip or ip in ("127.0.0.1", "::1", "localhost"):
             return
         now = datetime.now(KST)
         # 위도·경도·도시는 Cloudflare에서 '방문자 위치 머리말'을 켜면 붙어 온다.
@@ -88,7 +102,8 @@ def record(service, path, get_header):
         line = {
             "t": now.isoformat(timespec="seconds"),
             "svc": service,
-            "ip": client_ip(get_header) or "",
+            "ip": ip,
+            "via": "cf" if via_cf else "direct",
             "cc": _first_value(get_header, "CF-IPCountry") or "",
             "city": _first_value(get_header, "CF-IPCity") or "",
             "lat": _first_value(get_header, "CF-IPLatitude") or "",

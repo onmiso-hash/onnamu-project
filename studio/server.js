@@ -15,7 +15,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // 로그인 전 요청도 세어야 하므로 빗장(authMiddleware)보다 앞에 둔다.
 const trafficLog = require('./trafficLog.js');
 app.use((req, res, next) => {
-    trafficLog.record('studio', req.path, req);
+    trafficLog.record('studio', req.path, req, req.socket && req.socket.remoteAddress);
     next();
 });
 

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | 접속자 지도</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+    <!-- 화면이 그려지기 '전에' 돈다(대문과 같은 방식). 기본은 언제나 어둡다. -->
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('onnamu-theme');
+                if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg) 100%);
+            color: var(--fg); min-height: 100vh; padding: 40px 20px; line-height: 1.6;
+        }
+        .container { max-width: var(--maxw); margin: 0 auto; }
+        .glass-card {
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl); padding: 20px; border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; gap: 12px; flex-wrap: wrap; }
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
+            text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
+            display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+        }
+        .label-btn { background: none; border: none; color: var(--accent); font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-sm); font-family: inherit; }
+        .label-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+        .range-btn { border: 1px solid var(--border); color: var(--fg-soft); background: var(--bg-sunken); padding: 6px 14px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+        .range-btn[aria-pressed="true"] { background: var(--accent-tint); border-color: var(--accent-line); color: var(--accent); }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+        .stat-value { font-size: 1.9rem; font-weight: 800; color: var(--fg); }
+        .stat-sub { font-size: 0.72rem; color: var(--fg-faint); margin-top: 4px; }
+
+        /* 시간대별 막대 — 폭주가 '언제' 있었는지가 이 화면의 핵심이라 위쪽에 크게 둔다. */
+        .bars { display: flex; align-items: flex-end; gap: 3px; height: 140px; overflow-x: auto; padding-top: 10px; }
+        .bar-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 14px; flex: 1 0 14px; height: 100%; }
+        .bar { width: 100%; background: var(--accent); border-radius: var(--radius-xs) var(--radius-xs) 0 0; min-height: 2px; opacity: 0.85; }
+        .bar.peak { background: var(--danger); opacity: 1; }
+        .bar-lab { font-size: 0.6rem; color: var(--fg-faint); margin-top: 6px; white-space: nowrap; }
+
+        .map-wrap { position: relative; overflow-x: auto; }
+        svg.worldmap { width: 100%; min-width: 640px; height: auto; display: block; }
+        .land { fill: var(--bg-sunken); stroke: var(--border-soft); stroke-width: 0.4; vector-effect: non-scaling-stroke; }
+        .land.hit { fill: var(--accent-tint); stroke: var(--accent-line); }
+        .dot { fill: var(--accent); fill-opacity: 0.55; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+        .dot.hot { fill: var(--danger); stroke: var(--danger); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border-soft); white-space: nowrap; }
+        th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--fg-soft); font-weight: 700; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        tbody tr:hover { background: var(--bg-elev); }
+        .ip { font-family: ui-monospace, Consolas, monospace; color: var(--fg); }
+        .tag { display: inline-block; font-size: 0.65rem; padding: 1px 7px; border-radius: var(--radius-full); background: var(--accent-tint-soft); color: var(--accent); margin-right: 4px; }
+        .table-scroll { overflow-x: auto; max-height: 520px; overflow-y: auto; }
+
+        .empty { color: var(--fg-muted); font-size: 0.9rem; padding: 30px 10px; text-align: center; }
+        .note { font-size: 0.75rem; color: var(--fg-faint); margin-top: 10px; }
+        footer { margin-top: 60px; font-size: 0.8rem; color: var(--fg-faint); text-align: center; }
+        @media (max-width: 600px) { body { padding: 20px 15px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="topbar glass-card">
+        <span style="font-weight:700;">🌍 접속자 지도</span>
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <span style="font-size:0.8rem; color:var(--fg-muted);">👤 {{ me }} (관리자)</span>
+            <a href="/" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">대문</a>
+            <a href="/admin/accounts" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">계정 관리</a>
+            <span id="updated" style="font-size:0.75rem; color:var(--fg-faint);">불러오는 중…</span>
+        </div>
+    </div>
+
+    <div class="section-label">
+        <span>기간</span>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="range-btn" data-days="1" aria-pressed="true">오늘</button>
+            <button type="button" class="range-btn" data-days="7" aria-pressed="false">7일</button>
+            <button type="button" class="range-btn" data-days="30" aria-pressed="false">30일</button>
+            <button type="button" class="label-btn" id="reload">지금 새로고침</button>
+            <label style="font-size:0.7rem; color:var(--fg-soft); display:flex; align-items:center; gap:5px;">
+                <input type="checkbox" id="auto" checked> 1분마다 자동
+            </label>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">요청 수</div>
+            <div class="stat-value" id="sum-hits">-</div>
+            <div class="stat-sub">꾸밈 파일(그림·글꼴 등)은 세지 않습니다</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">접속 주소 수</div>
+            <div class="stat-value" id="sum-ips">-</div>
+            <div class="stat-sub" id="sum-direct">서로 다른 주소의 개수</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">나라 수</div>
+            <div class="stat-value" id="sum-countries">-</div>
+            <div class="stat-sub" id="sum-services">서비스별 내역</div>
+        </div>
+    </div>
+
+    <div class="section-label"><span id="bars-title">시간대별 요청</span><span style="text-transform:none; letter-spacing:0; font-weight:400;" id="bars-peak"></span></div>
+    <div class="glass-card"><div class="bars" id="bars"></div></div>
+
+    <div class="section-label"><span>세계 지도</span><span style="text-transform:none; letter-spacing:0; font-weight:400;" id="map-note"></span></div>
+    <div class="glass-card map-wrap"><div id="map"></div></div>
+
+    <div class="section-label"><span>나라별</span></div>
+    <div class="glass-card table-scroll">
+        <table>
+            <thead><tr><th>나라</th><th class="num">요청</th><th class="num">주소 수</th></tr></thead>
+            <tbody id="tbody-country"></tbody>
+        </table>
+    </div>
+
+    <div class="section-label"><span>접속 주소별</span><span style="text-transform:none; letter-spacing:0; font-weight:400;" id="ip-note"></span></div>
+    <div class="glass-card table-scroll">
+        <table>
+            <thead><tr><th>접속 주소</th><th>나라</th><th class="num">요청</th><th>서비스</th><th>마지막 접속</th></tr></thead>
+            <tbody id="tbody-ip"></tbody>
+        </table>
+    </div>
+
+    <footer>기록은 30일치만 보관하며, 그보다 오래된 것은 저절로 지워집니다.</footer>
+</div>
+
+<script>
+const MAP_URL = "{{ url_for('static', filename='world-map.json') }}";
+const W = 1000, H = 500;   // 가로 = 경도 360도, 세로 = 위도 180도
+
+let world = null;
+let days = 1;
+let timer = null;
+
+// 나라 이름을 우리말로. 브라우저가 못 하면 지도 자료의 이름을 그대로 쓴다.
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames(['ko'], { type: 'region' }); } catch (e) { }
+function countryName(code) {
+    if (code === '??') return '알 수 없음';
+    if (regionNames) { try { const n = regionNames.of(code); if (n && n !== code) return n; } catch (e) { } }
+    const c = world && world.byCode[code];
+    return (c && c.n) || code;
+}
+
+function project(lon, lat) {
+    return [(Number(lon) + 180) / 360 * W, (90 - Number(lat)) / 180 * H];
+}
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (m) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]
+    ));
+}
+
+async function loadWorld() {
+    const res = await fetch(MAP_URL);
+    const raw = await res.json();
+    const byCode = {};
+    for (const c of raw.countries) byCode[c.c] = c;
+    world = { list: raw.countries, byCode };
+}
+
+function drawMap(data) {
+    if (!world) return;
+    const hits = {};
+    for (const row of data['나라별']) hits[row['나라']] = row;
+
+    const parts = [`<svg class="worldmap" viewBox="0 0 ${W} ${H}" role="img" aria-label="나라별 접속 지도">`];
+
+    // 1) 나라 모양 — 접속이 있었던 나라는 강조색으로 칠한다
+    for (const c of world.list) {
+        if (!c.g || c.g.length === 0) continue;
+        const on = !!hits[c.c];
+        const d = c.g.map((ring) => 'M' + ring.map(([lon, lat]) => {
+            const [x, y] = project(lon, lat);
+            return x.toFixed(1) + ' ' + y.toFixed(1);
+        }).join('L') + 'Z').join(' ');
+        parts.push(`<path class="land${on ? ' hit' : ''}" d="${d}"><title>${esc(countryName(c.c))}${on ? ' — ' + hits[c.c]['요청'] + '건' : ''}</title></path>`);
+    }
+
+    // 2) 점 — 접속 주소가 도시 좌표를 갖고 있으면 그 자리에, 없으면 나라 한가운데에
+    const dots = [];
+    const byCountry = {};
+    let 정확한좌표 = 0;
+    for (const row of data['주소별']) {
+        if (row['위도'] && row['경도']) {
+            dots.push({ lon: row['경도'], lat: row['위도'], n: row['요청'],
+                        label: row['주소'] + ' · ' + countryName(row['나라']) + (row['도시'] ? ' · ' + row['도시'] : '') + ' · ' + row['요청'] + '건' });
+            정확한좌표++;
+        } else {
+            const code = row['나라'];
+            byCountry[code] = (byCountry[code] || 0) + row['요청'];
+        }
+    }
+    for (const [code, n] of Object.entries(byCountry)) {
+        const c = world.byCode[code];
+        if (!c || !c.p) continue;
+        dots.push({ lon: c.p[0], lat: c.p[1], n: n, label: countryName(code) + ' · ' + n + '건 (나라 한가운데)' });
+    }
+
+    const max = dots.reduce((m, d) => Math.max(m, d.n), 1);
+    for (const dot of dots.sort((a, b) => b.n - a.n)) {
+        const [x, y] = project(dot.lon, dot.lat);
+        const r = 3 + 14 * Math.sqrt(dot.n / max);
+        const hot = dot.n >= max * 0.5 && dots.length > 1;
+        parts.push(`<circle class="dot${hot ? ' hot' : ''}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(1)}"><title>${esc(dot.label)}</title></circle>`);
+    }
+    parts.push('</svg>');
+    document.getElementById('map').innerHTML = parts.join('');
+
+    document.getElementById('map-note').textContent = 정확한좌표 > 0
+        ? `점 ${dots.length}개 · 그중 ${정확한좌표}개는 도시 좌표`
+        : '점은 나라 한가운데에 찍힙니다 — Cloudflare에서 방문자 위치를 켜면 도시 자리로 옮겨집니다';
+}
+
+function drawBars(data) {
+    const rows = data['시간별'];
+    const box = document.getElementById('bars');
+    document.getElementById('bars-title').textContent = data['묶음'] === '시간' ? '시간대별 요청' : '날짜별 요청';
+    if (rows.length === 0) { box.innerHTML = '<div class="empty">아직 기록이 없습니다.</div>'; document.getElementById('bars-peak').textContent = ''; return; }
+    const max = rows.reduce((m, r) => Math.max(m, r['요청']), 1);
+    const peak = rows.find((r) => r['요청'] === max);
+    box.innerHTML = rows.map((r) => {
+        const h = Math.max(2, Math.round(r['요청'] / max * 110));
+        const lab = data['묶음'] === '시간' ? r['때'].slice(11) + '시' : r['때'].slice(5);
+        return `<div class="bar-col" title="${esc(r['때'])} · ${r['요청']}건">
+                  <div class="bar${r['요청'] === max ? ' peak' : ''}" style="height:${h}px"></div>
+                  <div class="bar-lab">${esc(lab)}</div>
+                </div>`;
+    }).join('');
+    document.getElementById('bars-peak').textContent = `가장 몰린 때: ${peak['때']} · ${peak['요청']}건`;
+}
+
+function drawTables(data) {
+    const ct = document.getElementById('tbody-country');
+    ct.innerHTML = data['나라별'].length === 0
+        ? '<tr><td colspan="3" class="empty">아직 기록이 없습니다.</td></tr>'
+        : data['나라별'].map((r) => `<tr>
+              <td>${esc(countryName(r['나라']))} <span style="color:var(--fg-faint)">${esc(r['나라'])}</span></td>
+              <td class="num">${r['요청'].toLocaleString()}</td>
+              <td class="num">${r['주소수'].toLocaleString()}</td></tr>`).join('');
+
+    const it = document.getElementById('tbody-ip');
+    it.innerHTML = data['주소별'].length === 0
+        ? '<tr><td colspan="5" class="empty">아직 기록이 없습니다.</td></tr>'
+        : data['주소별'].map((r) => `<tr>
+              <td class="ip">${esc(r['주소'])}${r['직접'] ? ' <span class="tag" title="Cloudflare를 거치지 않고 공유기 포트로 곧장 들어왔습니다">직접</span>' : ''}</td>
+              <td>${esc(countryName(r['나라']))}${r['도시'] ? ' · ' + esc(r['도시']) : ''}</td>
+              <td class="num">${r['요청'].toLocaleString()}</td>
+              <td>${Object.entries(r['서비스']).map(([k, v]) => `<span class="tag">${esc(k)} ${v}</span>`).join('')}</td>
+              <td style="color:var(--fg-muted)">${esc((r['마지막'] || '').replace('T', ' ').slice(0, 16))}</td></tr>`).join('');
+
+    document.getElementById('ip-note').textContent = data['주소별_잘림'] > 0
+        ? `요청이 많은 300개만 보입니다 (${data['주소별_잘림']}개 더 있음)` : '';
+}
+
+async function load() {
+    try {
+        const res = await fetch('/api/traffic/summary?days=' + days, { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('불러오지 못했습니다 (' + res.status + ')');
+        const data = await res.json();
+
+        document.getElementById('sum-hits').textContent = data['합계']['요청'].toLocaleString();
+        document.getElementById('sum-ips').textContent = data['합계']['주소수'].toLocaleString();
+        document.getElementById('sum-countries').textContent = data['합계']['나라수'].toLocaleString();
+        document.getElementById('sum-direct').textContent = data['직접접속'] > 0
+            ? `서로 다른 주소 · 그중 ${data['직접접속']}개는 Cloudflare를 안 거친 직접 접속`
+            : '서로 다른 주소의 개수';
+        const svc = Object.entries(data['서비스별']);
+        document.getElementById('sum-services').textContent = svc.length
+            ? svc.map(([k, v]) => `${k} ${v.toLocaleString()}`).join(' · ') : '서비스별 내역 없음';
+
+        drawBars(data);
+        drawMap(data);
+        drawTables(data);
+
+        const now = new Date();
+        document.getElementById('updated').textContent = '갱신 ' + now.toTimeString().slice(0, 8)
+            + (data['보관함있음'] ? '' : ' · 보관함을 찾지 못했습니다');
+    } catch (e) {
+        document.getElementById('updated').textContent = '갱신 실패 — ' + e.message;
+    }
+}
+
+document.querySelectorAll('.range-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+        days = Number(btn.dataset.days);
+        document.querySelectorAll('.range-btn').forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
+        load();
+    });
+});
+document.getElementById('reload').addEventListener('click', load);
+document.getElementById('auto').addEventListener('change', (e) => {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (e.target.checked) timer = setInterval(load, 60000);
+});
+
+loadWorld().then(load).catch(() => load());
+timer = setInterval(load, 60000);
+</script>
+</body>
+</html>

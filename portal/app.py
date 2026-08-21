@@ -10,6 +10,7 @@ from auth_helper import (generate_auth_token, login_required, verify_token,
                          set_permission_source, is_machine_identity,
                          current_identity, resolve_user, shared_token)
 import traffic_log
+import traffic_view
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -20,7 +21,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 def record_traffic():
     """접속 한 건을 보관함에 적는다(관리자 화면의 접속자 지도용).
     기록은 곁다리라 실패해도 화면에 영향을 주지 않는다 — traffic_log가 삼킨다."""
-    traffic_log.record("portal", request.path, request.headers.get)
+    traffic_log.record("portal", request.path, request.headers.get, request.remote_addr)
 
 
 @app.after_request
@@ -454,6 +455,30 @@ def account_admin_required(fn):
         g.me = me
         return fn(*args, **kwargs)
     return wrapper
+
+# ---------------------------------------------------------------------
+# 접속자 지도 (관리자 전용)
+#
+# 여기 실리는 것은 방문자의 접속 주소다. 남에게 보이면 안 되는 자료라
+# 계정 관리와 같은 빗장(account_admin_required)을 쓴다 — 30일짜리 출입증에
+# 박힌 표시만 믿지 않고 계정 표를 지금 다시 본다.
+# ---------------------------------------------------------------------
+@app.route('/admin/traffic')
+@account_admin_required
+def admin_traffic():
+    return render_template('traffic.html', me=g.me['username'])
+
+
+@app.route('/api/traffic/summary')
+@account_admin_required
+def api_traffic_summary():
+    try:
+        days = int(request.args.get('days', 1))
+    except ValueError:
+        days = 1
+    days = max(1, min(days, 30))
+    return jsonify(traffic_view.summarize(days))
+
 
 @app.route('/admin/accounts')
 @account_admin_required

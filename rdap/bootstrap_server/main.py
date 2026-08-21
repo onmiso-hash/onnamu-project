@@ -100,7 +100,8 @@ app.add_middleware(
 @app.middleware("http")
 async def record_traffic(request: Request, call_next):
     if traffic_log is not None:
-        traffic_log.record("rdap", request.url.path, request.headers.get)
+        traffic_log.record("rdap", request.url.path, request.headers.get,
+                           request.client.host if request.client else None)
     return await call_next(request)
 
 async def proxy_rdap_request(target_url: str):

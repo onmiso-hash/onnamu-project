@@ -5,7 +5,8 @@
 // · 이 파일). 모양이 어긋나면 관리자 화면이 그 줄을 못 읽는다.
 //
 //   한 줄  = {"t":시각, "svc":서비스, "ip":접속주소, "cc":나라,
-//             "city":도시, "lat":위도, "lon":경도, "path":경로}
+//             "city":도시, "lat":위도, "lon":경도, "path":경로,
+//             "via":"cf" 또는 "direct"}
 //   한 파일 = <보관함>/<서비스>-YYYY-MM-DD.jsonl (하루 한 장)
 //
 // 기록은 곁다리다 — 못 적어도 화면은 그대로 나가야 한다. 그래서 모든 실패를
@@ -58,18 +59,26 @@ function dateFor(d) {
     return d.toISOString().slice(0, 10);
 }
 
-function record(service, reqPath, req) {
+// directIp = 서버가 직접 본 주소. Cloudflare를 거쳐 오면 터널의 주소라 쓸모가
+// 없지만, 공유기에 열린 포트로 곧장 들어온 접속에는 그것이 유일한 단서다.
+function record(service, reqPath, req, directIp) {
     let fileName;
     let text;
     try {
         if (isAsset(reqPath)) return;
+        let viaCf = true;
+        let ip = firstValue(req, ['CF-Connecting-IP', 'X-Forwarded-For', 'X-Real-IP']);
+        if (!ip) { viaCf = false; ip = String(directIp || '').trim(); }
+        // 우리 서버가 스스로에게 보내는 생존 확인은 방문자가 아니다.
+        if (!ip || ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') return;
         const now = nowInKorea();
         // 도시·위도·경도는 Cloudflare에서 '방문자 위치 머리말'을 켜면 붙어 온다.
         // 안 켜져 있으면 빈 칸으로 쌓이고, 켜는 순간부터 저절로 채워진다.
         const line = {
             t: stampFor(now),
             svc: service,
-            ip: firstValue(req, ['CF-Connecting-IP', 'X-Forwarded-For', 'X-Real-IP']),
+            ip: ip,
+            via: viaCf ? 'cf' : 'direct',
             cc: firstValue(req, ['CF-IPCountry']),
             city: firstValue(req, ['CF-IPCity']),
             lat: firstValue(req, ['CF-IPLatitude']),
