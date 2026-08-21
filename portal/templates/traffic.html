@@ -36,8 +36,17 @@
         .label-btn { background: none; border: none; color: var(--accent); font-size: 0.65rem; font-weight: 700; cursor: pointer; text-transform: uppercase; padding: 2px 8px; border-radius: var(--radius-sm); font-family: inherit; }
         .label-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-        .range-btn { border: 1px solid var(--border); color: var(--fg-soft); background: var(--bg-sunken); padding: 6px 14px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .range-btn[aria-pressed="true"] { background: var(--accent-tint); border-color: var(--accent-line); color: var(--accent); }
+        .range-btn {
+            border: 1px solid var(--accent-line); color: var(--accent); background: var(--accent-tint);
+            padding: 6px 16px; border-radius: var(--radius-full); font-size: 0.78rem; font-weight: 700;
+            cursor: pointer; font-family: inherit;
+            transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+        }
+        .range-btn:hover { background: var(--accent); color: var(--on-accent); transform: translateY(-1px); box-shadow: 0 2px 10px var(--accent-glow); }
+        .range-btn:active { transform: translateY(0); }
+        .range-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        /* 지금 고른 기간은 꽉 찬 색으로 둬서 마우스를 치워도 어느 것인지 남는다. */
+        .range-btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); box-shadow: 0 2px 12px var(--accent-glow); }
 
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
         .stat-value { font-size: 1.9rem; font-weight: 800; color: var(--fg); }
@@ -51,6 +60,16 @@
         .bar-lab { font-size: 0.6rem; color: var(--fg-faint); margin-top: 6px; white-space: nowrap; }
 
         .map-wrap { position: relative; }
+        /* 설명 풍선을 직접 그린다. 브라우저가 기본으로 주는 풍선(<title>)은 1초쯤
+           기다려야 떠서, 지도를 훑어볼 때 아무 반응이 없는 것처럼 느껴진다. */
+        .map-tip {
+            position: fixed; pointer-events: none; z-index: 50; display: none;
+            background: var(--bg-elev); border: 1px solid var(--accent-line);
+            color: var(--fg); border-radius: var(--radius-sm); padding: 6px 10px;
+            font-size: 0.76rem; line-height: 1.5; white-space: nowrap;
+            box-shadow: var(--shadow-lg); backdrop-filter: blur(6px);
+        }
+        .map-tip b { color: var(--accent); }
         svg.worldmap { width: 100%; height: auto; display: block; touch-action: none; cursor: grab; }
         svg.worldmap.dragging { cursor: grabbing; }
         .map-controls { display: flex; gap: 6px; align-items: center; }
@@ -70,8 +89,20 @@
         /* 이름표는 땅 위에 얹히므로 바탕색 테두리를 둘러 글자가 묻히지 않게 한다. */
         .dot-label { fill: var(--fg); stroke: var(--bg); stroke-width: 3; paint-order: stroke;
                      vector-effect: non-scaling-stroke; pointer-events: none; font-weight: 700; }
-        .land { fill: var(--bg-sunken); stroke: var(--border-soft); stroke-width: 0.4; vector-effect: non-scaling-stroke; }
+        .land {
+            fill: var(--bg-sunken); stroke: var(--border-soft); stroke-width: 0.4;
+            vector-effect: non-scaling-stroke;
+            transition: fill 0.12s ease, transform 0.12s ease, filter 0.12s ease;
+        }
         .land.hit { fill: var(--accent-tint); stroke: var(--accent-line); }
+        /* 마우스를 올린 나라만 살짝 떠오른다. 올리는 높이(--lift)는 확대 배율에
+           따라 다시 계산해 넣는다 — 고정값을 쓰면 크게 확대했을 때 나라가
+           화면 밖으로 튀어 오른다(지도 안 길이는 배율만큼 늘어나기 때문). */
+        .land:hover {
+            fill: var(--accent-soft); stroke: var(--accent);
+            transform: translateY(var(--lift, -2px));
+            filter: drop-shadow(0 var(--shade, 3px) var(--blur, 4px) rgba(0, 0, 0, 0.55));
+        }
         .dot { fill: var(--accent); fill-opacity: 0.55; stroke: var(--accent); stroke-width: 1; vector-effect: non-scaling-stroke; }
         .dot.hot { fill: var(--danger); stroke: var(--danger); }
 
@@ -166,6 +197,8 @@
             <tbody id="tbody-ip"></tbody>
         </table>
     </div>
+
+    <div class="map-tip" id="map-tip"></div>
 
     <footer>기록은 30일치만 보관하며, 그보다 오래된 것은 저절로 지워집니다.</footer>
 </div>
@@ -270,6 +303,10 @@ function applyView() {
         el.setAttribute('x', (Number(el.dataset.cx) + Number(el.dataset.r) / k + 3 / k).toFixed(3));
         el.setAttribute('y', (Number(el.dataset.cy) + 4 / k).toFixed(3));
     });
+    // 떠오르는 높이·그림자는 지도 안 길이라 배율만큼 나눠야 눈에 보이는 크기가 같다.
+    svgEl.style.setProperty('--lift', (-2 / k) + 'px');
+    svgEl.style.setProperty('--shade', (3 / k) + 'px');
+    svgEl.style.setProperty('--blur', (4 / k) + 'px');
     const lvl = document.getElementById('zoom-level');
     if (lvl) lvl.textContent = (k < 10 ? k.toFixed(1) : Math.round(k)) + '배';
 }
@@ -314,8 +351,10 @@ function drawMap(data) {
         const on = !!hits[c.c];
         const d = c.g.flatMap((ring) => ringPaths(ring)).join(' ');
         if (!d) continue;
-        parts.push('<path class="land' + (on ? ' hit' : '') + '" d="' + d + '"><title>'
-            + esc(countryName(c.c)) + (on ? ' — ' + hits[c.c]['요청'] + '건' : '') + '</title></path>');
+        const tip = esc(countryName(c.c)) + (on
+            ? ' · <b>' + hits[c.c]['요청'] + '건</b> · 주소 ' + hits[c.c]['주소수'] + '개'
+            : ' · 접속 없음');
+        parts.push('<path class="land' + (on ? ' hit' : '') + '" d="' + d + '" data-tip="' + tip + '"></path>');
     }
 
     // 2) 점 — 접속 주소가 도시 좌표를 갖고 있으면 그 자리에, 없으면 나라 한가운데에
@@ -349,7 +388,8 @@ function drawMap(data) {
         const r = 3 + 14 * Math.sqrt(dot.n / max);
         const hot = dot.n >= max * 0.5 && dots.length > 1;
         parts.push('<circle class="dot' + (hot ? ' hot' : '') + '" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2)
-            + '" r="' + r.toFixed(2) + '" data-r="' + r.toFixed(2) + '"><title>' + esc(dot.label) + '</title></circle>');
+            + '" r="' + r.toFixed(2) + '" data-r="' + r.toFixed(2)
+            + '" data-tip="' + esc(dot.label).replace(/(\d+)건/, '<b>$1건</b>') + '"></circle>');
         labels.push('<text class="dot-label" data-cx="' + x.toFixed(2) + '" data-cy="' + y.toFixed(2)
             + '" data-r="' + r.toFixed(2) + '" data-n="' + dot.n + '" x="' + x.toFixed(2) + '" y="' + y.toFixed(2)
             + '">' + esc(dot.name + ' ' + dot.n) + '</text>');
@@ -365,6 +405,38 @@ function drawMap(data) {
     document.getElementById('map-note').textContent = 정확한좌표 > 0
         ? '점 ' + dots.length + '개 · 그중 ' + 정확한좌표 + '개는 도시 좌표 (끌어서 이동, 휠로 확대)'
         : '점은 나라 한가운데에 찍힙니다 — Cloudflare에서 방문자 위치를 켜면 도시 자리로 옮겨집니다';
+}
+
+// ── 설명 풍선 ────────────────────────────────────────────────────
+// 브라우저 기본 풍선(<title>)은 1초쯤 기다려야 떠서, 지도를 훑을 때 아무 반응이
+// 없는 것처럼 느껴진다. 그래서 직접 그리고 마우스를 따라다니게 한다.
+let mapDragging = false;
+
+// 지도 조각·막대 어디든 data-tip 이 달려 있으면 그 자리에서 바로 뜬다.
+document.addEventListener('pointermove', (ev) => {
+    if (mapDragging) { hideTip(); return; }
+    showTip(ev);
+});
+
+function showTip(ev) {
+    const tipEl = document.getElementById('map-tip');
+    const target = ev.target.closest('[data-tip]');
+    if (!target) { hideTip(); return; }
+    tipEl.innerHTML = target.dataset.tip;
+    tipEl.style.display = 'block';
+
+    let x = ev.clientX + 14;
+    let y = ev.clientY + 14;
+    // 오른쪽·아래 끝에서 잘리지 않도록 반대편으로 넘긴다.
+    if (x + tipEl.offsetWidth > window.innerWidth) x = ev.clientX - tipEl.offsetWidth - 14;
+    if (y + tipEl.offsetHeight > window.innerHeight) y = ev.clientY - tipEl.offsetHeight - 14;
+    tipEl.style.left = Math.max(0, x) + 'px';
+    tipEl.style.top = Math.max(0, y) + 'px';
+}
+
+function hideTip() {
+    const tipEl = document.getElementById('map-tip');
+    if (tipEl) tipEl.style.display = 'none';
 }
 
 // 끌어서 이동 · 휠로 확대 · 두 번 눌러 확대
@@ -383,16 +455,26 @@ function bindMapGestures() {
         svgEl.setPointerCapture(ev.pointerId);
     });
     svgEl.addEventListener('pointermove', (ev) => {
-        if (!dragging) return;
-        const rect = svgEl.getBoundingClientRect();
-        view.x -= (ev.clientX - last[0]) / rect.width * view.w;
-        view.y -= (ev.clientY - last[1]) / rect.height * view.h;
-        last = [ev.clientX, ev.clientY];
-        applyView();
+        if (dragging) {
+            mapDragging = true;
+            hideTip();
+            const rect = svgEl.getBoundingClientRect();
+            view.x -= (ev.clientX - last[0]) / rect.width * view.w;
+            view.y -= (ev.clientY - last[1]) / rect.height * view.h;
+            last = [ev.clientX, ev.clientY];
+            applyView();
+            return;
+        }
+        mapDragging = false;
     });
-    const stop = (ev) => { dragging = false; svgEl.classList.remove('dragging'); };
+    svgEl.addEventListener('pointerleave', hideTip);
+    // 지도 밖에서 손을 떼도 반드시 풀어 준다 — 안 그러면 끌기 상태가 남아
+    // 화면 어디서도 풍선이 안 뜨게 된다.
+    const stop = (ev) => { dragging = false; mapDragging = false; svgEl.classList.remove('dragging'); };
+    // (풍선은 아래 showTip/hideTip이 맡는다 — 기다림 없이 곧바로 뜬다)
     svgEl.addEventListener('pointerup', stop);
     svgEl.addEventListener('pointercancel', stop);
+    window.addEventListener('pointerup', stop);
 
     svgEl.addEventListener('dblclick', (ev) => {
         ev.preventDefault();
@@ -420,7 +502,7 @@ function drawBars(data) {
     box.innerHTML = rows.map((r) => {
         const h = Math.max(2, Math.round(r['요청'] / max * 110));
         const lab = data['묶음'] === '시간' ? r['때'].slice(11) + '시' : r['때'].slice(5);
-        return `<div class="bar-col" title="${esc(r['때'])} · ${r['요청']}건">
+        return `<div class="bar-col" data-tip="${esc(r['때'])} · <b>${r['요청']}건</b>">
                   <div class="bar${r['요청'] === max ? ' peak' : ''}" style="height:${h}px"></div>
                   <div class="bar-lab">${esc(lab)}</div>
                 </div>`;
