@@ -415,6 +415,26 @@ def get_work_events():
     rows = c.fetchall(); conn.close()
     return jsonify([{"date": r[0]} for r in rows])
 
+# ---------------------------------------------------------------------
+# [임시] 접속자 지도 1단계 확인용 — Cloudflare가 방문자의 나라·위치를 붙여
+# 보내는지 재기 위한 주소. 부르는 사람 자신의 정보만 돌려주므로 남의 자료가
+# 새지 않는다. 2단계(접속 기록 남기기)에서 지운다.
+# ---------------------------------------------------------------------
+@app.route('/api/geo-check')
+def geo_check():
+    want = ["CF-Connecting-IP", "CF-IPCountry", "CF-IPCity", "CF-IPContinent",
+            "CF-IPLatitude", "CF-IPLongitude", "CF-Region", "CF-Postal-Code",
+            "X-Forwarded-For", "X-Real-IP", "CF-Ray"]
+    seen = {name: request.headers.get(name) for name in want}
+    return jsonify(
+        붙어온것={k: v for k, v in seen.items() if v},
+        안붙은것=[k for k, v in seen.items() if not v],
+        지도점찍기가능=bool(seen["CF-IPLatitude"] and seen["CF-IPLongitude"]),
+        나라알수있음=bool(seen["CF-IPCountry"]),
+        직접보이는주소=request.remote_addr,
+    )
+
+
 @app.route('/api/debug/deploy-log')
 @login_required(admin_only=True)
 def get_deploy_log():
