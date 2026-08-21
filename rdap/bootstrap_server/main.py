@@ -99,10 +99,13 @@ app.add_middleware(
 # 세고, 이쪽은 누가 어디서 얼마나 두드리는지를 센다.
 @app.middleware("http")
 async def record_traffic(request: Request, call_next):
+    response = await call_next(request)
     if traffic_log is not None:
+        # 답을 받은 뒤에 적는다 — 응답 코드가 있어야 '유효한 요청'을 가릴 수 있다.
         traffic_log.record("rdap", request.url.path, request.headers.get,
-                           request.client.host if request.client else None)
-    return await call_next(request)
+                           request.client.host if request.client else None,
+                           response.status_code)
+    return response
 
 async def proxy_rdap_request(target_url: str):
     """동시 처리 상한을 지키며 프록시를 수행한다.

@@ -6,7 +6,7 @@
 //
 //   한 줄  = {"t":시각, "svc":서비스, "ip":접속주소, "cc":나라,
 //             "city":도시, "lat":위도, "lon":경도, "path":경로,
-//             "via":"cf" 또는 "direct"}
+//             "via":"cf" 또는 "direct", "st":응답코드}
 //   한 파일 = <보관함>/<서비스>-YYYY-MM-DD.jsonl (하루 한 장)
 //
 // 기록은 곁다리다 — 못 적어도 화면은 그대로 나가야 한다. 그래서 모든 실패를
@@ -61,7 +61,9 @@ function dateFor(d) {
 
 // directIp = 서버가 직접 본 주소. Cloudflare를 거쳐 오면 터널의 주소라 쓸모가
 // 없지만, 공유기에 열린 포트로 곧장 들어온 접속에는 그것이 유일한 단서다.
-function record(service, reqPath, req, directIp) {
+// status = 서버가 뭐라고 답했는지(200·404 …). 이것이 있어야 '유효한 요청만'을
+// 가릴 수 있어서, 요청을 받을 때가 아니라 답을 다 내보낸 뒤에 부른다.
+function record(service, reqPath, req, directIp, status) {
     let fileName;
     let text;
     try {
@@ -84,6 +86,7 @@ function record(service, reqPath, req, directIp) {
             lat: firstValue(req, ['CF-IPLatitude']),
             lon: firstValue(req, ['CF-IPLongitude']),
             path: (reqPath || '').slice(0, 200),
+            st: Number(status) || 0,
         };
         fileName = `${service}-${dateFor(now)}.jsonl`;
         text = JSON.stringify(line);

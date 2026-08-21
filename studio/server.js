@@ -15,7 +15,11 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // 로그인 전 요청도 세어야 하므로 빗장(authMiddleware)보다 앞에 둔다.
 const trafficLog = require('./trafficLog.js');
 app.use((req, res, next) => {
-    trafficLog.record('studio', req.path, req, req.socket && req.socket.remoteAddress);
+    // 답을 다 내보낸 뒤에 적는다 — 응답 코드가 있어야 '유효한 요청'을 가를 수 있다.
+    res.on('finish', () => {
+        trafficLog.record('studio', req.path, req,
+            req.socket && req.socket.remoteAddress, res.statusCode);
+    });
     next();
 });
 

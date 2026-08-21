@@ -17,11 +17,16 @@ app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production
 app.secret_key = app.config['SECRET_KEY']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
-@app.before_request
-def record_traffic():
+@app.after_request
+def record_traffic(response):
     """접속 한 건을 보관함에 적는다(관리자 화면의 접속자 지도용).
+
+    답을 내보낼 때 적는다 — 서버가 뭐라고 답했는지(200·404)를 함께 남겨야
+    '유효한 요청만 보기'를 가릴 수 있기 때문이다.
     기록은 곁다리라 실패해도 화면에 영향을 주지 않는다 — traffic_log가 삼킨다."""
-    traffic_log.record("portal", request.path, request.headers.get, request.remote_addr)
+    traffic_log.record("portal", request.path, request.headers.get,
+                       request.remote_addr, response.status_code)
+    return response
 
 
 @app.after_request
@@ -477,7 +482,9 @@ def api_traffic_summary():
     except ValueError:
         days = 1
     days = max(1, min(days, 30))
-    return jsonify(traffic_view.summarize(days))
+    # 'valid=1'이면 훑기·오류를 뺀 진짜 이용만 센다(화면의 체크상자).
+    only_valid = request.args.get('valid') in ('1', 'true', 'on')
+    return jsonify(traffic_view.summarize(days, only_valid=only_valid))
 
 
 @app.route('/admin/accounts')

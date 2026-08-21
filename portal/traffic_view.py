@@ -21,6 +21,31 @@ TRAFFIC_DIR = os.environ.get("TRAFFIC_DIR", "/traffic")
 # 화면에 실어 보내는 접속 주소 줄 수 상한. 이보다 많으면 요청이 많은 순으로 자른다.
 TOP_IPS = 300
 
+# 훑기(있지도 않은 자리를 찾아보는 요청)로 보는 경로. 응답 코드가 없던 시절에
+# 쌓인 옛 기록도 이것으로 가려낸다. 우리 서비스에는 PHP·워드프레스가 한 줄도
+# 없으므로 이런 요청은 전부 남의 서버를 찾는 것이다.
+_JUNK_SUFFIXES = (".php", ".asp", ".aspx", ".jsp", ".cgi", ".env", ".bak", ".sql")
+_JUNK_PARTS = ("/wp-admin", "/wp-content", "/wp-includes", "/xmlrpc",
+               "/phpmyadmin", "/.git", "/.env", "/cgi-bin/", "/vendor/",
+               "/administrator/", "/shell", "/eval-stdin")
+
+
+def is_valid(row):
+    """이 요청을 '유효한 접속'으로 볼 것인가.
+
+    1) 훑기 모양의 경로는 무조건 아니다.
+    2) 응답 코드가 있으면 그것으로 가른다(400 이상은 아니다).
+    3) 응답 코드가 없으면(옛 기록·아직 안 고친 서비스) 판단을 미루고 유효로 둔다 —
+       모르는 것을 무효로 처리하면 멀쩡한 접속이 화면에서 조용히 사라진다.
+    """
+    path = (row.get("path") or "").lower()
+    if path.endswith(_JUNK_SUFFIXES) or any(part in path for part in _JUNK_PARTS):
+        return False
+    status = row.get("st") or 0
+    if status and status >= 400:
+        return False
+    return True
+
 
 def _dates_in_range(days):
     today = datetime.now(KST).date()
@@ -44,12 +69,15 @@ def _files_for(days):
     return sorted(found)
 
 
-def summarize(days=1):
+def summarize(days=1, only_valid=False):
     per_country = {}
     per_ip = {}
     per_service = {}
     per_bucket = {}
     total = 0
+    total_all = 0
+    total_valid = 0
+    junk_by_ip = {}
     # 하루·이틀은 시간 단위로, 그보다 길면 날짜 단위로 묶는다.
     by_hour = days <= 2
 
@@ -71,6 +99,15 @@ def summarize(days=1):
                 ip = row.get("ip") or "(주소 없음)"
                 country = row.get("cc") or "??"
                 stamp = row.get("t") or ""
+
+                total_all += 1
+                valid = is_valid(row)
+                if valid:
+                    total_valid += 1
+                else:
+                    junk_by_ip[ip] = junk_by_ip.get(ip, 0) + 1
+                if only_valid and not valid:
+                    continue
                 total += 1
 
                 per_service[service] = per_service.get(service, 0) + 1
@@ -111,8 +148,16 @@ def summarize(days=1):
     주소별 = sorted(per_ip.values(), key=lambda d: -d["요청"])
     시간별 = [{"때": k, "요청": v} for k, v in sorted(per_bucket.items())]
 
+    걸러진주소 = sorted(({"주소": k, "요청": v} for k, v in junk_by_ip.items()),
+                     key=lambda d: -d["요청"])[:5]
+
     return {
         "기간일수": days,
+        "유효만보기": bool(only_valid),
+        "전체요청": total_all,
+        "유효요청": total_valid,
+        "걸러진요청": total_all - total_valid,
+        "걸러진주소": 걸러진주소,
         "묶음": "시간" if by_hour else "날짜",
         "합계": {
             "요청": total,
