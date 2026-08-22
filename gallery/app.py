@@ -28,6 +28,7 @@ from flask import (
 )
 from auth_helper import login_required, verify_token, resolve_user, upload_allowed, current_identity
 from cache_policy import is_immutable_media, IMMUTABLE, NO_STORE
+from werkzeug.serving import WSGIRequestHandler
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -37,6 +38,18 @@ def get_safe_filename(filename: str) -> str:
     if not cleaned or cleaned.startswith('.'):
         cleaned = "uploaded_file" + (Path(base).suffix or ".dat")
     return cleaned
+
+def _hide_server_banner(self) -> str:
+    """응답의 Server 칸에 뼈대 이름과 파이썬 판 번호 대신 서비스 이름만 남긴다.
+
+    응답에 Server 칸을 덧붙이는 방식은 쓸 수 없다 — 개발용 서버가 send_response
+    단계에서 이 칸을 먼저 적어 보내므로 같은 칸이 두 줄로 나간다(2026-08-23,
+    도는 컨테이너 안의 http.server 원본을 읽어 확인). 그래서 이름을 만들어 내는
+    함수 자체를 갈아 끼운다.
+    """
+    return "onnamu"
+
+WSGIRequestHandler.version_string = _hide_server_banner
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -95,6 +108,40 @@ def add_no_cache(response):
         response.headers['Expires'] = '0'
         response.headers['Surrogate-Control'] = 'no-store'
     return response
+
+# ═══════════════════════════════════════════════════════════
+# 오류 화면 — 뼈대 기본 문구(영어)가 그대로 나가지 않게 한다
+# ═══════════════════════════════════════════════════════════
+_ERROR_STYLE = (
+    "body{margin:0;min-height:100vh;display:flex;align-items:center;"
+    "justify-content:center;background:#111;color:#eee;text-align:center;"
+    "font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif}"
+    "h1{font-size:1.4rem;font-weight:600;margin:0 0 .6rem}"
+    "p{margin:0 0 1.4rem;color:#9aa0a6;font-size:.95rem}"
+    "a{color:#8ab4f8;text-decoration:none;font-size:.95rem}"
+)
+
+
+def _error_page(title: str, message: str, status: int):
+    """어느 오류든 같은 틀의 우리말 안내를 돌려준다. 서버 사정은 적지 않는다."""
+    body = (
+        '<!doctype html><html lang="ko"><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        f"<title>{title}</title><style>{_ERROR_STYLE}</style>"
+        f"<div><h1>{title}</h1><p>{message}</p>"
+        '<a href="/">처음 화면으로</a></div>'
+    )
+    return body, status
+
+
+@app.errorhandler(404)
+def handle_not_found(_error):
+    return _error_page("찾는 화면이 없습니다", "주소가 바뀌었거나 지워진 항목일 수 있습니다.", 404)
+
+
+@app.errorhandler(500)
+def handle_server_error(_error):
+    return _error_page("잠시 문제가 생겼습니다", "조금 뒤에 다시 시도해 주세요.", 500)
 
 # ═══════════════════════════════════════════════════════════
 # 유틸리티
