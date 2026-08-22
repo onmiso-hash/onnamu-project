@@ -29,6 +29,7 @@ from flask import (
 from auth_helper import login_required, verify_token, resolve_user, upload_allowed, current_identity
 from cache_policy import is_immutable_media, IMMUTABLE, NO_STORE
 from werkzeug.serving import WSGIRequestHandler
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 def get_safe_filename(filename: str) -> str:
     base = os.path.basename(filename)
@@ -56,6 +57,12 @@ app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production
 app.config['PORTAL_URL'] = os.environ.get("PORTAL_URL", "https://onnamu.kr")
 app.config['SESSION_COOKIE_DOMAIN'] = '.onnamu.kr'
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
+# 앞단(nginx)이 암호화를 맡으면 앱에는 암호화 없는 요청으로 들어온다. 그대로 두면
+# 로그인 뒤 돌아올 주소를 http로 만들어 왕복이 끊긴다(돌아올 자리가 암호화 전용이므로).
+# 앞단이 알려주는 '실제 접속 방식'만 받아들인다 — 주소와 접속자 정보는 종전대로 둔다.
+# 앞단이 없는 길(집 안에서 직접 부를 때)에서는 그 표시가 없으므로 아무것도 바뀌지 않는다.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1)
 
 MEDIA_ROOT = Path(os.environ.get("MEDIA_ROOT", "/media"))
 

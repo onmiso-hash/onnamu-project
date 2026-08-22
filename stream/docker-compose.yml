@@ -17,6 +17,8 @@ services:
       - stream-certbot
     ports:
       - "5443:5443"
+      # 대용량 올리기 통로 — 공유기가 바깥 50002번을 이 번호로 넘긴다.
+      - "5444:5444"
     volumes:
       - ./nginx/stream.conf.tpl:/etc/nginx/stream.conf.tpl:ro
       - stream_letsencrypt:/etc/letsencrypt:ro
