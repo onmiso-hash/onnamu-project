@@ -6,287 +6,420 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>RDAP Real-time Dashboard v2</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>RDAP 조회 통계</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap');
-        body { font-family: 'Pretendard', sans-serif; background-color: #0f172a; color: #f8fafc; }
-        .card { background: #1e293b; padding: 1.25rem; border-radius: 1rem; border: 1px solid #334155; }
-        .stat-card { border-left: 4px solid #6366f1; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        .chart-wrapper { height: 240px; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
-        canvas { max-width: 100% !important; max-height: 100% !important; }
+        /* 바깥에서 글꼴·꾸밈 파일을 받아 오지 않는다 — 받아 오는 곳이 느리면
+           통계 화면 전체가 그만큼 늦게 뜨고, 막히면 아예 모양이 깨진다. */
+        :root {
+            --bg: #0f172a; --card: #1e293b; --line: #334155; --line-soft: #1f2b3e;
+            --fg: #f8fafc; --fg-soft: #94a3b8; --fg-faint: #64748b;
+            --ok: #10b981; --ok-soft: rgba(16, 185, 129, 0.15);
+            --bad: #f43f5e; --bad-soft: rgba(244, 63, 94, 0.15);
+            --warn: #f59e0b; --info: #6366f1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Pretendard', 'Segoe UI', -apple-system, 'Malgun Gothic', sans-serif;
+            background: var(--bg); color: var(--fg); line-height: 1.6;
+            padding: 28px 18px 80px;
+        }
+        .wrap { max-width: 1180px; margin: 0 auto; }
+        h1 { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.5px; }
+        .sub { font-size: 0.82rem; color: var(--fg-soft); margin-top: 4px; }
+
+        header { display: flex; flex-wrap: wrap; gap: 14px; justify-content: space-between; align-items: flex-start; margin-bottom: 22px; }
+        .btn {
+            border: 1px solid var(--line); background: transparent; color: var(--fg-soft);
+            padding: 7px 15px; border-radius: 999px; font-size: 0.8rem; font-weight: 700;
+            cursor: pointer; font-family: inherit; transition: all 0.14s ease;
+        }
+        .btn:hover { border-color: var(--ok); color: var(--ok); }
+        .btn.on { background: var(--ok); border-color: var(--ok); color: #06281d; }
+        .btn.plain { border-color: var(--info); color: #a5b4fc; }
+        .btn.plain:hover { background: var(--info); color: #fff; }
+        .btns { display: flex; gap: 7px; flex-wrap: wrap; }
+
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+        section { margin-top: 26px; }
+        h2 { font-size: 0.72rem; font-weight: 800; color: var(--fg-soft); letter-spacing: 1.6px;
+             text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        h2::before { content: ''; width: 3px; height: 13px; background: var(--ok); border-radius: 2px; }
+        h2 .hint { font-size: 0.68rem; font-weight: 600; color: var(--fg-faint); letter-spacing: 0; text-transform: none; }
+
+        .grid { display: grid; gap: 14px; }
+        .g4 { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+        .g2 { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+        .kpi-label { font-size: 0.7rem; color: var(--fg-soft); font-weight: 700; letter-spacing: 0.8px; }
+        .kpi-num { font-size: 2.1rem; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+        .kpi-sub { font-size: 0.72rem; color: var(--fg-faint); }
+        .kpi.good { border-left: 4px solid var(--ok); }
+        .kpi.bad { border-left: 4px solid var(--bad); }
+        .kpi.warn { border-left: 4px solid var(--warn); }
+        .kpi.gray { border-left: 4px solid var(--fg-faint); }
+
+        /* 시간대 막대 — 언제 몰렸는지가 총량보다 중요하다. 누적 평균은 폭주를 지운다. */
+        .bars { display: flex; align-items: flex-end; gap: 3px; height: 150px; overflow-x: auto; padding-top: 8px; }
+        .col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+               min-width: 15px; flex: 1 0 15px; height: 100%; }
+        .stack { width: 100%; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; }
+        .seg-look { background: var(--ok); }
+        .seg-scan { background: var(--bad); opacity: 0.75; }
+        .seg-etc { background: var(--fg-faint); opacity: 0.6; }
+        .stack div { border-radius: 2px 2px 0 0; }
+        .col-lab { font-size: 0.58rem; color: var(--fg-faint); margin-top: 5px; white-space: nowrap; }
+        .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.72rem; color: var(--fg-soft); margin-top: 10px; }
+        .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+        th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+        th { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 1px; color: var(--fg-faint); font-weight: 700; }
+        td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+        tbody tr:hover { background: rgba(148, 163, 184, 0.07); }
+        .mono { font-family: ui-monospace, Consolas, monospace; }
+        .scroll { overflow: auto; max-height: 430px; }
+        .ok-t { color: var(--ok); font-weight: 700; }
+        .bad-t { color: var(--bad); font-weight: 700; }
+        .faint { color: var(--fg-faint); }
+        .trunc { max-width: 340px; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
+
+        .tag { display: inline-block; font-size: 0.64rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+        .tag.human { background: var(--ok-soft); color: var(--ok); }
+        .tag.machine { background: var(--bad-soft); color: #fb7185; }
+        .tag.unknown { background: rgba(148, 163, 184, 0.15); color: var(--fg-soft); }
+
+        .notice { font-size: 0.78rem; color: var(--fg-soft); background: rgba(99, 102, 241, 0.1);
+                  border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 10px; padding: 11px 15px; }
+        .notice b { color: #a5b4fc; }
+        .empty { color: var(--fg-faint); font-size: 0.85rem; padding: 26px 8px; text-align: center; }
+        footer { margin-top: 46px; font-size: 0.75rem; color: var(--fg-faint); text-align: center; line-height: 1.9; }
+        footer a { color: var(--fg-soft); }
+        details summary { cursor: pointer; font-size: 0.78rem; color: var(--fg-soft); font-weight: 700; }
+        details[open] summary { margin-bottom: 12px; }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div class="max-w-7xl mx-auto">
-        <header class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-                <div class="flex items-center gap-3">
-                    <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 to-green-400">📊 RDAP Statistics</h1>
-                    <span class="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full border border-emerald-500/30 font-bold uppercase tracking-wider">v2.0.4</span>
-                </div>
-                <div class="flex items-center gap-2 mt-2">
-                    <div class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                    <p id="update-time" class="text-sm text-slate-400 font-mono italic">Initializing dashboard...</p>
-                </div>
-            </div>
-            <button onclick="location.reload()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-full transition-all text-sm font-semibold shadow-lg shadow-emerald-500/20 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Manual Refresh
-            </button>
-        </header>
-
-        <!-- Stats Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
-            <div class="card stat-card border-emerald-500 shadow-xl shadow-emerald-500/5">
-                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Total Hits</p>
-                <p id="total-hits" class="text-4xl font-bold text-white tabular-nums">0</p>
-            </div>
-            <div class="card stat-card border-rose-500 shadow-xl shadow-rose-500/5">
-                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Total Misses</p>
-                <p id="total-misses" class="text-4xl font-bold text-white tabular-nums">0</p>
-            </div>
-            <div class="card stat-card border-emerald-500 shadow-xl shadow-emerald-500/5">
-                <p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Success Rate</p>
-                <p id="success-rate" class="text-4xl font-bold text-white tabular-nums">0%</p>
-            </div>
+<body>
+<div class="wrap">
+    <header>
+        <div>
+            <h1>RDAP 조회 통계</h1>
+            <p class="sub" id="head-sub">불러오는 중…</p>
         </div>
-
-        <!-- Charts Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div class="card">
-                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
-                    <span class="w-1 h-4 bg-emerald-500 rounded-full"></span>
-                    Hits by Category
-                </h2>
-                <div class="chart-wrapper">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-            <div class="card">
-                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
-                    <span class="w-1 h-4 bg-emerald-500 rounded-full"></span>
-                    Top Access Client IPs
-                </h2>
-                <div class="chart-wrapper">
-                    <div style="width: 240px; height: 240px;">
-                        <canvas id="clientChart"></canvas>
-                    </div>
-                </div>
-            </div>
+        <div class="btns">
+            <button class="btn" data-days="1">오늘</button>
+            <button class="btn" data-days="7">7일</button>
+            <button class="btn" data-days="30">30일</button>
+            <button class="btn" data-days="0">전체</button>
+            <button class="btn plain" id="auth-btn" onclick="location.href='/auth/login'">로그인</button>
         </div>
+    </header>
 
-        <!-- Table Grid -->
-        <div class="grid grid-cols-1 gap-8 mb-8">
-            <div class="card overflow-hidden">
-                <h2 class="text-base font-bold mb-4 text-slate-300 flex items-center gap-2">
-                    <span class="w-1 h-4 bg-emerald-500 rounded-full"></span>
-                    Bootstrap File Status
-                </h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="text-xs uppercase text-slate-500 border-b border-slate-700/50">
-                                <th class="py-3 px-4">Resource</th>
-                                <th class="py-3 px-4">Modified Date (KST)</th>
-                                <th class="py-3 px-4 text-right">Published Date</th>
-                            </tr>
-                        </thead>
-                        <tbody id="status-table-body" class="text-sm text-slate-400 font-mono"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <!-- 요약 -->
+    <div class="grid g4" id="kpis"></div>
 
-        <!-- Rankings -->
+    <!-- 시간대 -->
+    <section>
+        <h2>언제 들어왔나 <span class="hint">총량만 보면 한 시간에 몰린 폭주가 평균에 묻힌다</span></h2>
         <div class="card">
-            <h2 class="text-base font-bold mb-6 text-slate-300 flex items-center gap-2">
-                <span class="w-1 h-4 bg-indigo-500 rounded-full"></span>
-                🏆 Real-time Popularity Rankings
-            </h2>
-            <div id="top100-content" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+            <div class="bars" id="bars"></div>
+            <div class="legend">
+                <span><i class="seg-look" style="background:var(--ok)"></i>조회</span>
+                <span><i class="seg-scan" style="background:var(--bad)"></i>훑기·잡요청</span>
+                <span><i class="seg-etc" style="background:var(--fg-faint)"></i>화면·자료</span>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <script>
-        let categoryChart = null;
-        let clientChart = null;
+    <section class="grid g2">
+        <!-- 최상위 도메인 -->
+        <div>
+            <h2>최상위 도메인별 조회 <span class="hint">답할 수 있는 곳과 없는 곳</span></h2>
+            <div class="card scroll" id="tlds"></div>
+        </div>
+        <!-- 종류별 -->
+        <div>
+            <h2>무엇을 조회했나 <span class="hint">종류별 성공·실패</span></h2>
+            <div class="card scroll" id="kinds"></div>
+        </div>
+    </section>
 
-        function parseHits(descriptionArray) {
-            if (!descriptionArray || descriptionArray.length === 0 || descriptionArray[0].includes("Zero queries.")) return 0;
-            let total = 0;
-            descriptionArray.forEach(item => {
-                const parts = item.split('=');
-                if(parts.length >= 2) {
-                    const count = parseInt(parts[0].trim());
-                    if(!isNaN(count)) total += count;
-                }
-            });
-            return total;
-        }
+    <!-- 조회한 주소 -->
+    <section>
+        <h2>조회한 주소
+            <span class="hint">사람이 조회한 것만 볼지, 전부 볼지 고르세요</span>
+        </h2>
+        <div class="btns" style="margin-bottom:10px">
+            <button class="btn on" id="obj-human" onclick="setObjMode('사람')">사람이 조회한 것</button>
+            <button class="btn" id="obj-all" onclick="setObjMode('전체')">전부</button>
+        </div>
+        <div class="card scroll" id="objects"></div>
+    </section>
 
-        async function updateDashboard() {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const apiUrl = isLocal ? '/help' : 'https://bootstrap.rdap.kr/help';
-            
-            try {
-                const response = await fetch(`${apiUrl}?t=${Date.now()}`);
-                if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-                const data = await response.json();
-                const notices = data.notices || [];
+    <section class="grid g2">
+        <!-- 나라별 -->
+        <div>
+            <h2>어느 나라에서</h2>
+            <div class="card scroll" id="countries"></div>
+        </div>
+        <!-- 접속 프로그램 -->
+        <div>
+            <h2>무엇으로 접속했나 <span class="hint">브라우저인지 수집기인지</span></h2>
+            <div class="card scroll" id="agents"></div>
+        </div>
+    </section>
 
-                // 1. Stats Update
-                const totalNotice = notices.find(n => n.title === "Totals");
-                let hits = 0, misses = 0;
-                if (totalNotice && totalNotice.description) {
-                    totalNotice.description.forEach(item => {
-                        if(item.toLowerCase().includes('hits')) hits = parseInt(item.split('=')[1]) || 0;
-                        if(item.toLowerCase().includes('misses')) misses = parseInt(item.split('=')[1]) || 0;
-                    });
-                }
-                document.getElementById('total-hits').innerText = hits.toLocaleString();
-                document.getElementById('total-misses').innerText = misses.toLocaleString();
-                const rate = (hits + misses) > 0 ? ((hits / (hits + misses)) * 100).toFixed(1) : 0;
-                document.getElementById('success-rate').innerText = rate + '%';
+    <!-- 접속 주소 -->
+    <section>
+        <h2>어느 주소에서 두드렸나</h2>
+        <div id="ip-notice" style="margin-bottom:10px"></div>
+        <div class="card scroll" id="ips"></div>
+    </section>
 
-                // 2. Bar Chart
-                const categoryMapping = {
-                    "Domain": ["Domain Hits", "DNS Hits"],
-                    "IP": ["IP Hits", "IPv4 Hits", "IPv6 Hits"],
-                    "Entity": ["Entity Hits", "Object Tags Hits"],
-                    "Nameserver": ["Nameserver Hits"]
-                };
-                const categoryValues = Object.keys(categoryMapping).map(label => {
-                    let sum = 0;
-                    categoryMapping[label].forEach(title => {
-                        const found = notices.find(n => n.title === title);
-                        if(found) sum += parseHits(found.description);
-                    });
-                    return sum;
+    <!-- 누적 -->
+    <section>
+        <details>
+            <summary>서버를 켠 뒤로의 누적 합계 보기 (기간을 나눌 수 없는 옛 숫자)</summary>
+            <div class="card" id="legacy" style="margin-top:8px"><div class="empty">불러오는 중…</div></div>
+        </details>
+    </section>
+
+    <footer>
+        접속 기록은 30일까지만 보관합니다. 그보다 오래된 것은 자동으로 지워집니다.<br>
+        접속한 프로그램의 이름표는 <b>2026-08-28</b>부터 기록합니다 — 그 이전 기록은 사람과 기계를 가를 수 없어 <b>판정 전</b>으로 셉니다.<br>
+        <a href="/">조회 화면으로</a> · <span id="synced"></span>
+    </footer>
+</div>
+
+<script>
+'use strict';
+
+var 기간 = 1;
+var 대상모드 = '사람';
+var 자료 = null;
+
+var 기간이름 = { 1: '오늘', 7: '최근 7일', 30: '최근 30일', 0: '보관된 전부' };
+
+function n(v) { return (v || 0).toLocaleString(); }
+
+function esc(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function 표(머리, 줄들, 빈말) {
+    if (!줄들 || !줄들.length) return '<div class="empty">' + esc(빈말) + '</div>';
+    return '<table><thead><tr>' + 머리 + '</tr></thead><tbody>' + 줄들.join('') + '</tbody></table>';
+}
+
+function 갈래표(누가) {
+    if (누가 === '사람') return '<span class="tag human">사람</span>';
+    if (누가 === '프로그램') return '<span class="tag machine">프로그램</span>';
+    return '<span class="tag unknown">판정 전</span>';
+}
+
+// ── 그리기 ────────────────────────────────────────────────────────
+function 그리기() {
+    var d = 자료;
+    if (!d) return;
+
+    var 조회 = d['조회'] || {};
+    var 누가 = 조회['누가'] || {};
+    var 성패 = 조회['성패'] || {};
+    var 갈래 = d['갈래'] || {};
+    var 총조회 = 조회['합계'] || 0;
+    var 성공률 = 총조회 ? Math.round((성패['성공'] || 0) * 1000 / 총조회) / 10 : 0;
+
+    document.getElementById('head-sub').textContent =
+        기간이름[기간] + ' · 전체 요청 ' + n(d['전체요청']) + '건 · 기록 ' + n(d['보관일수']) + '일치'
+        + (d['보는사람'] ? ' · ' + d['보는사람'] + ' 님으로 보는 중' : '');
+
+    var authBtn = document.getElementById('auth-btn');
+    if (d['보는사람']) {
+        authBtn.textContent = '로그아웃';
+        authBtn.onclick = function () { location.href = '/auth/logout'; };
+    } else {
+        authBtn.textContent = '로그인';
+        authBtn.onclick = function () { location.href = '/auth/login'; };
+    }
+
+    // 요약 카드
+    document.getElementById('kpis').innerHTML = [
+        ['good', '사람이 한 조회', n(누가['사람']), '브라우저로 들어와 조회한 건수'],
+        ['bad', '프로그램이 한 조회', n(누가['프로그램']), '수집기·도구가 부른 건수'],
+        ['gray', '판정 전 조회', n(누가['알수없음']), '이름표를 기록하기 전의 옛 기록'],
+        ['warn', '훑기·잡요청', n(갈래['훑기']), '우리에게 없는 자리를 찾아본 요청'],
+        ['good', '조회 성공', n(성패['성공']), '성공률 ' + 성공률 + '%'],
+        ['bad', '조회 실패', n(성패['실패']), '대부분 지원하지 않는 최상위 도메인'],
+        ['gray', '화면 방문', n(갈래['화면']), '안내·통계 화면을 연 횟수'],
+        ['gray', '목록 파일 내려받기', n(갈래['자료']), '다른 서버가 우리 목록을 받아간 횟수']
+    ].map(function (k) {
+        return '<div class="card kpi ' + k[0] + '">'
+            + '<div class="kpi-label">' + k[1] + '</div>'
+            + '<div class="kpi-num">' + k[2] + '</div>'
+            + '<div class="kpi-sub">' + k[3] + '</div></div>';
+    }).join('');
+
+    // 시간대 막대
+    var 시간별 = d['시간별'] || [];
+    var 최대 = 1;
+    시간별.forEach(function (b) { 최대 = Math.max(최대, b['조회'] + b['훑기'] + b['그밖']); });
+    document.getElementById('bars').innerHTML = 시간별.length ? 시간별.map(function (b) {
+        var 합 = b['조회'] + b['훑기'] + b['그밖'];
+        var h = function (v) { return (v / 최대 * 100).toFixed(1); };
+        var 이름 = d['묶음'] === '시간' ? (b['때'].slice(11) + '시') : b['때'].slice(5);
+        return '<div class="col" title="' + esc(b['때']) + ' · 조회 ' + n(b['조회'])
+            + ' · 훑기 ' + n(b['훑기']) + ' · 그 밖 ' + n(b['그밖']) + '">'
+            + '<div class="stack">'
+            + '<div class="seg-etc" style="height:' + h(b['그밖']) + '%"></div>'
+            + '<div class="seg-scan" style="height:' + h(b['훑기']) + '%"></div>'
+            + '<div class="seg-look" style="height:' + h(b['조회']) + '%"></div>'
+            + '</div><div class="col-lab">' + esc(이름) + '</div></div>';
+    }).join('') : '<div class="empty">이 기간에는 기록이 없습니다.</div>';
+
+    // 최상위 도메인
+    document.getElementById('tlds').innerHTML = 표(
+        '<th>최상위 도메인</th><th class="num">성공</th><th class="num">실패</th><th class="num">합계</th>',
+        (d['최상위도메인'] || []).map(function (t) {
+            return '<tr><td class="mono">.' + esc(t['최상위']) + '</td>'
+                + '<td class="num ' + (t['성공'] ? 'ok-t' : 'faint') + '">' + n(t['성공']) + '</td>'
+                + '<td class="num ' + (t['실패'] ? 'bad-t' : 'faint') + '">' + n(t['실패']) + '</td>'
+                + '<td class="num">' + n(t['성공'] + t['실패']) + '</td></tr>';
+        }), '이 기간에는 도메인 조회가 없습니다.');
+
+    // 종류별
+    document.getElementById('kinds').innerHTML = 표(
+        '<th>종류</th><th class="num">성공</th><th class="num">실패</th><th class="num">합계</th>',
+        (조회['종류별'] || []).map(function (k) {
+            return '<tr><td>' + esc(k['종류']) + '</td>'
+                + '<td class="num ' + (k['성공'] ? 'ok-t' : 'faint') + '">' + n(k['성공']) + '</td>'
+                + '<td class="num ' + (k['실패'] ? 'bad-t' : 'faint') + '">' + n(k['실패']) + '</td>'
+                + '<td class="num">' + n(k['성공'] + k['실패']) + '</td></tr>';
+        }), '이 기간에는 조회가 없습니다.');
+
+    // 조회한 주소
+    var 목록 = 대상모드 === '사람' ? d['대상_사람'] : d['대상_전체'];
+    var 빈말 = 대상모드 === '사람'
+        ? '사람이 조회한 기록이 없습니다. 이름표를 기록하기 전의 요청은 여기 잡히지 않습니다 — [전부]를 눌러 보세요.'
+        : '이 기간에는 조회가 없습니다.';
+    document.getElementById('objects').innerHTML = 표(
+        '<th class="num">#</th><th>종류</th><th>조회한 주소</th><th class="num">횟수</th><th class="num">성공</th><th class="num">실패</th>',
+        (목록 || []).map(function (o, i) {
+            return '<tr><td class="num faint">' + (i + 1) + '</td>'
+                + '<td class="faint">' + esc(o['종류']) + '</td>'
+                + '<td class="mono"><span class="trunc">' + esc(o['대상']) + '</span></td>'
+                + '<td class="num">' + n(o['요청']) + '</td>'
+                + '<td class="num ' + (o['성공'] ? 'ok-t' : 'faint') + '">' + n(o['성공']) + '</td>'
+                + '<td class="num ' + (o['실패'] ? 'bad-t' : 'faint') + '">' + n(o['실패']) + '</td></tr>';
+        }), 빈말);
+
+    // 나라별
+    document.getElementById('countries').innerHTML = 표(
+        '<th>나라</th><th class="num">조회</th><th class="num">전체 요청</th><th class="num">주소 수</th>',
+        (d['나라별'] || []).map(function (c) {
+            return '<tr><td class="mono">' + esc(c['나라'] === '??' ? '(모름)' : c['나라']) + '</td>'
+                + '<td class="num">' + n(c['조회']) + '</td>'
+                + '<td class="num faint">' + n(c['요청']) + '</td>'
+                + '<td class="num faint">' + n(c['주소수']) + '</td></tr>';
+        }), '기록이 없습니다.');
+
+    // 접속 프로그램
+    document.getElementById('agents').innerHTML = 표(
+        '<th>구분</th><th>이름표</th><th class="num">조회</th><th class="num">전체</th>',
+        (d['이름표별'] || []).map(function (a) {
+            return '<tr><td>' + 갈래표(a['누가']) + '</td>'
+                + '<td class="mono"><span class="trunc">' + esc(a['이름표']) + '</span></td>'
+                + '<td class="num">' + n(a['조회']) + '</td>'
+                + '<td class="num faint">' + n(a['요청']) + '</td></tr>';
+        }), '아직 이름표가 기록된 요청이 없습니다. 이 표는 2026-08-28 이후 기록부터 채워집니다.');
+
+    // 접속 주소
+    document.getElementById('ip-notice').innerHTML = d['주소공개']
+        ? '<div class="notice">로그인한 상태라 <b>접속 주소가 그대로</b> 보입니다.</div>'
+        : '<div class="notice">접속 주소의 <b>마지막 칸을 가려서</b> 보여드립니다. 그대로 보시려면 오른쪽 위 <b>로그인</b>을 누르세요.</div>';
+    document.getElementById('ips').innerHTML = 표(
+        '<th>구분</th><th>접속 주소</th><th>나라</th><th>도시</th><th class="num">조회</th><th class="num">훑기</th><th class="num">전체</th><th>마지막</th>',
+        (d['주소별'] || []).map(function (p) {
+            return '<tr><td>' + 갈래표(p['누가']) + '</td>'
+                + '<td class="mono">' + esc(p['주소']) + '</td>'
+                + '<td class="mono faint">' + esc(p['나라']) + '</td>'
+                + '<td class="faint">' + esc(p['도시']) + '</td>'
+                + '<td class="num">' + n(p['조회']) + '</td>'
+                + '<td class="num ' + (p['훑기'] ? 'bad-t' : 'faint') + '">' + n(p['훑기']) + '</td>'
+                + '<td class="num faint">' + n(p['요청']) + '</td>'
+                + '<td class="faint mono">' + esc((p['마지막'] || '').slice(5, 16).replace('T', ' ')) + '</td></tr>';
+        }), '기록이 없습니다.')
+        + (d['주소별_잘림'] ? '<div class="empty">요청이 많은 순으로 잘랐습니다 — ' + n(d['주소별_잘림']) + '개 더 있습니다.</div>' : '');
+
+    document.getElementById('synced').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR');
+}
+
+function setObjMode(m) {
+    대상모드 = m;
+    document.getElementById('obj-human').className = 'btn' + (m === '사람' ? ' on' : '');
+    document.getElementById('obj-all').className = 'btn' + (m === '전체' ? ' on' : '');
+    그리기();
+}
+
+function 불러오기() {
+    fetch('/api/stats/traffic?days=' + 기간 + '&t=' + Date.now())
+        .then(function (r) { if (!r.ok) throw new Error('서버가 ' + r.status + '로 답했습니다'); return r.json(); })
+        .then(function (d) { 자료 = d; 그리기(); })
+        .catch(function (e) {
+            document.getElementById('head-sub').innerHTML =
+                '<span style="color:var(--bad)">통계를 불러오지 못했습니다 — ' + esc(e.message) + '</span>';
+        });
+}
+
+Array.prototype.forEach.call(document.querySelectorAll('[data-days]'), function (b) {
+    b.onclick = function () {
+        기간 = Number(b.getAttribute('data-days'));
+        Array.prototype.forEach.call(document.querySelectorAll('[data-days]'), function (x) {
+            x.className = 'btn' + (x === b ? ' on' : '');
+        });
+        불러오기();
+    };
+});
+document.querySelector('[data-days="1"]').className = 'btn on';
+
+// ── 누적 합계(옛 통계) ────────────────────────────────────────────
+// 기간을 나눌 수 없는 값이라 접어 두었다. 서버를 다시 띄우면 이어서 더해진다.
+function 누적불러오기() {
+    fetch('/help?t=' + Date.now())
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var notices = data.notices || [];
+            var 찾기 = function (t) { return notices.find(function (x) { return x.title === t; }); };
+            var totals = 찾기('Totals');
+            var hits = 0, misses = 0;
+            if (totals) {
+                totals.description.forEach(function (s) {
+                    var v = parseInt(String(s).split('=')[1], 10) || 0;
+                    if (String(s).toLowerCase().indexOf('hits') >= 0) hits = v;
+                    if (String(s).toLowerCase().indexOf('misses') >= 0) misses = v;
                 });
-
-                if (categoryChart) categoryChart.destroy();
-                categoryChart = new Chart(document.getElementById('categoryChart'), {
-                    type: 'bar',
-                    data: {
-                        labels: Object.keys(categoryMapping),
-                        datasets: [{ 
-                            label: 'Hits', 
-                            data: categoryValues, 
-                            backgroundColor: '#10b981', 
-                            borderRadius: 4,
-                            barThickness: 50
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { 
-                                beginAtZero: true, 
-                                grid: { color: '#334155', drawBorder: false }, 
-                                ticks: { color: '#94a3b8', font: { size: 11 } } 
-                            },
-                            x: { 
-                                grid: { display: false }, 
-                                ticks: { color: '#94a3b8', font: { size: 11 } } 
-                            }
-                        },
-                        layout: { padding: 0 }
-                    }
-                });
-
-                // 3. Doughnut Chart
-                const clientNotice = notices.find(n => n.title === "Access Client IP Hits");
-                let clientLabels = ["No Data"], clientValues = [1];
-                if (clientNotice && clientNotice.description && !clientNotice.description[0].includes("Zero queries.")) {
-                    clientLabels = clientNotice.description.map(d => d.includes('=') ? d.split('=')[1].trim() : d);
-                    clientValues = clientNotice.description.map(d => d.includes('=') ? parseInt(d.split('=')[0]) : 0);
-                }
-
-                if (clientChart) clientChart.destroy();
-                clientChart = new Chart(document.getElementById('clientChart'), {
-                    type: 'doughnut',
-                    data: {
-                        labels: clientLabels,
-                        datasets: [{ 
-                            data: clientValues, 
-                            backgroundColor: ['#059669', '#10b981', '#34d399', '#6ee7b7', '#a7f3d0'], 
-                            borderWidth: 2,
-                            borderColor: '#1e293b'
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: true,
-                        cutout: '50%',
-                        plugins: {
-                            legend: {
-                                position: 'bottom',
-                                labels: { color: '#94a3b8', boxWidth: 10, font: { size: 11 }, padding: 15 }
-                            }
-                        }
-                    }
-                });
-
-                // 4. Status Table
-                const tableBody = document.getElementById('status-table-body');
-                tableBody.innerHTML = '';
-                notices.filter(n => n.title.includes("Dates")).forEach(n => {
-                    const modDate = n.description[0] || '-';
-                    const pubDate = n.description[1] || '-';
-                    let titleStr = n.title.replace(' Bootstrap File Modified and Published Dates', '').replace(' Bootstrap Dates', '');
-                    tableBody.innerHTML += `
-                        <tr class="border-b border-slate-700/30 hover:bg-slate-700/20 transition">
-                            <td class="py-3 px-4 font-bold text-slate-300">${titleStr}</td>
-                            <td class="py-3 px-4 text-emerald-400 font-medium">${modDate}</td>
-                            <td class="py-3 px-4 text-slate-500 text-right font-medium">${pubDate}</td>
-                        </tr>
-                    `;
-                });
-
-                // 5. Rankings
-                const top100Container = document.getElementById('top100-content');
-                top100Container.innerHTML = '';
-                const top100Titles = ["Overall Top 100", "Domain Top 100", "Nameserver Top 100", "IP Address Top 100", "AS Number Top 100", "Entity Top 100"];
-                top100Titles.forEach(title => {
-                    const found = notices.find(n => n.title === title);
-                    if (found) {
-                        const section = document.createElement('div');
-                        section.className = 'bg-slate-800/50 rounded-lg border border-slate-700/50 flex flex-col h-[380px] overflow-hidden';
-                        let itemsHtml = (found.description && !found.description[0].includes("No data.")) 
-                            ? found.description.map((item, idx) => {
-                                const parts = item.split('=');
-                                return `<div class="flex justify-between items-center text-xs py-2.5 px-3 border-b border-slate-700/30 last:border-0 hover:bg-emerald-500/10 transition group">
-                                    <div class="flex items-center gap-2 overflow-hidden">
-                                        <span class="text-slate-500 font-mono w-5">${idx + 1}</span>
-                                        <span class="font-medium text-slate-300 truncate group-hover:text-emerald-400">${parts.slice(1).join('=').trim()}</span>
-                                    </div>
-                                    <span class="text-emerald-400 font-bold ml-2">${parts[0].trim()}</span>
-                                </div>`;
-                            }).join('')
-                            : `<div class="flex items-center justify-center h-full text-slate-500 text-sm italic">No data</div>`;
-                        section.innerHTML = `
-                            <div class="p-3 bg-slate-800 border-b border-slate-700/50 flex justify-between items-center"><h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">${title.replace(' Top 100', '')}</h3></div>
-                            <div class="flex-1 overflow-y-auto custom-scrollbar">${itemsHtml}</div>`;
-                        top100Container.appendChild(section);
-                    }
-                });
-
-                document.getElementById('update-time').innerText = "Live status: Synced at " + new Date().toLocaleTimeString();
-            } catch (error) {
-                document.getElementById('update-time').innerHTML = `<span class="text-rose-500">Sync Failed: ${error.message}</span>`;
             }
-        }
-        updateDashboard();
-        setInterval(updateDashboard, 5000);
-    </script>
+            var 줄 = notices.filter(function (x) { return x.title.indexOf('Dates') >= 0; }).map(function (x) {
+                return '<tr><td>' + esc(x.title.replace(' Bootstrap File Modified and Published Dates', ''))
+                    + '</td><td class="mono ok-t">' + esc(x.description[0]) + '</td>'
+                    + '<td class="mono faint">' + esc(x.description[1]) + '</td></tr>';
+            });
+            document.getElementById('legacy').innerHTML =
+                '<p class="kpi-sub" style="margin-bottom:12px">서버를 켠 뒤로 쌓인 합계입니다. 성공 <b class="ok-t">'
+                + n(hits) + '</b>건 · 실패 <b class="bad-t">' + n(misses)
+                + '</b>건. 이 숫자에는 시각이 없어 기간을 나눌 수 없고, 사람과 기계도 구분되지 않습니다.</p>'
+                + '<h2 style="margin-top:16px">국제기구 목록 파일 상태</h2>'
+                + 표('<th>목록</th><th>우리가 받아온 시각</th><th>발행 시각</th>', 줄, '아직 받아오지 못했습니다.');
+        })
+        .catch(function () {
+            document.getElementById('legacy').innerHTML = '<div class="empty">누적 합계를 불러오지 못했습니다.</div>';
+        });
+}
+
+불러오기();
+누적불러오기();
+// 30초마다 새로 부른다. 예전에는 5초였는데, CPU가 1개뿐인 기계에서 화면을 열어 둔
+// 사람 수만큼 집계가 되풀이되면 그 자체가 부하가 된다.
+setInterval(불러오기, 30000);
+</script>
 </body>
 </html>

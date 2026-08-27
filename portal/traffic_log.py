@@ -5,7 +5,7 @@
 
   한 줄  = {"t":시각, "svc":서비스, "ip":접속주소, "cc":나라,
             "city":도시, "lat":위도, "lon":경도, "path":경로,
-            "via":"cf" 또는 "direct", "st":응답코드}
+            "via":"cf" 또는 "direct", "st":응답코드, "ua":접속프로그램이름표}
   한 파일 = <보관함>/<서비스>-YYYY-MM-DD.jsonl  (하루 한 장)
 
 지켜야 할 것 셋:
@@ -114,6 +114,10 @@ def record(service, path, get_header, direct_ip=None, status=None):
             "lon": _first_value(get_header, "CF-IPLongitude") or "",
             "path": (path or "")[:200],
             "st": int(status) if status else 0,
+            # 무엇으로 들어왔는지(브라우저 이름·수집기 이름). 사람과 기계를 가르는
+            # 유일한 직접 단서다 — 없으면 둘을 구분할 방법이 사실상 없다.
+            # 길게 오는 값이라 앞부분만 남긴다(판별에 필요한 이름은 앞에 나온다).
+            "ua": (_first_value(get_header, "User-Agent") or "")[:160],
         }
         file_name = "%s-%s.jsonl" % (service, now.strftime("%Y-%m-%d"))
         text = json.dumps(line, ensure_ascii=False)

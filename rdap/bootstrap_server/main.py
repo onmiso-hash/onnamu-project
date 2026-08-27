@@ -25,6 +25,18 @@ except ImportError as e:
     logging.error(f"Import Error: {e}")
     traffic_log = None
 
+try:
+    import traffic_stats
+except ImportError as e:
+    logging.error(f"Import Error: {e}")
+    traffic_stats = None
+
+try:
+    import portal_auth
+except ImportError as e:
+    logging.error(f"Import Error: {e}")
+    portal_auth = None
+
 app = FastAPI(title="onnamu RDAP Bootstrap Server")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -251,8 +263,78 @@ async def get_javascript_en():
     return get_nocache_html_response("rdap-javascript-en.html")
 
 
+# ── 통계 화면과 로그인 ────────────────────────────────────────────
+# 통계는 누구나 볼 수 있게 두되, 접속 주소만은 로그인한 사람에게만 보인다.
+# 로그인 판정은 이 서버가 하지 않고 포털에 물어본다(portal_auth.py 참고).
+
+def _dashboard_url(request: Request):
+    host = request.headers.get("Host", "rdap.kr")
+    scheme = request.headers.get("X-Forwarded-Proto") or ("http" if "localhost" in host or "127.0.0.1" in host else "https")
+    return f"{scheme}://{host}/dashboard"
+
+
+def _viewer(request: Request):
+    """이 요청을 보낸 사람이 누구인지. 로그인 상태가 아니면 None."""
+    if portal_auth is None:
+        return None
+    return portal_auth.identity(request.cookies.get(portal_auth.COOKIE_NAME))
+
+
+@app.get("/auth/login")
+async def stats_login(request: Request):
+    """포털 로그인 화면으로 보낸다. 로그인하면 출입증을 달고 통계 화면으로 돌아온다."""
+    if portal_auth is None:
+        raise HTTPException(status_code=503, detail="Login is not available")
+    return RedirectResponse(url=portal_auth.login_url(_dashboard_url(request)), status_code=302)
+
+
+@app.get("/auth/logout")
+async def stats_logout(request: Request):
+    """이 서비스가 들고 있던 사본만 버린다. 포털 로그인은 그대로 둔다."""
+    response = RedirectResponse(url="/dashboard", status_code=302)
+    if portal_auth is not None:
+        response.delete_cookie(portal_auth.COOKIE_NAME, path="/")
+    return response
+
+
+@app.get("/api/stats/traffic")
+async def stats_traffic(request: Request, days: int = 1):
+    """기간별 접속·조회 통계.
+
+    days: 1=오늘, 7=일주일, 30=한 달, 0=보관된 전부.
+    접속 주소는 로그인한 사람에게만 원문 그대로 나가고, 그 밖에는 마지막 칸을 가린다.
+    """
+    if traffic_stats is None:
+        raise HTTPException(status_code=503, detail="Traffic statistics are not available")
+
+    if days not in (0, 1, 7, 30):
+        days = 1
+
+    who = _viewer(request)
+    data = traffic_stats.summarize(days, show_ips=who is not None)
+    data["보는사람"] = who["username"] if who else None
+    return JSONResponse(
+        content=data,
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
+    )
+
+
 @app.get("/dashboard")
-async def get_dashboard():
+async def get_dashboard(request: Request):
+    # 포털이 로그인 뒤 주소 끝에 출입증을 붙여 보낸다. 그것을 이 서비스의 쿠키로
+    # 옮겨 담고, 주소창에 출입증이 남지 않도록 깨끗한 주소로 다시 보낸다.
+    token = request.query_params.get("token")
+    if token and portal_auth is not None:
+        response = RedirectResponse(url="/dashboard", status_code=302)
+        response.set_cookie(
+            portal_auth.COOKIE_NAME, token,
+            max_age=portal_auth.COOKIE_MAX_AGE,
+            httponly=True, samesite="lax",
+            secure="localhost" not in request.headers.get("Host", ""),
+            path="/",
+        )
+        return response
+
     # 1. 현재 디렉토리 확인 (Docker 환경)
     # v2 대시보드로 변경하여 캐시 문제 해결 및 레이아웃 개선
     dashboard_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rdap-dashboard-v2.html")

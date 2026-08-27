@@ -87,6 +87,9 @@ function record(service, reqPath, req, directIp, status) {
             lon: firstValue(req, ['CF-IPLongitude']),
             path: (reqPath || '').slice(0, 200),
             st: Number(status) || 0,
+            // 무엇으로 들어왔는지(브라우저 이름·수집기 이름). 사람과 기계를 가르는
+            // 유일한 직접 단서다. 길게 오는 값이라 앞부분만 남긴다.
+            ua: (firstValue(req, ['User-Agent']) || '').slice(0, 160),
         };
         fileName = `${service}-${dateFor(now)}.jsonl`;
         text = JSON.stringify(line);

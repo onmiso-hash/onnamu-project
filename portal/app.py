@@ -621,6 +621,46 @@ def auth_permissions(username):
     # 포털 자신이 쓰는 답과 같은 함수에서 나온다 — 두 벌이 되면 한쪽만 고쳐진다.
     return jsonify(account_permissions(username))
 
+
+@app.route('/api/auth/whoami', methods=['POST'])
+def auth_whoami():
+    """건네받은 출입증이 누구 것인지 알려준다.
+
+    도메인 조회 서버(rdap.kr)가 부른다. 그쪽은 다른 도메인이라 포털이 심은
+    출입증이 함께 오지 않고, 파이썬 웹틀도 달라서 포털의 판정 코드를 그대로
+    가져다 쓸 수 없다.
+
+    그렇다고 출입증 검사 규칙을 그쪽에 한 벌 더 복사하지는 않는다 —
+    "같은 규칙이 두 벌이라 한쪽만 고쳐진다"가 2026-08-18 갤러리 사고의 원인이었다.
+    그래서 검사는 여기서만 하고, 그쪽은 결과만 받아 간다.
+
+    돌려주는 것은 '누구인가'와 '관리자인가'뿐이다. 폴더 권한 같은 나머지는
+    조회 서버가 쓸 일이 없으므로 건네지 않는다.
+    """
+    key = request.headers.get('X-API-Key', '')
+    key_clean = key.strip('"\'- \r\n') if key else None
+    secret_clean = (app.secret_key or '').strip('"\'- \r\n')
+    if not key_clean or key_clean != secret_clean:
+        return jsonify({"error": "이 통로는 서비스끼리만 씁니다."}), 403
+
+    token = (request.get_json(silent=True) or {}).get('token', '')
+    payload = verify_token(token, app.secret_key)
+    if not payload:
+        return jsonify({"ok": False, "reason": "출입증이 없거나 만료되었습니다."})
+
+    username = payload.get('username', '')
+    if is_machine_identity(username):
+        # 기계끼리 쓰는 출입증은 계정표에 없는 것이 정상이다.
+        return jsonify({"ok": True, "username": username, "is_admin": False, "machine": True})
+
+    perms = account_permissions(username)
+    if not perms.get("exists"):
+        return jsonify({"ok": False, "reason": "없는 계정입니다."})
+    if perms.get("locked"):
+        return jsonify({"ok": False, "reason": "잠긴 계정입니다."})
+
+    return jsonify({"ok": True, "username": username, "is_admin": bool(perms.get("is_admin"))})
+
 # =====================================================================
 # 내 계정 — 비밀번호 바꾸기 (관리자가 아니어도 쓴다)
 # =====================================================================

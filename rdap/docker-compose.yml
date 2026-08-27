@@ -7,6 +7,12 @@ services:
     restart: unless-stopped
     ports:
       - "5004:8000"
+    # 통계 화면에서 접속 주소를 볼 때, 로그인했는지 포털에 물어보려면 서비스끼리
+    # 쓰는 열쇠(SECRET_KEY)가 필요하다. 배포가 gallery/.env 를 여기로 복사해 준다.
+    # 파일이 없어도 컨테이너는 그대로 뜬다 — 그때는 통계에서 주소가 늘 가려져 나온다.
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./bootstrap_server/data:/app/bootstrap_server/data
       # 접속 기록 보관함 — 포털·도메인 조회·스튜디오가 같은 폴더에 쌓고,
