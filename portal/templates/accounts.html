@@ -23,8 +23,6 @@
         }
         .wrap { max-width: var(--maxw); margin: 0 auto; }
 
-        header { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
-        h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.5px; }
         .home-link { font-size: 0.8rem; color: var(--fg-soft); text-decoration: none; }
         .home-link:hover { color: var(--accent); }
         .lede { font-size: 0.85rem; color: var(--fg-soft); margin-bottom: 22px; line-height: 1.6; }
@@ -110,13 +108,17 @@
 </head>
 <body>
 <div class="wrap">
-    <header>
-        <h1>계정 관리</h1>
-        <a class="home-link" href="/">← 대문으로</a>
-        {# 상단 메뉴에서 '내 계정'을 뺐으므로(2026-08-28) 관리자는 이 링크로 들어온다.
-           메뉴에 적어 둔 이름과 같아야 찾을 수 있어 '내 계정'으로 맞췄다. #}
-        <a class="home-link" href="/account">🔑 내 계정 (비밀번호 바꾸기)</a>
-    </header>
+    {# 이 화면은 관리자만 열 수 있으므로 is_admin 은 언제나 참이다.
+       상단은 대문·접속자 지도와 같은 조각을 쓴다. #}
+    {% with username=me, is_admin=True, page_title='👥 계정 관리' %}
+    {% include '_topbar.html' %}{% endwith %}
+
+    {# 상단 메뉴에서 '내 계정'을 뺐으므로(2026-08-28) 관리자는 이 링크로 들어온다.
+       메뉴가 "내 계정은 계정 관리 안에 있습니다"라고 안내하므로, 들어오자마자
+       눈에 띄는 자리에 둔다. #}
+    <p class="lede">
+        <a class="home-link" href="/account" style="font-weight:700; color:var(--accent);">🔑 내 계정 — 비밀번호 바꾸기</a>
+    </p>
     <p class="lede">
         여기서 만든 계정은 포털·갤러리·Chronicle AI에 모두 쓰입니다.
         <strong>권한을 바꾸거나 계정을 잠가도 갤러리와 Chronicle AI에는 그 사람이 다시 로그인해야 반영됩니다</strong>

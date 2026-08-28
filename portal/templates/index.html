@@ -28,9 +28,6 @@
             border-radius: var(--radius-xl); padding: 20px; border: 1px solid var(--border);
             box-shadow: var(--shadow);
         }
-        /* 좁은 화면에서 항목이 넘칠 때 억지로 눌리지 않고 줄을 바꾸도록 둔다.
-           접속자 지도 화면의 상단과 같은 규칙이다. */
-        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; gap: 12px; flex-wrap: wrap; }
         .section-label {
             font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
             text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
@@ -80,20 +77,12 @@
 
         footer { margin-top: 60px; font-size: 0.8rem; color: var(--fg-faint); text-align: center; }
         @media (max-width: 600px) { body { padding: 20px 15px; } .stats-grid { grid-template-columns: 1fr; } }
-        /* 좁은 화면에서는 갱신 시각을 접는다 — 시스템 상태 칸에서 같은 정보를
-           얻을 수 있고, 이 한 줄 때문에 상단이 두 줄로 밀려나기 때문이다. */
-        @media (max-width: 600px) { #update-time { display: none; } }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="topbar glass-card">
-            <span style="font-weight:700;">onnamu.kr hub</span>
-            <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                {% include '_topbar_right.html' %}
-                <span id="update-time" style="font-size:0.8rem; color:var(--fg-soft); margin-left:10px;">Syncing...</span>
-            </div>
-        </div>
+        {% with page_title='onnamu.kr hub', status_id='update-time', status_text='Syncing...' %}
+        {% include '_topbar.html' %}{% endwith %}
 
         <div class="section-label">System Health {% if not username %}<span style="font-size:0.65rem; color:var(--fg-faint); margin-left:8px; text-transform:none;">(로그인 시 실시간 수치 활성화)</span>{% endif %}</div>
         <div class="stats-grid">

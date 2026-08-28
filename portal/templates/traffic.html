@@ -27,7 +27,6 @@
             border-radius: var(--radius-xl); padding: 20px; border: 1px solid var(--border);
             box-shadow: var(--shadow);
         }
-        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 16px 24px; gap: 12px; flex-wrap: wrap; }
         .section-label {
             font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
             text-transform: uppercase; letter-spacing: 2px; margin: 30px 0 15px 10px;
@@ -123,16 +122,9 @@
 </head>
 <body>
 <div class="container">
-    <div class="topbar glass-card">
-        <span style="font-weight:700;">🌍 접속자 지도</span>
-        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            {# 이 화면은 관리자만 열 수 있으므로 is_admin 은 언제나 참이다.
-               상단 오른쪽은 대문과 같은 조각을 쓴다 — 따로 적어 두면 한쪽에만
-               항목이 늘어나 어긋난다(실제로 로그아웃·밝게 단추가 그랬다). #}
-            {% with username=me, is_admin=True %}{% include '_topbar_right.html' %}{% endwith %}
-            <span id="updated" style="font-size:0.8rem; color:var(--fg-soft); margin-left:10px;">불러오는 중…</span>
-        </div>
-    </div>
+    {% with username=me, is_admin=True, page_title='🌍 접속자 지도',
+            status_id='updated', status_text='불러오는 중…' %}
+    {% include '_topbar.html' %}{% endwith %}
 
     <div class="section-label">
         <span>기간</span>
