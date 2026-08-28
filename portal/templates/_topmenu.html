@@ -1,0 +1,95 @@
+{# 상단 내려오는 메뉴 — 여러 화면이 함께 쓴다.
+
+   왜 만들었나: 상단에 링크를 나란히 늘어놓으니 좁은 화면에서 줄이 접혀
+   세로로 쌓였다(2026-08-28 사용자 지적). 항목이 늘 때마다 더 나빠지는
+   구조라, 항목 수와 상관없이 자리를 한 칸만 차지하는 메뉴로 바꿨다.
+
+   쓰는 법: {% include '_topmenu.html' %}
+   물려받는 값: username(로그인한 사람 이름) · is_admin(관리자인가)
+   이름이 다른 화면은 {% with username=me, is_admin=True %} 로 감싸서 부른다.
+
+   메뉴 안에 무엇이 보이나:
+     관리자     — 계정 관리 · 접속자 지도 · RDAP 조회 통계
+     일반 사용자 — 내 계정
+   관리자의 '내 계정'은 계정 관리 화면 안의 링크로 들어간다. 일반 사용자는
+   계정 관리 화면 자체를 볼 수 없으므로 여기에 두지 않으면 비밀번호를
+   바꿀 길이 사라진다(실제 계정 3개가 그렇다).
+#}
+<style>
+    .topmenu { position: relative; flex: none; }
+    .topmenu-btn {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--accent-tint); border: 1px solid var(--accent-line);
+        color: var(--accent); font-family: inherit; font-size: 0.78rem; font-weight: 700;
+        padding: 5px 12px; border-radius: var(--radius-full); cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+    }
+    .topmenu-btn:hover { background: var(--accent); color: var(--on-accent); }
+    .topmenu-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    /* 화살표는 열리면 뒤집힌다 — 지금 열려 있는지를 눈으로 알 수 있어야 한다. */
+    .topmenu-btn .caret { font-size: 0.6rem; transition: transform 0.15s ease; }
+    .topmenu-btn[aria-expanded="true"] .caret { transform: rotate(180deg); }
+
+    .topmenu-list {
+        position: absolute; right: 0; top: calc(100% + 8px); z-index: 60;
+        min-width: 200px; padding: 6px;
+        /* 바탕이 비치면 뒤 글자와 겹쳐 읽기 어렵다. 불투명한 색을 쓴다. */
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+        display: none;
+    }
+    .topmenu-list[data-open="1"] { display: block; }
+    .topmenu-list a {
+        display: flex; align-items: center; gap: 9px;
+        padding: 9px 12px; border-radius: var(--radius-sm);
+        font-size: 0.82rem; color: var(--fg); text-decoration: none; white-space: nowrap;
+    }
+    .topmenu-list a:hover { background: var(--accent-tint); color: var(--accent); }
+    .topmenu-list a:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .topmenu-list .ico { width: 18px; text-align: center; }
+    .topmenu-list .sep { height: 1px; background: var(--border-soft); margin: 5px 8px; }
+    .topmenu-list .note { padding: 4px 12px 8px; font-size: 0.68rem; color: var(--fg-faint); white-space: nowrap; }
+</style>
+
+<div class="topmenu">
+    <button type="button" class="topmenu-btn" id="topmenu-btn"
+            aria-haspopup="true" aria-expanded="false" aria-controls="topmenu-list">
+        메뉴 <span class="caret" aria-hidden="true">▼</span>
+    </button>
+    <div class="topmenu-list" id="topmenu-list" role="menu" aria-labelledby="topmenu-btn">
+        {% if is_admin %}
+        <a href="/admin/accounts" role="menuitem"><span class="ico">👥</span> 계정 관리</a>
+        <a href="/admin/traffic" role="menuitem"><span class="ico">🌍</span> 접속자 지도</a>
+        <div class="sep"></div>
+        <a href="https://rdap.kr/dashboard" target="_blank" rel="noopener" role="menuitem">
+            <span class="ico">📊</span> RDAP 조회 통계</a>
+        <div class="note">내 계정은 계정 관리 안에 있습니다</div>
+        {% else %}
+        <a href="/account" role="menuitem"><span class="ico">🔑</span> 내 계정</a>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    (function () {
+        var btn = document.getElementById('topmenu-btn');
+        var list = document.getElementById('topmenu-list');
+        if (!btn || !list) return;
+
+        function open(yes) {
+            list.setAttribute('data-open', yes ? '1' : '0');
+            btn.setAttribute('aria-expanded', yes ? 'true' : 'false');
+        }
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            open(btn.getAttribute('aria-expanded') !== 'true');
+        });
+        // 바깥을 누르면 닫는다. 안 그러면 다른 것을 누르려다 메뉴가 가로막는다.
+        document.addEventListener('click', function (e) {
+            if (!list.contains(e.target)) open(false);
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') open(false);
+        });
+    })();
+</script>

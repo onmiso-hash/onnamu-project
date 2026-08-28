@@ -128,7 +128,8 @@
         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
             <span style="font-size:0.8rem; color:var(--fg-muted);">👤 {{ me }} (관리자)</span>
             <a href="/" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">대문</a>
-            <a href="/admin/accounts" style="font-size:0.8rem; color:var(--fg-soft); text-decoration:none;">계정 관리</a>
+            {# 이 화면은 관리자만 열 수 있으므로 is_admin 은 언제나 참이다. #}
+            {% with username=me, is_admin=True %}{% include '_topmenu.html' %}{% endwith %}
             <span id="updated" style="font-size:0.75rem; color:var(--fg-faint);">불러오는 중…</span>
         </div>
     </div>
