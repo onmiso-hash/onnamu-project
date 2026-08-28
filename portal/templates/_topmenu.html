@@ -16,12 +16,25 @@
    바꿀 길이 사라진다(실제 계정 3개가 그렇다).
 #}
 <style>
+    /* 메뉴가 아래 카드에 가려지던 것을 여기서 푼다.
+       상단 줄은 흐림 효과(backdrop-filter)를 쓰는데, 그 효과가 걸린 요소는
+       자기 안에서만 통하는 층을 새로 만든다. 그래서 메뉴에 아무리 높은 층수를
+       줘도 그 층은 상단 줄 안에서만 유효하고, 뒤에 오는 카드가 위를 덮는다.
+       상단 줄 자체를 올려야 그 안의 메뉴도 함께 올라온다.
+
+       40 을 쓴 이유: 아래 카드들은 층수가 따로 없어 이 값이면 충분히 위로 오고,
+       접속자 지도의 설명 풍선(50)과 큰 창(1000)보다는 낮게 두어 그 둘이
+       상단 줄에 가려지지 않는다. */
+    .topbar { position: relative; z-index: 40; }
+
     .topmenu { position: relative; flex: none; }
     .topmenu-btn {
         display: inline-flex; align-items: center; gap: 6px;
         background: var(--accent-tint); border: 1px solid var(--accent-line);
         color: var(--accent); font-family: inherit; font-size: 0.78rem; font-weight: 700;
-        padding: 5px 12px; border-radius: var(--radius-full); cursor: pointer;
+        /* 모서리만 살짝 둥근 네모. 예전에는 radius-full 이었는데 그 값이 50% 라
+           높이의 절반만큼 깎여 타원이 됐다. */
+        padding: 5px 12px; border-radius: var(--radius-sm); cursor: pointer;
         transition: background 0.15s ease, color 0.15s ease;
     }
     .topmenu-btn:hover { background: var(--accent); color: var(--on-accent); }
