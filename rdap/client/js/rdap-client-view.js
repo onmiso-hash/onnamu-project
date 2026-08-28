@@ -1555,6 +1555,47 @@ window.onpopstate = function(e) {
 		} 
 	}
 	
+	// ── 접기 상자의 삼각형 ────────────────────────────────────────────
+	// 상자 머리를 누르면 onclick 에 박아 둔 commonClick(...) 이 불리는데,
+	// 그 함수가 어디에도 정의되어 있지 않았다. 그래서 누를 때마다 오류만 나고
+	// 삼각형은 ▲ 인 채로 남아 있었다(2026-08-28 확인 — 이 파일·script.js·
+	// bootstrap.min.js 세 곳 어디에도 정의가 없었다).
+	//
+	// 뒤집는 시점은 '누른 순간'이 아니라 '실제로 여닫힌 뒤'다. 부트스트랩이
+	// 접기를 마치고 알려줄 때 바꿔야 화면과 표시가 어긋나지 않는다 —
+	// 누른 순간에 뒤집으면 접기가 실패해도 삼각형만 혼자 돌아간다.
+
+	// 본문의 클래스가 'xxxPrint' 이면 그 삼각형 칸의 id 는 'xxxOutTD' 다.
+	// (makePanelBody 와 makeHeadContent 가 그렇게 짝지어 만든다)
+	function arrowCellOf(body) {
+		var names = (body.className || '').split(/\s+/);
+		for (var i = 0; i < names.length; i++) {
+			var name = names[i];
+			if (name.length > 5 && name.slice(-5) === 'Print') {
+				var cell = document.getElementById(name.slice(0, -5) + 'OutTD');
+				if (cell) return cell;
+			}
+		}
+		return null;
+	}
+
+	// 상자 머리의 onclick 에 이름이 박혀 있어 지울 수 없다. 실제 뒤집기는
+	// 아래 신호 받기가 하므로 여기서는 아무것도 하지 않는다 —
+	// 정의가 있어야 클릭할 때마다 오류가 나지 않는다.
+	function commonClick(id) { }
+
+	// 문서 준비를 기다리지 않고 바로 붙인다. 붙이는 곳이 document 하나뿐이라
+	// 기다릴 이유가 없고, 기다리면 그 사이에 누른 클릭이 그냥 새어 나간다.
+	// (상자는 조회 뒤에 생기지만 이 방식은 나중에 생긴 것도 함께 받는다)
+	$(document).on('shown.bs.collapse', '.collapse', function () {
+		var cell = arrowCellOf(this);
+		if (cell) cell.innerHTML = '▲';
+	});
+	$(document).on('hidden.bs.collapse', '.collapse', function () {
+		var cell = arrowCellOf(this);
+		if (cell) cell.innerHTML = '▼';
+	});
+
 	function changeLanguage(word) {
 		var lang = document.getElementById('lang').value;
 		if(lang == '1') { // 1 is ko , 2 is en
