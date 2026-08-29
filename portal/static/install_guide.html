@@ -318,7 +318,7 @@
       <li><a href="#install-cc">설치하기 — Claude Code (권장)</a></li>
       <li><a href="#install-agy">설치하기 — agy</a></li>
       <li><a href="#verify">잘 설치됐는지 확인하기</a></li>
-      <li><a href="#sync">선택: 교훈 원격 백업·멀티 PC 동기화</a></li>
+      <li><a href="#sync">선택: 기억 원격 백업·멀티 PC 동기화</a></li>
       <li><a href="#uninstall">삭제할 때</a></li>
       <li><a href="#update">업데이트할 때</a></li>
       <li><a href="#troubleshoot">문제가 생겼어요</a></li>
@@ -331,8 +331,10 @@
     <h2>1. 이게 뭔가요?</h2>
     <p>
       NAMU는 <strong>AI 비서(Claude Code, agy 같은 프로그램)에 끼워 넣는 "기억 장치"</strong>라고 생각하시면 쉽습니다.
-      원래 AI 비서는 대화가 끝나면 그 내용을 대부분 잊어버립니다. NAMU를 설치하면, AI가 작업하면서 얻은 교훈과
-      진행 중이던 작업 상태를 옆에 붙은 기억 장치에 계속 쌓아 두고, 다음에 다시 켰을 때도 그 기억을 불러와 씁니다.
+      원래 AI 비서는 대화가 끝나면 그 내용을 대부분 잊어버립니다. NAMU를 설치하면, AI가 작업하면서 얻은 것을
+      옆에 붙은 기억 장치에 계속 쌓아 두고, 다음에 다시 켰을 때도 그 기억을 불러와 씁니다.
+      쌓이는 자리는 성격에 따라 <strong>다섯 그릇</strong>으로 나뉩니다 — 교훈·개인 사실·작업일지·쪽지·첨부 기록.
+      기억 한 건은 <strong>무엇을·왜·그때 무슨 일이</strong> 세 층으로 남습니다(그중 "왜"가 비면 저장이 거부됩니다).
     </p>
     <p>
       <strong>플러그인(plugin)</strong>이란, 프로그램 본체를 건드리지 않고 나중에 끼워 넣을 수 있는 부품을 말합니다.
@@ -385,11 +387,14 @@
         이 문서가 안내하는 방식입니다.</li>
       <li><strong>clone 개발형</strong> — NAMU repo 자체를 내려받아(clone) 그 안에서 직접 개발하며 씁니다. NAMU를 직접 고치고 싶은
         개발자용이며, 이 문서의 대상이 아닙니다.</li>
-      <li><strong>셀프호스팅형</strong> — Claude Code·agy 프로그램 설치 없이 <strong>웹 브라우저의 claude.ai</strong>에서만
-        NAMU 기억(교훈)을 쓰고 싶을 때 씁니다. <code>namu-plugin/http_server.py</code>를 인터넷에 상시로 띄워
-        claude.ai의 Custom Connector(커스텀 커넥터)로 연결합니다. 앞의 두 형태와 달리 세션 자동 브리핑·<code>/namu-task</code> 같은
-        자동화는 동작하지 않는 등 한계가 뚜렷합니다 — 이 문서의 대상이 아니며, 절차·한계 모두
-        <a href="remote_mcp_guide.html"><strong>웹에서 쓰기 가이드</strong></a>에서 다룹니다.</li>
+      <li><strong>주소형</strong> — Claude Code·agy 프로그램 설치 없이 <strong>웹 브라우저의 claude.ai</strong>에서
+        NAMU 기억을 쓰고 싶을 때 씁니다. 플러그인을 설치하는 대신 <strong>MCP 주소 하나를 커스텀 커넥터에 붙입니다</strong>.
+        주소를 얻는 길은 둘입니다 — 서버를 직접 안 띄우고 GitHub 계정만으로 받는
+        <a href="namu_cloud_guide.html"><strong>공용 클라우드</strong></a>, 그리고 <code>namu-plugin/http_server.py</code>를
+        내 서버에 상시로 띄우는 <a href="remote_mcp_guide.html"><strong>셀프호스팅</strong></a>입니다.
+        어느 쪽이든 <strong>기억 다섯 그릇과 파일 주고받기는 그대로 되지만</strong>, 세션 자동 브리핑·<code>/namu-task</code>·
+        일꾼 AI 같은 <strong>작업 절차는 따라오지 않습니다</strong>(주소로는 기억만 건너가기 때문입니다).
+        둘 다 이 문서의 대상이 아니며, 절차·한계는 각 문서에서 다룹니다.</li>
     </ul>
     <div class="box note">
       <strong>기억은 어디에 저장되나요?</strong>
@@ -567,7 +572,9 @@ claude plugin install namu@namu-marketplace</code></pre>
       <div class="body">
         <p>
           새 대화 세션을 열어 화면 하단 상태줄에 NAMU 관련 정보가 표시되는지, 대화창에서 <code>/mcp</code>로 도구 목록을 열었을 때
-          <code>namu_record</code> · <code>namu_recall</code> · <code>namu_search</code> 3개의 도구가 보이는지 확인하세요.
+          <strong>도구 15개</strong>가 보이는지 확인하세요 — 기억 8가지(<code>namu_recall</code> · <code>namu_search</code> ·
+          <code>namu_record</code> · <code>namu_memo_remove</code> · <code>namu_task_pin</code> · <code>namu_task_unpin</code> ·
+          <code>namu_task_move</code> · <code>namu_sync_setup</code>)와 파일 7가지(올리기·목록·받기·지우기와 링크 3종)입니다.
         </p>
       </div>
     </div>
@@ -581,9 +588,9 @@ claude plugin install namu@namu-marketplace</code></pre>
 
   <!-- 6. 동기화 -->
   <section id="sync">
-    <h2>6. 선택: 교훈 원격 백업·멀티 PC 동기화</h2>
+    <h2>6. 선택: 기억 원격 백업·멀티 PC 동기화</h2>
     <p>
-      지금까지의 설치만으로도 NAMU는 잘 동작합니다. 다만 <code>~/.namu</code>에 쌓이는 기억(교훈)은 기본적으로
+      지금까지의 설치만으로도 NAMU는 잘 동작합니다. 다만 <code>~/.namu</code>에 쌓이는 기억(다섯 그릇 전부)은 기본적으로
       <strong>그 컴퓨터의 로컬 폴더일 뿐</strong>이라, 디스크가 고장 나면 기억도 사라지고 컴퓨터를 두 대 이상
       쓰면 기억이 기기마다 따로 쌓입니다. 이 절은 그 한계를 없애는 <strong>선택 기능</strong>을 안내합니다
       (버전 0.1.11부터, 아래 절차로 설정해야만 켜집니다).
@@ -597,7 +604,7 @@ claude plugin install namu@namu-marketplace</code></pre>
           "준비"의 범위는 딱 세 가지입니다 — 여기까지만 내 몫이고, 나머지는 다음 단계에서 NAMU가 대신합니다.<br>
           ① <strong>계정</strong> — GitHub 기준으로 설명하지만, GitLab·사내 git 서버 등 git 주소가 나오는 곳이면 어디든 됩니다.<br>
           ② <strong>빈 비공개 저장소</strong> — New repository → 이름 자유(예: <code>namu-memory</code>) → <strong>Private</strong> 선택 →
-          README 등 초기화 옵션은 체크하지 않고(빈 저장소 권장) 생성합니다. 비공개여야 하는 이유: 교훈에는 여러분이
+          README 등 초기화 옵션은 체크하지 않고(빈 저장소 권장) 생성합니다. 비공개여야 하는 이유: 기억에는 여러분이
           작업한 프로젝트의 내용·판단·실수가 그대로 담기기 때문입니다. GitHub은 비공개 저장소도 무료입니다.<br>
           ③ <strong>이 컴퓨터의 git 로그인</strong> — 터미널에서 push할 때 비밀번호를 묻지 않는 상태여야 합니다.
           <code>gh auth login</code>(가장 간단) 또는 SSH 키 등록으로 준비하고, <code>gh auth status</code>로 확인할 수
@@ -622,7 +629,7 @@ claude plugin install namu@namu-marketplace</code></pre>
     <div class="box tip">
       <strong>켠 뒤에는 무슨 일이 일어나나요?</strong>
       <p style="margin-bottom:0">
-        교훈을 기록할 때마다(<code>namu_record</code>) 자동으로 백업(push)되고, Claude Code나 agy로 새 세션을
+        기억을 남길 때마다(<code>namu_record</code>) 자동으로 백업(push)되고, Claude Code나 agy로 새 세션을
         열 때마다 자동으로 다른 컴퓨터의 최신 기억을 받아옵니다(pull). 두 번째 컴퓨터에서도 <strong>위 1·2번
         절차를 그대로 반복</strong>하면, 그 컴퓨터가 완전히 새 것이라도(클론이 아니어도) 원격에 있는 기존
         기억과 자동으로 합쳐집니다 — 따로 병합 작업을 할 필요가 없습니다.
@@ -672,7 +679,7 @@ claude plugin install namu@namu-marketplace</code></pre>
     <div class="box tip">
       <strong>기억은 지워지지 않아요</strong>
       <p style="margin-bottom:0">
-        플러그인을 삭제해도 <code>~/.namu</code>에 쌓인 교훈·작업 상태는 <strong>그대로 남습니다</strong> — 기억이
+        플러그인을 삭제해도 <code>~/.namu</code>에 쌓인 기억(다섯 그릇 전부)은 <strong>그대로 남습니다</strong> — 기억이
         저장되는 위치가 플러그인 설치 위치와 완전히 별개이기 때문입니다. 나중에 다시 설치하면 기억이 그대로
         돌아옵니다. 기억까지 완전히 지우고 싶다면 <code>~/.namu</code> 폴더를 따로 지워야 합니다.
       </p>
