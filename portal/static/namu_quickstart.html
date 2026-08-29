@@ -242,7 +242,7 @@
     <h1>NAMU 설치 &amp; 업데이트 가이드</h1>
     <p class="lead">따라만 하면 됩니다. 명령을 복사해 붙여넣고, 각 단계의 <b>“성공하면 이렇게 보여요”</b>만 확인하세요.</p>
     <p class="lead" style="margin-top:14px">NAMU는 어느 엔진에서든 <b>항상 플러그인으로 설치</b>됩니다. <b>Claude Code</b>와 <b>agy</b> 모두 GitHub 저장소 주소 하나만 넘기면 바로 설치가 끝납니다 — 미리 내려받을(clone) 필요가 없습니다.</p>
-    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서 대신 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
+    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서가 아닙니다. 서버를 직접 안 띄우고 <b>주소만</b> 받으려면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a>(GitHub 계정이면 됩니다), <b>내 서버로 직접</b> 운영하려면 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
   </header>
 
   <!-- 준비물 -->
@@ -326,7 +326,7 @@ claude plugin install namu@namu-marketplace</pre>
             <div class="bar"><span class="where chat">💬 대화창에서</span><button class="copy" type="button">복사</button></div>
             <pre>/mcp</pre>
           </div>
-          <div class="ok"><span class="ic">✓</span><span><b>성공!</b> 목록에 <code>plugin:namu:namu-memory · ✔ connected · 3 tools</code>가 보이면 메모리 코어가 살아 있는 겁니다.</span></div>
+          <div class="ok"><span class="ic">✓</span><span><b>성공!</b> 목록에 <code>plugin:namu:namu-memory · ✔ connected · 15 tools</code>가 보이면 메모리 코어가 살아 있는 겁니다(기억 8가지 + 파일 7가지).</span></div>
           <p class="tip"><span class="ic">💡</span><span>첫 세션은 아무 안내도 안 뜨는 게 정상입니다(아직 저장된 기억이 0건이라서). 설치 성공 여부는 위 <code>/mcp</code>로만 판단하세요.</span></p>
         </div>
       </div>
@@ -412,8 +412,8 @@ claude plugin install namu@namu-marketplace</pre>
   </section>
 
   <footer>
-    데이터(교훈·작업 기록)는 설치 방식과 무관하게 항상 <code>~/.namu</code> 폴더에 쌓입니다. 여러 PC에서 기억을 공유하고 싶다면 설치 후 AI에게 “<code>namu_sync_setup</code>을 내 비공개 저장소 URL로 실행해줘”라고 부탁하세요(선택 기능).
-    <br>더 자세한 배경·트러블슈팅은 <a href="install_guide.html">설치 가이드</a>를, 웹 브라우저에서만 쓰는 방법은 <a href="remote_mcp_guide.html">웹에서 쓰기 가이드</a>를 참고하세요.
+    기억(교훈·개인 사실·작업일지·쪽지·첨부 기록 <b>다섯 그릇</b>)은 설치 방식과 무관하게 항상 <code>~/.namu</code> 폴더에 쌓입니다. 여러 PC에서 기억을 공유하고 싶다면 설치 후 AI에게 “<b>기억 동기화를 내 비공개 저장소 주소로 켜 줘</b>”라고 한 번만 부탁하세요(선택 기능 — 그다음부터는 남길 때마다 자동 백업, 새 대화마다 자동 수신).
+    <br>더 자세한 배경·트러블슈팅은 <a href="install_guide.html">설치 가이드</a>를, 전체 그림은 <a href="namu_guide.html">안내서</a>를, 웹 브라우저에서만 쓰는 방법은 <a href="namu_cloud_guide.html">공용 클라우드</a>·<a href="remote_mcp_guide.html">웹에서 쓰기 가이드</a>를 참고하세요.
   </footer>
 
 </div>

@@ -192,7 +192,7 @@
   .hl-row td { background: var(--accent-soft); font-weight: 600; }
 
   /* ---------- forms grid ---------- */
-  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 14px 0; }
   @media (max-width: 700px) { .grid3 { grid-template-columns: 1fr; } }
   .form-card {
     background: var(--bg-soft); border: 1px solid var(--border); border-radius: 12px; padding: 16px 16px 14px;
@@ -268,18 +268,18 @@
   <header class="hero">
     <span class="eyebrow">🌐 초보자용 · 웹 브라우저의 claude.ai 전용</span>
     <h1>NAMU 웹에서 쓰기 — 원격 MCP 셀프호스팅 가이드</h1>
-    <p class="lead">Claude Code나 agy를 설치하지 않고도, <b>웹 브라우저의 claude.ai</b>에서 NAMU 기억(교훈)을 꺼내 쓰고 기록할 수 있습니다. 이 문서는 그 방법을 안내합니다.</p>
+    <p class="lead">Claude Code나 agy를 설치하지 않고도, <b>웹 브라우저의 claude.ai</b>에서 NAMU 기억을 꺼내 쓰고 기록할 수 있습니다. 이 문서는 <b>서버를 내 손으로 띄우는</b> 방법을 안내합니다 — 서버 없이 주소만 받고 싶다면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a> 쪽입니다.</p>
     <div class="badges">
-      <span class="badge">🔑 웹에선 도구 3개만</span>
-      <span class="badge">✅ 2026-07-17 실측 검증 완료</span>
-      <span class="badge">📅 기준일 2026-07-17</span>
+      <span class="badge">🔑 주소로는 도구 11개</span>
+      <span class="badge">🍱 다섯 그릇 전부</span>
+      <span class="badge">📅 기준일 2026-08-29 · 나무 v0.1.73</span>
     </div>
   </header>
 
   <nav class="toc">
     <h2>목차</h2>
     <ol>
-      <li><a href="#forms">NAMU를 쓰는 3가지 형태</a></li>
+      <li><a href="#forms">NAMU를 쓰는 4가지 형태</a></li>
       <li><a href="#limits">웹에서 되는 것 / 안 되는 것</a></li>
       <li><a href="#auth">인증 — 시크릿을 어떻게 확인하나</a></li>
       <li><a href="#path-a">연결 절차 A — 내 PC + 터널</a></li>
@@ -293,8 +293,8 @@
 
   <!-- 0. 3가지 형태 -->
   <section id="forms">
-    <h2><span class="kicker">0</span> NAMU를 쓰는 3가지 형태</h2>
-    <p class="sec-note">이 문서는 그중 <b>셀프호스팅형</b>(웹에서 쓰는 방법)만 다룹니다. 나머지 두 형태는 다른 문서를 보세요.</p>
+    <h2><span class="kicker">0</span> NAMU를 쓰는 4가지 형태</h2>
+    <p class="sec-note">이 문서는 그중 <b>셀프호스팅형</b>(서버를 내 손으로 띄우는 방법)만 다룹니다. 나머지 세 형태는 다른 문서를 보세요.</p>
 
     <div class="grid3">
       <div class="form-card">
@@ -308,15 +308,21 @@
         <h4>clone 개발형</h4>
         <p>NAMU repo 자체를 clone해 그 안에서 개발합니다. NAMU를 직접 고치는 개발자용.</p>
       </div>
+      <div class="form-card">
+        <div class="ico">☁️</div>
+        <h4>공용 클라우드</h4>
+        <p>서버를 직접 안 띄우고 <b>주소만</b> 받습니다. GitHub 계정이면 되고, 되는 일은 이 문서와 똑같습니다.</p>
+        <a class="pill" style="text-decoration:none;" href="namu_cloud_guide.html">공용 클라우드 →</a>
+      </div>
       <div class="form-card current">
         <div class="ico">🌐</div>
         <h4>셀프호스팅형 (이 문서)</h4>
-        <p>Claude Code·agy 없이 <b>웹 브라우저의 claude.ai</b>에서 교훈을 recall·record·search 합니다.</p>
+        <p>같은 주소를 <b>내 서버로 직접</b> 만들어 씁니다. 기억 원본이 남의 서버에 사본으로도 안 가길 원할 때.</p>
         <span class="pill">지금 이 문서</span>
       </div>
     </div>
 
-    <div class="tip"><span class="ic">💡</span><span><b>MCP가 뭔지 모르고 오셨다면</b> — MCP(Model Context Protocol)는 AI가 외부 도구·데이터에 연결할 때 쓰는 공통 규격입니다. NAMU는 이 규격으로 "교훈 저장소"를 하나의 도구 서버로 노출하고, 웹 Claude를 포함한 어떤 MCP 클라이언트든 같은 방식으로 연결할 수 있게 합니다. 이 문서는 그 서버를 <b>직접 인터넷에 상시로 띄워 운영하는(셀프호스팅)</b> 절차를 다룹니다.</span></div>
+    <div class="tip"><span class="ic">💡</span><span><b>MCP가 뭔지 모르고 오셨다면</b> — MCP(Model Context Protocol)는 AI가 외부 도구·데이터에 연결할 때 쓰는 공통 규격입니다. NAMU는 이 규격으로 "기억 저장소"를 하나의 도구 서버로 노출하고, 웹 Claude를 포함한 어떤 MCP 클라이언트든 같은 방식으로 연결할 수 있게 합니다. 이 문서는 그 서버를 <b>직접 인터넷에 상시로 띄워 운영하는(셀프호스팅)</b> 절차를 다룹니다.</span></div>
 
     <p class="sec-note" style="margin-top:16px">앞의 두 형태는 로컬에서 CC·agy가 <code>mcp_server.py</code>를 표준입출력(stdio)으로 직접 실행합니다(네트워크를 안 탑니다). 셀프호스팅형은 같은 <b>기억 코어만</b> 네트워크 너머로 노출하는 것입니다 — 그래서 아래 1절의 한계를 반드시 먼저 읽어야 합니다.</p>
   </section>
@@ -327,8 +333,13 @@
     <p class="sec-note">셀프호스팅형은 로컬 설치형과 겉보기엔 비슷하지만, 실제로 쓸 수 있는 기능은 훨씬 좁습니다.</p>
 
     <div class="card">
-      <h3>✅ 되는 것 — 도구 3개</h3>
-      <p><code>namu_recall</code>(기억 꺼내기) · <code>namu_record</code>(기억 저장하기) · <code>namu_search</code>(패턴 찾기). 로컬 설치형과 완전히 같은 기억 풀을 씁니다.</p>
+      <h3>✅ 되는 것 — 도구 11개</h3>
+      <p><b>기억 4가지</b> — <code>namu_recall</code>(꺼내기) · <code>namu_search</code>(찾기) · <code>namu_record</code>(남기기) · <code>namu_task_move</code>(작업을 다른 방으로 옮기기).
+      <b>파일 7가지</b> — <code>namu_upload_file</code> · <code>namu_list_files</code> · <code>namu_download_file</code> · <code>namu_delete_file</code>과 주고받는 링크 3종(<code>namu_create_upload_ticket</code> · <code>namu_create_download_ticket</code> · <code>namu_check_ticket</code>).
+      로컬 설치형과 완전히 같은 기억 풀을 씁니다.</p>
+      <p>담을 수 있는 그릇은 <b>다섯 전부</b>입니다 — 교훈(learnings)·개인 사실(profile)·작업일지(tasks)·쪽지(memo)·첨부 기록(attachments).
+      기록은 설치형과 같은 <b>3층</b>(무엇을 <code>summary</code> · 왜 <code>reason</code> · 그때 무슨 일이 <code>body</code>)으로 남습니다.</p>
+      <div class="tip"><span class="ic">💡</span><span><b>예전 안내에서 바뀐 것</b> — 이 문서의 옛 판은 "도구 3개, tasks는 노출되지 않는다"고 적었습니다. 지금은 틀린 설명입니다. 작업일지는 <code>namu_record</code>의 <code>bowl="tasks"</code>로 기록되고(웹에는 "지금 열어 둔 폴더"가 없으므로 <b>어느 프로젝트인지 함께 적어야 합니다</b>), 첨부 도구 일곱 개와 <code>namu_task_move</code>가 그 뒤에 더해졌습니다.</span></div>
 
       <h3>❌ 안 되는 것</h3>
       <table>
@@ -343,13 +354,17 @@
             <td>서버의 git 원격 저장소 주소를 재배선하는 도구입니다. 원격 호출자에게 그대로 열어두면 원격 저장소 탈취로 이어질 수 있어 웹에서는 원천 차단합니다 — 서버 쪽 동기화 배선은 운영자(자기 PC의 git 자격증명, 또는 클라우드는 배포 스크립트)가 대신합니다.</td>
           </tr>
           <tr>
-            <td>tasks(작업 상태)</td>
-            <td>tasks는 "프로젝트 폴더 귀속" 개념인데, 웹 대화에는 대응하는 프로젝트 폴더 개념 자체가 없습니다.</td>
+            <td>쪽지 떼기(<code>namu_memo_remove</code>) · 책갈피 꽂기·빼기(<code>namu_task_pin</code>/<code>namu_task_unpin</code>)</td>
+            <td>그 PC의 파일을 직접 다루는 도구라 원격에 열지 않습니다. 쪽지를 <b>붙이는</b> 것은 웹에서도 되고, 떼는 것만 그 PC 몫입니다.</td>
+          </tr>
+          <tr>
+            <td><b>새 프로젝트 방 만들기</b></td>
+            <td>안 되는 게 아니라 <b>일부러 막았습니다</b>. 웹에는 "지금 열어 둔 폴더"가 없어서, 예전에는 AI가 프로젝트 이름을 지어내 엉뚱한 방이 늘어났습니다. 지금은 이미 있는 방이나 <code>web-project</code> 중에서 골라야 하고, 안 정해졌으면 방 목록을 돌려줍니다. 잘못 들어간 작업은 <code>namu_task_move</code>로 옮깁니다.</td>
           </tr>
         </tbody>
       </table>
 
-      <div class="warn"><span class="ic">⚠</span><span>즉 셀프호스팅형으로 얻는 건 "웹 브라우저에서 교훈을 조회·검색·기록"뿐입니다. NAMU의 작업 오케스트레이션 기능은 여전히 Claude Code·agy(설치형·clone 개발형) 몫입니다.</span></div>
+      <div class="warn"><span class="ic">⚠</span><span>정리하면 — 주소로 건너가는 것은 <b>기억과 파일</b>이고, <b>작업 절차</b>(브리핑·<code>/namu-task</code>·일꾼 AI·화면 아래 한 줄·마무리 붙잡기)는 여전히 Claude Code·agy 몫입니다. 웹이라서 모자란 것이 아니라 <b>주소로 붙였기 때문</b>이며, 터미널 AI에 주소만 붙여도 결과는 똑같습니다.</span></div>
     </div>
   </section>
 
@@ -373,7 +388,7 @@
     <div class="tip"><span class="ic">💡</span><span>헤더 인증을 쓸 경우 서버가 실제로 검사하는 헤더 이름은 <code>x-api-key</code> 또는 <code>Authorization: Bearer &lt;token&gt;</code> 둘뿐입니다. 커넥터 등록 시 헤더 이름을 반드시 이 중 하나로 맞추세요.</span></div>
 
     <h3>2-1. 도구를 실제로 부를 때는 <code>?client=</code>가 추가로 필요합니다</h3>
-    <p>위 표는 <b>서버 접속</b>(엔드포인트에 도달하는 것) 인증이고, 이와 별개로 <b>도구 호출</b>(<code>namu_recall</code>/<code>namu_record</code>/<code>namu_search</code>를 실제로 부르는 것) 시에는 URL 쿼리에 <code>&amp;client=&lt;AI 이름&gt;</code>(출처 태그, 내부적으로는 <code>via</code>로 저장됨)을 반드시 붙여야 합니다. 이 값이 없거나 형식이 틀리면 접속 자체(<code>initialize</code>/<code>tools/list</code>)는 통과해도 도구 호출은 한국어+영어 상세 에러로 거부됩니다.</p>
+    <p>위 표는 <b>서버 접속</b>(엔드포인트에 도달하는 것) 인증이고, 이와 별개로 <b>도구 호출</b>(노출된 도구 열한 개를 실제로 부르는 것) 시에는 URL 쿼리에 <code>&amp;client=&lt;AI 이름&gt;</code>(출처 태그, 내부적으로는 <code>via</code>로 저장됨)을 반드시 붙여야 합니다. 이 값이 없거나 형식이 틀리면 접속 자체(<code>initialize</code>/<code>tools/list</code>)는 통과해도 도구 호출은 한국어+영어 상세 에러로 거부됩니다.</p>
     <ul>
       <li><b>형식</b> — 영숫자·<code>.</code>·<code>_</code>·<code>-</code> 1~40자(<code>^[A-Za-z0-9._-]{1,40}$</code>)</li>
       <li><b>권장 값</b> — 정확한 모델명(<code>claude</code> / <code>chatgpt</code> / <code>gemini</code> / <code>cursor</code> / <code>copilot</code>)을 넣기를 권장합니다. 애칭·변형도 형식만 맞으면 거부되지 않지만, <b>나중에 조회할 때 저장했던 값과 글자 그대로 똑같이 넣어야 찾힙니다</b> — <code>claude</code>와 <code>cld</code>는 서로 다른 값으로 저장됩니다.</li>
@@ -457,7 +472,7 @@ curl -sS -X POST "https://&lt;터널 URL&gt;/mcp/&lt;secret&gt;" \
 
     <div class="card">
       <h3>4-1. 사전 준비</h3>
-      <p>교훈 저장소로 쓸 <b>비공개 GitHub 저장소</b>(설치형에서 쓰던 저장소를 재사용해도 됩니다) — 여기에 push 권한이 있는 PAT(개인 액세스 토큰, 비밀번호처럼 절대 노출하면 안 됩니다)가 필요합니다.</p>
+      <p>기억 저장소로 쓸 <b>비공개 GitHub 저장소</b>(설치형에서 쓰던 저장소를 재사용해도 됩니다) — 여기에 push 권한이 있는 PAT(개인 액세스 토큰, 비밀번호처럼 절대 노출하면 안 됩니다)가 필요합니다.</p>
       <pre><code>https://x-access-token:&lt;PAT&gt;@github.com/&lt;user&gt;/&lt;repo&gt;.git</code></pre>
 
       <h3>4-2. 시크릿을 어디에 둘까 — 계층화</h3>
@@ -488,7 +503,7 @@ services:
     ports:
       - "8765:8765"
     volumes:
-      - namu-data:/root/.namu       # 컨테이너를 지워도 교훈 데이터가 남도록
+      - namu-data:/root/.namu       # 컨테이너를 지워도 기억이 남도록
     restart: unless-stopped
 
 volumes:
@@ -506,13 +521,14 @@ NAMU_HTTP_PATH_SECRET=&lt;임의의 긴 문자열&gt;</code></pre>
 
       <span class="where server">🖧 서버 터미널</span>
       <pre><code>docker build -f deploy/Dockerfile -t namu-remote-mcp:latest \
-  'https://github.com/onmiso-hash/namu-agent.git#v0.1.25'</code></pre>
-      <p style="margin-top:10px">PowerShell(Windows 서버)에서 실행한다면 <b>반드시 URL을 작은따옴표로 감싸세요</b> — 안 그러면 <code>#v0.1.25</code>가 주석 시작 기호로 오인돼 잘려나갑니다.</p>
+  'https://github.com/onmiso-hash/namu-agent.git#v0.1.73'</code></pre>
+      <p style="margin-top:10px">PowerShell(Windows 서버)에서 실행한다면 <b>반드시 URL을 작은따옴표로 감싸세요</b> — 안 그러면 <code>#v0.1.73</code>가 주석 시작 기호로 오인돼 잘려나갑니다.</p>
 
       <span class="where server">🖧 서버 터미널 (docker-compose.yml·.env가 있는 폴더)</span>
       <pre><code>docker compose up -d</code></pre>
 
-      <p class="sec-note" style="margin-top:14px">컨테이너 기동 시 자동으로 처리되는 것: <code>NAMU_SYNC_REMOTE</code>가 없으면 즉시 기동 거부 → <code>~/.namu</code>가 없으면 clone, 있으면 pull → git identity가 비어 있으면 기본값으로 채움 → git remote를 자동 배선 → <code>http_server.py</code> 기동. 각 단계는 실패 시 조용히 넘어가지 않고 즉시 종료합니다.</p>
+      <p class="sec-note" style="margin-top:14px">컨테이너 기동 시 자동으로 처리되는 것: <code>NAMU_SYNC_REMOTE</code>가 없으면 즉시 기동 거부 → <code>~/.namu</code>가 없으면 clone, 있으면 <b>시작 동기화</b>(잠금 청소 → 커밋 안 된 변경 보존 커밋 → pull → 충돌 시 되돌리기) → git identity가 비어 있으면 기본값으로 채움 → git remote를 자동 배선 → <code>http_server.py</code> 기동.</p>
+      <div class="warn"><span class="ic">⚠</span><span><b>받아오기(pull) 실패는 기동을 막지 않습니다 — 예전과 달라진 부분입니다.</b> 옛 판은 "각 단계는 실패 시 즉시 종료한다"고 적었는데, 그게 실제 사고를 냈습니다. 2026-08-16에 커밋 안 된 파일 두 개가 pull을 막았고, 기동 스크립트가 거기서 죽는 바람에 재시작 정책(<code>always</code>)과 맞물려 <b>14회 무한 재시작 · 반나절 502</b>가 났습니다(그동안 기억을 읽고 쓰는 기능 자체는 멀쩡했습니다). 지금은 받아오기가 실패해도 서버는 뜨고, <b>실패 사실이 <code>~/.namu/db/startup_sync.json</code>에 남아 세션 브리핑 경고와 <code>namu_recall</code> 반환의 <code>warnings</code>로 계속 뜹니다</b> — 받아오기가 실제로 성공할 때만 사라집니다. 커밋 안 된 변경은 버리지 않고 <b>커밋해 보존</b>합니다. 반면 <b>clone 실패는 종전대로 치명적</b>입니다 — 기억이 하나도 없는 빈 서버가 뜨면 그 위에 쌓인 기록이 원격 이력과 갈라지기 때문입니다.</span></div>
 
       <h3>4-4. 알려진 캐비엇</h3>
       <ul>
@@ -577,7 +593,7 @@ NAMU_HTTP_PATH_SECRET=&lt;임의의 긴 문자열&gt;</code></pre>
         <tr><td><code>NAMU_HTTP_PORT</code></td><td><code>8765</code></td><td>바인드 포트</td></tr>
         <tr><td><code>NAMU_HTTP_ALLOWED_HOSTS</code></td><td>로컬호스트만</td><td>421 해소용 허용 <code>Host</code> 목록. <code>*</code>는 비활성화. 컨테이너 기본값은 <code>*</code></td></tr>
         <tr><td><code>NAMU_SYNC_REMOTE</code></td><td>없음(컨테이너 전용)</td><td>클라우드 컨테이너가 <code>~/.namu</code>를 clone/pull할 git remote URL. 미설정이면 기동 거부</td></tr>
-        <tr><td><code>NAMU_MACHINE</code></td><td>호스트명</td><td>기록된 교훈의 machine 필드. 컨테이너 기본값은 <code>web</code></td></tr>
+        <tr><td><code>NAMU_MACHINE</code></td><td>호스트명</td><td>기록에 찍히는 machine 필드. 컨테이너 기본값은 <code>web</code></td></tr>
       </tbody>
     </table>
   </section>
