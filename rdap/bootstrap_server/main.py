@@ -32,6 +32,12 @@ except ImportError as e:
     traffic_stats = None
 
 try:
+    import visit_log
+except ImportError as e:
+    logging.error(f"Import Error: {e}")
+    visit_log = None
+
+try:
     import portal_auth
 except ImportError as e:
     logging.error(f"Import Error: {e}")
@@ -306,6 +312,31 @@ async def stats_logout(request: Request):
     if portal_auth is not None:
         response.delete_cookie(portal_auth.COOKIE_NAME, path="/")
     return response
+
+
+@app.post("/api/page")
+async def record_page_view(request: Request):
+    """화면이 사람 앞에 그려졌을 때 브라우저가 보내오는 신호 한 건.
+
+    위의 접속 기록(record_traffic)이 세는 것은 '서버가 받은 두드림'이라,
+    자동 갱신과 훑기 도구가 함께 섞인다. 이 자리는 화면이 실제로 그려졌을 때만
+    한 건 받으므로 사람 수를 셀 수 있다. 자세한 사정은 visit_log.py 머리말에 있다.
+
+    누구나 보낼 수 있어야 한다 — 로그인하지 않은 방문자도 세야 하기 때문이다.
+    받는 쪽에서 글자 수를 자르고 한 주소의 분당 건수를 막는다.
+    """
+    if visit_log is None:
+        return JSONResponse(content=None, status_code=204)
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    visit_log.record("rdap", data.get("vid"), data.get("p"),
+                     request.headers.get,
+                     request.client.host if request.client else None)
+    return JSONResponse(content=None, status_code=204)
 
 
 @app.get("/api/stats/traffic")

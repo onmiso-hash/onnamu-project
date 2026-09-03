@@ -1,0 +1,36 @@
+<!-- 방문 신호 — 화면이 사람 앞에 그려졌을 때 딱 한 번 알린다.
+     자동 갱신과 화면 속 호출은 이 신호를 보내지 않으므로 조회 수에 섞이지 않고,
+     훑기 도구는 자바스크립트를 돌리지 않으므로 저절로 빠진다.
+     받는 쪽은 portal/visit_log.py 이고, 왜 이렇게 세는지도 그 머리말에 있다. -->
+<script>
+(function () {
+  try {
+    var KEY = 'onnamu_vid';
+
+    function newId() {
+      try {
+        if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+      } catch (e) {}
+      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    }
+
+    var vid = null;
+    try {
+      vid = localStorage.getItem(KEY);
+      if (!vid) { vid = newId(); localStorage.setItem(KEY, vid); }
+    } catch (e) { vid = null; }
+
+    // 저장이 막힌 브라우저(사생활 보호 모드 등)는 이번 한 번만 쓰는 임시 표를 붙인다.
+    // 조회 수는 제대로 세어지고 방문자 수만 그만큼 부풀 수 있어, 그 수를 따로 세어
+    // 관리 화면에 함께 알린다.
+    if (!vid) { vid = 't-' + newId(); }
+
+    fetch('/api/page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vid: vid, p: location.pathname }),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>

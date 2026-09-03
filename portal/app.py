@@ -11,6 +11,8 @@ from auth_helper import (generate_auth_token, login_required, verify_token,
                          current_identity, resolve_user, shared_token)
 import traffic_log
 import traffic_view
+import visit_log
+import visit_view
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production")
@@ -472,6 +474,41 @@ def account_admin_required(fn):
 @account_admin_required
 def admin_traffic():
     return render_template('traffic.html', me=g.me['username'])
+
+
+# 방문 집계
+#
+# 위의 접속자 지도가 세는 것은 '서버가 받은 두드림'이다. 화면 한 장이 열릴 때
+# 브라우저는 서버를 여러 번 두드리므로(자동 갱신·화면 속 호출) 그 숫자로는
+# 사람이 몇 명 왔는지 알 수 없다. 아래 두 자리가 그것을 따로 센다.
+# 자세한 사정은 visit_log.py 머리말에 적어 두었다.
+# ---------------------------------------------------------------------
+@app.route('/api/page', methods=['POST'])
+def api_page():
+    """화면이 사람 앞에 그려졌을 때 브라우저가 보내오는 신호 한 건.
+
+    누구나 보낼 수 있어야 한다 — 로그인하지 않은 방문자도 세야 하기 때문이다.
+    그래서 남이 아무 값이나 보낼 수 있는 자리이고, 받는 쪽에서 글자 수를 자르고
+    한 주소가 1분에 보낼 수 있는 건수를 막는다(visit_log.py).
+
+    답으로 아무것도 돌려주지 않는다. 화면이 기다릴 것이 없고, 기록이 실패해도
+    방문자가 그것을 알 이유가 없다.
+    """
+    data = request.get_json(silent=True) or {}
+    visit_log.record("portal", data.get("vid"), data.get("p"),
+                     request.headers.get, request.remote_addr)
+    return ("", 204)
+
+
+@app.route('/api/visits/summary')
+@account_admin_required
+def api_visits_summary():
+    try:
+        days = int(request.args.get('days', 1))
+    except ValueError:
+        days = 1
+    days = max(1, min(days, 30))
+    return jsonify(visit_view.summarize(days))
 
 
 @app.route('/api/traffic/summary')

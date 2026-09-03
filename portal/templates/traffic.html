@@ -142,6 +142,44 @@
         </div>
     </div>
 
+    <div class="section-label">
+        <span>사람이 실제로 본 것</span>
+        <span style="text-transform:none; letter-spacing:0; font-weight:400;" id="visit-note"></span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">방문자</div>
+            <div class="stat-value" id="vis-people">-</div>
+            <div class="stat-sub" id="vis-people-sub">같은 사람이 여러 번 와도 한 명</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">방문</div>
+            <div class="stat-value" id="vis-sessions">-</div>
+            <div class="stat-sub" id="vis-sessions-sub">30분 넘게 끊겼다 다시 오면 새 방문</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">조회</div>
+            <div class="stat-value" id="vis-hits">-</div>
+            <div class="stat-sub" id="vis-hits-sub">사람이 넘겨 본 화면의 장수</div>
+        </div>
+    </div>
+
+    <div class="section-label"><span>많이 본 화면</span></div>
+    <div class="glass-card table-scroll">
+        <table>
+            <thead><tr><th>서비스</th><th>화면</th><th class="num">조회</th></tr></thead>
+            <tbody id="tbody-screen"></tbody>
+        </table>
+    </div>
+
+    <div class="section-label">
+        <span>서버가 받은 두드림</span>
+        <span style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--fg-faint);">
+            사람 수가 아니라 요청 수입니다 — 자동 갱신·훑기가 함께 들어 있습니다
+        </span>
+    </div>
+
     <div class="stats-grid">
         <div class="glass-card">
             <div style="font-size:0.75rem; color:var(--fg-soft);">요청 수</div>
@@ -529,7 +567,50 @@ function drawTables(data) {
         ? `요청이 많은 300개만 보입니다 (${data['주소별_잘림']}개 더 있음)` : '';
 }
 
+// 사람 수를 세는 쪽. 위의 요청 수와는 재료가 다르다 — 화면이 실제로 그려졌을 때
+// 브라우저가 보내온 신호만 센다(portal/visit_log.py 머리말 참고).
+// 이쪽이 실패해도 아래 요청 수 화면은 그대로 뜨도록 따로 떼어 둔다.
+async function loadVisits() {
+    const note = document.getElementById('visit-note');
+    try {
+        const res = await fetch('/api/visits/summary?days=' + days,
+                                { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('불러오지 못했습니다 (' + res.status + ')');
+        const data = await res.json();
+        const 합 = data['합계'];
+
+        document.getElementById('vis-people').textContent = 합['방문자'].toLocaleString();
+        document.getElementById('vis-sessions').textContent = 합['방문'].toLocaleString();
+        document.getElementById('vis-hits').textContent = 합['조회'].toLocaleString();
+
+        const 임시 = data['표없는브라우저'];
+        document.getElementById('vis-people-sub').innerHTML = 임시 > 0
+            ? '같은 사람이 여러 번 와도 한 명 · 그중 <b>' + 임시
+              + '</b>은 표를 저장 못 하는 브라우저라 올 때마다 새로 세어집니다'
+            : '같은 사람이 여러 번 와도 한 명';
+
+        document.getElementById('vis-sessions-sub').textContent =
+            data['끊는기준분'] + '분 넘게 끊겼다 다시 오면 새 방문';
+
+        const svc = data['서비스별'];
+        document.getElementById('vis-hits-sub').textContent = svc.length
+            ? svc.map((s) => s['서비스'] + ' ' + s['조회'].toLocaleString()).join(' · ')
+            : '사람이 넘겨 본 화면의 장수';
+
+        const rows = data['화면별'];
+        document.getElementById('tbody-screen').innerHTML = rows.length
+            ? rows.map((r) => `<tr><td>${esc(r['서비스'])}</td><td>${esc(r['경로'])}</td>`
+                            + `<td class="num">${r['조회'].toLocaleString()}</td></tr>`).join('')
+            : '<tr><td colspan="3" style="color:var(--fg-faint);">아직 쌓인 방문이 없습니다</td></tr>';
+
+        note.textContent = data['보관함있음'] ? '' : '방문 보관함이 아직 만들어지지 않았습니다';
+    } catch (e) {
+        note.textContent = '방문 집계를 불러오지 못했습니다 — ' + e.message;
+    }
+}
+
 async function load() {
+    loadVisits();
     try {
         const onlyValid = document.getElementById('only-valid').checked;
         const res = await fetch('/api/traffic/summary?days=' + days + (onlyValid ? '&valid=1' : ''),
@@ -588,5 +669,6 @@ document.getElementById('auto').addEventListener('change', (e) => {
 loadWorld().then(load).catch(() => load());
 timer = setInterval(load, 60000);
 </script>
+    {% include "_visit.html" %}
 </body>
 </html>
