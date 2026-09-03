@@ -195,6 +195,9 @@
 var 기간 = 1;
 var 대상모드 = '사람';
 var 자료 = null;
+// 사람이 실제로 연 화면의 수. 위의 자료(접속 기록)와는 재료가 다르다 —
+// 화면이 그려진 뒤 브라우저가 보내온 신호만 센다(visit_log.py 머리말 참고).
+var 방문자료 = null;
 
 var 기간이름 = { 1: '오늘', 7: '최근 7일', 30: '최근 30일', 0: '보관된 전부' };
 
@@ -242,6 +245,19 @@ function 그리기() {
         authBtn.onclick = function () { location.href = '/auth/login'; };
     }
 
+    // '화면 방문'만은 접속 기록이 아니라 방문 신호로 센다.
+    // 접속 기록의 '화면'은 서버가 받은 두드림이라, 이 통계 화면이 스스로 부르는
+    // /help 까지 함께 잡혀 새로고침 한 번에 두 건씩 올랐다(2026-09-04 확인).
+    var 방문표시 = ['—', '집계를 불러오는 중입니다'];
+    if (방문자료 && 방문자료['합계']) {
+        방문표시 = [
+            n(방문자료['합계']['조회']),
+            '사람이 넘겨 본 화면의 장수 · 방문자 ' + n(방문자료['합계']['방문자']) + '명'
+        ];
+    } else if (방문자료 === false) {
+        방문표시 = ['—', '방문 집계를 불러오지 못했습니다'];
+    }
+
     // 요약 카드
     document.getElementById('kpis').innerHTML = [
         ['good', '사람이 한 조회', n(누가['사람']), '브라우저로 들어와 조회한 건수'],
@@ -250,7 +266,7 @@ function 그리기() {
         ['warn', '훑기·잡요청', n(갈래['훑기']), '우리에게 없는 자리를 찾아본 요청'],
         ['good', '조회 성공', n(성패['성공']), '성공률 ' + 성공률 + '%'],
         ['bad', '조회 실패', n(성패['실패']), '대부분 지원하지 않는 최상위 도메인'],
-        ['gray', '화면 방문', n(갈래['화면']), '안내·통계 화면을 연 횟수'],
+        ['gray', '화면 방문', 방문표시[0], 방문표시[1]],
         ['gray', '목록 파일 내려받기', n(갈래['자료']), '다른 서버가 우리 목록을 받아간 횟수']
     ].map(function (k) {
         return '<div class="card kpi ' + k[0] + '">'
@@ -361,6 +377,7 @@ function setObjMode(m) {
 }
 
 function 불러오기() {
+    방문불러오기();
     fetch('/api/stats/traffic?days=' + 기간 + '&t=' + Date.now())
         .then(function (r) { if (!r.ok) throw new Error('서버가 ' + r.status + '로 답했습니다'); return r.json(); })
         .then(function (d) { 자료 = d; 그리기(); })
@@ -368,6 +385,15 @@ function 불러오기() {
             document.getElementById('head-sub').innerHTML =
                 '<span style="color:var(--bad)">통계를 불러오지 못했습니다 — ' + esc(e.message) + '</span>';
         });
+}
+
+// 방문 집계는 따로 부른다 — 이쪽이 실패해도 위의 접속 통계는 그대로 떠야 한다.
+// '보관된 전부(기간 0)'는 방문 기록에 없는 기준이라 최대 보관일수로 바꿔 묻는다.
+function 방문불러오기() {
+    fetch('/api/visits/summary?days=' + (기간 === 0 ? 30 : 기간) + '&t=' + Date.now())
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (d) { 방문자료 = d; 그리기(); })
+        .catch(function () { 방문자료 = false; 그리기(); });
 }
 
 Array.prototype.forEach.call(document.querySelectorAll('[data-days]'), function (b) {

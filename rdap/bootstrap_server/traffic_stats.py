@@ -72,6 +72,13 @@ PAGE_PATHS = {
     "/rdap-javascript-ko.html", "/rdap-javascript-en.html",
 }
 
+# 우리 화면이 스스로 부르는 자리들. 남이 두드린 것이 아니라 우리가 그린 화면이
+# 낸 요청이므로 '훑기(우리에게 없는 자리를 찾아본 요청)'로 세면 안 된다.
+# 통계 화면을 열어 둔 사람과 방문 신호를 보낸 방문자가 전부 수집기로 보이던 것을
+# 2026-09-04에 확인하고 갈라 두었다. 화면 목록과 달리 이쪽은 사람이 여는 자리가
+# 아니라서, 사람 수를 세는 데 쓰지 않고 '그밖'으로만 흘려보낸다.
+OWN_API_PATHS = {"/api/page", "/api/stats/traffic", "/api/visits/summary"}
+
 
 def classify_path(path):
     """(갈래, 조회종류, 조회대상)을 돌려준다.
@@ -80,7 +87,7 @@ def classify_path(path):
     조회가 아니면 종류와 대상은 None이다.
     """
     p = path or "/"
-    if p in PAGE_PATHS or p.startswith("/client/"):
+    if p in PAGE_PATHS or p.startswith("/client/") or p in OWN_API_PATHS:
         return "화면", None, None
 
     parts = p.strip("/").split("/", 1)

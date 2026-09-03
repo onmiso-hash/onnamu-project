@@ -38,6 +38,12 @@ except ImportError as e:
     visit_log = None
 
 try:
+    import visit_view
+except ImportError as e:
+    logging.error(f"Import Error: {e}")
+    visit_view = None
+
+try:
     import portal_auth
 except ImportError as e:
     logging.error(f"Import Error: {e}")
@@ -337,6 +343,28 @@ async def record_page_view(request: Request):
                      request.headers.get,
                      request.client.host if request.client else None)
     return JSONResponse(content=None, status_code=204)
+
+
+@app.get("/api/visits/summary")
+async def visits_summary(days: int = 1):
+    """사람이 실제로 연 화면의 수 — 위의 접속 기록과는 재료가 다르다.
+
+    접속 기록(/api/stats/traffic)이 세는 '화면'은 서버가 받은 두드림이라,
+    화면 한 장을 열 때 딸려 오는 부속 호출까지 함께 잡힌다. 통계 화면이 스스로
+    부르는 /help 도 거기 섞여, 그 화면을 새로 고치면 제 숫자가 두 건씩 올랐다
+    (2026-09-04 확인). 이 자리는 브라우저가 화면을 그린 뒤 보내온 신호만 세므로
+    새로고침 한 번이 정확히 한 건이다.
+
+    이 서비스의 숫자만 돌려준다 — 보관함은 포털과 함께 쓰지만 화면은 따로다.
+    접속 주소를 담지 않는 집계라 통계 화면과 같이 누구나 볼 수 있게 둔다.
+    """
+    if visit_view is None:
+        raise HTTPException(status_code=503, detail="Visit statistics are not available")
+    days = max(1, min(days, 30))
+    return JSONResponse(
+        content=visit_view.summarize(days, only_service="rdap"),
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache", "Expires": "0"},
+    )
 
 
 @app.get("/api/stats/traffic")
