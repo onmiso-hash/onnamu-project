@@ -51,6 +51,14 @@
         .stat-value { font-size: 1.9rem; font-weight: 800; color: var(--fg); }
         .stat-sub { font-size: 0.72rem; color: var(--fg-faint); margin-top: 4px; }
 
+        /* 나무 클라우드 칸 — 클라우드 홈페이지의 배치를 그대로 옮긴다.
+           숫자가 위, 이름이 아래, 가운데 정렬. 위쪽 합계 칸(이름이 위)과
+           모양이 달라야 두 구역이 다른 것을 센다는 사실이 눈에 바로 들어온다. */
+        .cloud-card { text-align: center; }
+        .cloud-card .stat-value { font-size: 2.1rem; }
+        .cloud-label { font-size: 0.78rem; color: var(--fg-soft); margin-top: 6px; }
+        .cloud-desc { font-size: 0.75rem; color: var(--fg-faint); line-height: 1.75; margin: 14px 2px 0; }
+
         /* 시간대별 막대 — 폭주가 '언제' 있었는지가 이 화면의 핵심이라 위쪽에 크게 둔다. */
         .bars { display: flex; align-items: flex-end; gap: 3px; height: 140px; overflow-x: auto; padding-top: 10px; }
         .bar-col { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; min-width: 14px; flex: 1 0 14px; height: 100%; }
@@ -172,6 +180,36 @@
             <tbody id="tbody-screen"></tbody>
         </table>
     </div>
+
+    <div class="section-label">
+        <span>나무 클라우드</span>
+        <span style="text-transform:none; letter-spacing:0; font-weight:400;" id="cloud-note">클라우드 홈페이지에 걸린 것과 같은 숫자입니다</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="glass-card cloud-card">
+            <div class="stat-value" id="cloud-people">-</div>
+            <div class="cloud-label">방문자</div>
+        </div>
+        <div class="glass-card cloud-card">
+            <div class="stat-value" id="cloud-sessions">-</div>
+            <div class="cloud-label">방문 횟수</div>
+        </div>
+        <div class="glass-card cloud-card">
+            <div class="stat-value" id="cloud-hits">-</div>
+            <div class="cloud-label">본 화면</div>
+        </div>
+        <div class="glass-card cloud-card">
+            <div class="stat-value" id="cloud-members">-</div>
+            <div class="cloud-label">가입한 사람</div>
+        </div>
+    </div>
+    <p class="cloud-desc">
+        방문 숫자는 최근 30일치입니다. 브라우저가 화면을 실제로 그렸을 때 한 번
+        보내오는 신호만 세므로, 새로고침 한 번이 정확히 한 건입니다. 가입한 사람은
+        지금까지 GitHub으로 연결한 계정의 수이고,
+        <b>그게 누구인지는 서버 밖으로 나가지 않습니다.</b>
+    </p>
 
     <div class="section-label">
         <span>서버가 받은 두드림</span>
@@ -609,8 +647,59 @@ async function loadVisits() {
     }
 }
 
+// 나무 클라우드 통계 — 클라우드 홈페이지에 걸린 것과 같은 숫자를 여기에도 둔다.
+//
+// 위의 '사람이 실제로 본 것'은 포털·도메인 조회·나무 클라우드를 합친 값이라
+// 클라우드 홈페이지의 숫자와 다르다. 보관함 폴더를 세 서비스가 나눠 쓰기
+// 때문이다. 그래서 여기서는 서비스 이름으로 걸러 클라우드 몫만 센다.
+//
+// 기간 단추(오늘·7일·30일)를 따르지 않고 30일로 고정한다 — 홈페이지가 30일치를
+// 보이므로, 여기서만 기간이 움직이면 '같은 숫자'라는 관계가 깨진다. 그 사실은
+// 아래 설명 문단에 '최근 30일치'라고 적혀 있다.
+const CLOUD_SERVICE = 'cloud';
+const CLOUD_DAYS = 30;
+
+async function loadCloud() {
+    const note = document.getElementById('cloud-note');
+    try {
+        const res = await fetch('/api/visits/summary?days=' + CLOUD_DAYS + '&service=' + CLOUD_SERVICE,
+                                { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('불러오지 못했습니다 (' + res.status + ')');
+        const data = await res.json();
+        const 합 = data['합계'];
+
+        document.getElementById('cloud-people').textContent = 합['방문자'].toLocaleString();
+        document.getElementById('cloud-sessions').textContent = 합['방문'].toLocaleString();
+        document.getElementById('cloud-hits').textContent = 합['조회'].toLocaleString();
+
+        note.textContent = data['보관함있음']
+            ? '클라우드 홈페이지에 걸린 것과 같은 숫자입니다'
+            : '방문 보관함이 아직 만들어지지 않았습니다';
+    } catch (e) {
+        note.textContent = '나무 클라우드 집계를 불러오지 못했습니다 — ' + e.message;
+    }
+}
+
+// 가입한 사람 수만 재료가 다르다 — 보관함 파일이 아니라 나무 클라우드의 가입자
+// 장부에서 온다. 한쪽을 못 읽어도 다른 쪽 숫자는 그대로 떠야 하므로 따로 부른다.
+async function loadMembers() {
+    try {
+        const res = await fetch('/api/members/count', { headers: { 'Accept': 'application/json' } });
+        if (!res.ok) throw new Error('불러오지 못했습니다');
+        const data = await res.json();
+        if (typeof data['회원'] !== 'number') throw new Error('숫자가 오지 않았습니다');
+        document.getElementById('cloud-members').textContent = data['회원'].toLocaleString();
+    } catch (e) {
+        // 0으로 채우지 않는다. 0은 '아직 아무도 없다'는 뜻이라
+        // '지금 셀 수 없다'와 같은 값으로 두면 화면이 거짓말을 한다.
+        document.getElementById('cloud-members').textContent = '-';
+    }
+}
+
 async function load() {
     loadVisits();
+    loadCloud();
+    loadMembers();
     try {
         const onlyValid = document.getElementById('only-valid').checked;
         const res = await fetch('/api/traffic/summary?days=' + days + (onlyValid ? '&valid=1' : ''),

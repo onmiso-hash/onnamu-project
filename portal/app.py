@@ -5,6 +5,8 @@ import sqlite3
 import os
 import re
 import json
+import time
+import urllib.request
 from werkzeug.security import generate_password_hash, check_password_hash
 from auth_helper import (generate_auth_token, login_required, verify_token,
                          set_permission_source, is_machine_identity,
@@ -24,7 +26,8 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 # 자기 IP의 요청 수를 1분에 두 건씩 계속 부풀리던 것을 2026-09-04에 확인했다.
 # 방문 신호(/api/page)는 화면 한 장과 1:1로 맞는 정직한 수라 그대로 남긴다.
 _TRAFFIC_SKIP_PREFIXES = ("/admin/",)
-_TRAFFIC_SKIP_EXACT = {"/api/traffic/summary", "/api/visits/summary"}
+_TRAFFIC_SKIP_EXACT = {"/api/traffic/summary", "/api/visits/summary",
+                       "/api/members/count"}
 
 
 @app.after_request
@@ -513,12 +516,68 @@ def api_page():
 @app.route('/api/visits/summary')
 @account_admin_required
 def api_visits_summary():
+    """방문 집계. 'service'를 주면 그 서비스 몫만 센다.
+
+    보관함 폴더 하나를 포털·도메인 조회·나무 클라우드가 함께 쓴다. 그래서
+    거르지 않고 읽으면 셋을 합친 숫자가 나오고, 그것은 각 서비스의 홈페이지가
+    제 화면에 거는 숫자와 다르다. 접속자 지도의 '나무 클라우드만' 구역이
+    클라우드 홈페이지와 같은 숫자를 보이려면 이 걸름이 있어야 한다
+    (거르는 자리는 visit_view._files_for).
+    """
     try:
         days = int(request.args.get('days', 1))
     except ValueError:
         days = 1
     days = max(1, min(days, 30))
-    return jsonify(visit_view.summarize(days))
+    service = (request.args.get('service') or '').strip() or None
+    return jsonify(visit_view.summarize(days, only_service=service))
+
+
+# 가입한 사람 수
+#
+# 이 숫자의 장부(identity.db)는 나무 클라우드 컨테이너만 쓰는 저장 공간에 들어
+# 있어서 포털이 파일로는 읽지 못한다 — 두 컨테이너가 함께 물고 있는 것은 접속
+# 기록 보관함(/traffic) 하나뿐이다. 그래서 클라우드가 제 홈페이지에 숫자를
+# 걸려고 이미 열어 둔 공개 자리를 포털 서버가 대신 부른다.
+#
+# 브라우저에서 곧장 부르지 않는 이유: 클라우드는 다른 출처의 호출을 허용하는
+# 표시를 답에 붙이지 않아(2026-09-04 실제 호출로 확인) 화면에서 부르면 막힌다.
+# 서버끼리 부르는 길에는 그 제약이 없다.
+#
+# 60초 동안은 앞서 받아 둔 값을 그대로 쓴다. 지도 화면이 1분마다 스스로 갱신하고
+# 관리자가 여럿이면 그 수만큼 밖으로 나가는데, 가입자 수는 초 단위로 변하는
+# 숫자가 아니라서 매번 물어볼 이유가 없다.
+# ---------------------------------------------------------------------
+_MEMBERS_URL = os.environ.get("NAMU_CLOUD_MEMBERS_URL",
+                              "https://namu-cloud.onnamu.kr/api/members/count")
+_MEMBERS_CACHE_SECONDS = 60
+_members_cache = {"때": 0.0, "값": None}
+
+
+@app.route('/api/members/count')
+@account_admin_required
+def api_members_count():
+    """나무 클라우드에 가입한 사람의 수. 그게 누구인지는 오가지 않는다.
+
+    못 읽으면 숫자 대신 503을 돌려준다. 0을 돌려주지 않는 이유는 클라우드 쪽
+    판단과 같다 — 0은 "아직 아무도 없다"는 뜻이라 "지금 셀 수 없다"와 같은
+    값으로 보내면 화면이 거짓말을 한다. 화면은 못 읽은 칸을 그대로 둔다.
+    """
+    now = time.monotonic()
+    if (_members_cache["값"] is not None
+            and now - _members_cache["때"] < _MEMBERS_CACHE_SECONDS):
+        return jsonify({"회원": _members_cache["값"]})
+    try:
+        with urllib.request.urlopen(_MEMBERS_URL, timeout=3) as res:
+            body = json.loads(res.read().decode("utf-8"))
+        count = body.get("회원")
+        if not isinstance(count, int):
+            raise ValueError("숫자가 오지 않았습니다")
+    except Exception:
+        # 화면이 기다리다 멈추면 안 되므로 여기서 삼키고 못 셌다고만 알린다.
+        return jsonify({"회원": None}), 503
+    _members_cache["때"], _members_cache["값"] = now, count
+    return jsonify({"회원": count})
 
 
 @app.route('/api/traffic/summary')
