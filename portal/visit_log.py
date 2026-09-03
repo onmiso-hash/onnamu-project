@@ -158,6 +158,25 @@ def _flush_locked():
     _maybe_purge()
 
 
+def _flush_loop():
+    """때가 되면 스스로 쏟아낸다.
+
+    접속 기록(traffic_log.py)은 다음 요청이 들어올 때 대기열을 살핀다. 그쪽은
+    훑기까지 섞여 요청이 끊이지 않으므로 그것으로 충분했다. 방문 신호는 화면
+    한 장에 한 건뿐이라 훨씬 뜸하게 오고, 그러면 **마지막 한 건이 다음 방문자가
+    올 때까지 대기열에 갇힌다.** 2026-09-03 배포 직후 실제로 두 건을 보내
+    한 건만 적히는 것을 확인하고 이 일꾼을 붙였다.
+
+    돌보는 일꾼이므로 서버가 내려갈 때 붙잡지 않는다(daemon).
+    """
+    while True:
+        time.sleep(_FLUSH_SECONDS)
+        try:
+            flush()
+        except Exception:
+            pass
+
+
 def _maybe_purge():
     """보관 기간이 지난 파일을 지운다. 한 시간에 한 번만 살펴본다."""
     global _last_purge
@@ -175,3 +194,8 @@ def _maybe_purge():
                 os.remove(os.path.join(VISIT_DIR, name))
     except Exception:
         pass
+
+
+# 이 파일이 다 읽힌 뒤에 일꾼을 띄운다 — 위에서 띄우면 아직 정의되지 않은
+# 함수를 부를 여지가 남는다.
+threading.Thread(target=_flush_loop, daemon=True, name="visit-flush").start()
