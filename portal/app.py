@@ -19,6 +19,14 @@ app.config['SECRET_KEY'] = os.environ.get("SECRET_KEY", "change-me-in-production
 app.secret_key = app.config['SECRET_KEY']
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
+# 관리자 화면과 그 화면이 스스로 부르는 자리는 방문자 접속으로 세지 않는다.
+# 관리자가 접속자 지도(/admin/traffic)를 열어 두면 그 화면의 자동 갱신이
+# 자기 IP의 요청 수를 1분에 두 건씩 계속 부풀리던 것을 2026-09-04에 확인했다.
+# 방문 신호(/api/page)는 화면 한 장과 1:1로 맞는 정직한 수라 그대로 남긴다.
+_TRAFFIC_SKIP_PREFIXES = ("/admin/",)
+_TRAFFIC_SKIP_EXACT = {"/api/traffic/summary", "/api/visits/summary"}
+
+
 @app.after_request
 def record_traffic(response):
     """접속 한 건을 보관함에 적는다(관리자 화면의 접속자 지도용).
@@ -26,8 +34,10 @@ def record_traffic(response):
     답을 내보낼 때 적는다 — 서버가 뭐라고 답했는지(200·404)를 함께 남겨야
     '유효한 요청만 보기'를 가릴 수 있기 때문이다.
     기록은 곁다리라 실패해도 화면에 영향을 주지 않는다 — traffic_log가 삼킨다."""
-    traffic_log.record("portal", request.path, request.headers.get,
-                       request.remote_addr, response.status_code)
+    path = request.path
+    if not (path.startswith(_TRAFFIC_SKIP_PREFIXES) or path in _TRAFFIC_SKIP_EXACT):
+        traffic_log.record("portal", path, request.headers.get,
+                           request.remote_addr, response.status_code)
     return response
 
 

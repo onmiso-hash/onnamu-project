@@ -121,10 +121,18 @@ app.add_middleware(
 # 접속 한 건마다 나라·주소를 보관함에 한 줄 적는다(관리자 화면의 접속자 지도용).
 # 여기서 세는 것은 이미 있던 stats.json과 별개다 — 그쪽은 무엇을 조회했는지를
 # 세고, 이쪽은 누가 어디서 얼마나 두드리는지를 센다.
+
+# 통계 화면(/dashboard)과 그 화면이 30초마다 스스로 부르는 자리는 방문자 접속으로
+# 세지 않는다 — 화면을 열어 둔 사람의 IP가 자기 요청 수를 계속 부풀린다
+# (2026-09-04 확인, 포털도 같이 고침). 방문 신호(/api/page)는 화면 한 장과
+# 1:1이라 남긴다. /help는 다른 RDAP 서버도 부르는 규격 자리라 그대로 센다.
+_TRAFFIC_SKIP_EXACT = {"/dashboard", "/api/stats/traffic", "/api/visits/summary"}
+
+
 @app.middleware("http")
 async def record_traffic(request: Request, call_next):
     response = await call_next(request)
-    if traffic_log is not None:
+    if traffic_log is not None and request.url.path not in _TRAFFIC_SKIP_EXACT:
         # 답을 받은 뒤에 적는다 — 응답 코드가 있어야 '유효한 요청'을 가릴 수 있다.
         traffic_log.record("rdap", request.url.path, request.headers.get,
                            request.client.host if request.client else None,
