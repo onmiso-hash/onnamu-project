@@ -669,6 +669,7 @@ document.getElementById('auto').addEventListener('change', (e) => {
 loadWorld().then(load).catch(() => load());
 timer = setInterval(load, 60000);
 </script>
-    {% include "_visit.html" %}
+{# 방문 신호를 보내지 않는다 — 관리자 전용 화면이라 방문자 통계에 넣지 않는다
+   (2026-09-04). 이 화면을 새로 고쳐도 접속 기록·방문 집계 어느 쪽도 안 오른다. #}
 </body>
 </html>
