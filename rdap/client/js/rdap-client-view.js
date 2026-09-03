@@ -181,7 +181,9 @@ window.onpopstate = function(e) {
 		}else{
 			var xhr = new XMLHttpRequest();		
 			xhr.open('GET', url);
-			if(lang == '2') xhr.setRequestHeader("Accept-Language", "en");
+			// 응답 언어는 브라우저 설정이 아니라 지금 보고 있는 페이지를 따른다.
+			// 명시하지 않으면 브라우저 언어가 영어인 사용자가 한글 페이지에서도 영문 응답을 받는다.
+			xhr.setRequestHeader("Accept-Language", ('2' == lang) ? "en" : "ko");
 			
 			// 10초 XHR 타임아웃
 			xhr.timeout = 10000;

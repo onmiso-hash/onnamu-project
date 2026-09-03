@@ -119,11 +119,14 @@ async def record_traffic(request: Request, call_next):
                            response.status_code)
     return response
 
-async def proxy_rdap_request(target_url: str):
+async def proxy_rdap_request(target_url: str, accept_language: str = None):
     """동시 처리 상한을 지키며 프록시를 수행한다.
 
     자리가 없으면 줄을 세우지 않고 즉시 거절한다. 줄을 세우면 CPU가 1개뿐인
     이 기계에서는 요청이 무한정 쌓여 서버가 통째로 응답을 멈춘다(2026-08-20 장애).
+
+    accept_language는 브라우저가 보낸 희망 언어를 그대로 상대 서버에 넘기기 위한 것이다.
+    이것을 버리면 상대 서버가 늘 기본 언어로 답한다(KRNIC은 영문이 기본).
     """
     try:
         await asyncio.wait_for(proxy_semaphore.acquire(), timeout=PROXY_QUEUE_WAIT_SECONDS)
@@ -140,38 +143,46 @@ async def proxy_rdap_request(target_url: str):
         )
 
     try:
-        return await _proxy_rdap_request(target_url)
+        return await _proxy_rdap_request(target_url, accept_language)
     finally:
         proxy_semaphore.release()
 
 
-async def _proxy_rdap_request(target_url: str):
+# 응답이 요청한 언어에 따라 달라지므로, 앞단이 응답을 보관하더라도 언어별로 따로
+# 보관하도록 알린다. 이 표시가 없으면 한 사람이 받은 한글 응답이 다음 사람에게 그대로
+# 나갈 수 있다.
+PROXY_RESPONSE_HEADERS = {"Vary": "Accept-Language"}
+
+
+async def _proxy_rdap_request(target_url: str, accept_language: str = None):
     """외부 RDAP 서버에 요청을 보내고 결과를 반환하는 프록시 함수"""
+    headers = {"Accept-Language": accept_language} if accept_language else None
     try:
         logger.info(f"Proxying request to: {target_url}")
-        response = await async_client.get(target_url)
-        
+        response = await async_client.get(target_url, headers=headers)
+
         # 외부 서버의 응답 상태 코드를 그대로 유지하며 결과 반환
         try:
             content = response.json()
-            return JSONResponse(status_code=response.status_code, content=content)
+            return JSONResponse(status_code=response.status_code, content=content, headers=PROXY_RESPONSE_HEADERS)
         except Exception:
             # JSON이 아닌 경우 (에러 페이지 등)
             return JSONResponse(
-                status_code=response.status_code, 
-                content={"errorCode": response.status_code, "title": "Remote Server Error", "description": [response.text[:200]]}
+                status_code=response.status_code,
+                content={"errorCode": response.status_code, "title": "Remote Server Error", "description": [response.text[:200]]},
+                headers=PROXY_RESPONSE_HEADERS
             )
 
     except httpx.TimeoutException:
         logger.error(f"Proxy timeout for: {target_url}")
         return JSONResponse(
-            status_code=504, 
+            status_code=504,
             content={"errorCode": 504, "title": "Gateway Timeout", "description": ["The remote RDAP server took too long to respond."]}
         )
     except Exception as e:
         logger.error(f"Proxy request failed for {target_url}: {e}")
         return JSONResponse(
-            status_code=502, 
+            status_code=502,
             content={"errorCode": 502, "title": "Bad Gateway", "description": [f"Failed to fetch data: {str(e)}"]}
         )
 
@@ -422,7 +433,7 @@ async def get_domain(name: str, request: Request, proxy: bool = False):
         bootstrap_manager.record_hit("domain", client_ip, object_key=name)
         target_url = f"{base_url}domain/{name}"
         if proxy:
-            return await proxy_rdap_request(target_url)
+            return await proxy_rdap_request(target_url, request.headers.get("accept-language"))
         return RedirectResponse(url=target_url, status_code=307)
 
     bootstrap_manager.record_miss()
@@ -441,7 +452,7 @@ async def get_nameserver(name: str, request: Request, proxy: bool = False):
         bootstrap_manager.record_hit("nameserver", client_ip, object_key=name)
         target_url = f"{base_url}nameserver/{name}"
         if proxy:
-            return await proxy_rdap_request(target_url)
+            return await proxy_rdap_request(target_url, request.headers.get("accept-language"))
         return RedirectResponse(url=target_url, status_code=307)
 
     bootstrap_manager.record_miss()
@@ -466,7 +477,7 @@ async def get_ip(address: str, request: Request, proxy: bool = False):
                         bootstrap_manager.record_hit("ip", client_ip, sub_cat, object_key=address)
                         target_url = f"{service[1][0]}ip/{address}"
                         if proxy:
-                            return await proxy_rdap_request(target_url)
+                            return await proxy_rdap_request(target_url, request.headers.get("accept-language"))
                         return RedirectResponse(url=target_url, status_code=307)
     except Exception as e:
         bootstrap_manager.record_miss()
@@ -503,7 +514,7 @@ async def get_autnum(number_str: str, request: Request, proxy: bool = False):
                         bootstrap_manager.record_hit("autnum", client_ip, object_key=f"AS{number}")
                         target_url = f"{service[1][0]}autnum/{number}"
                         if proxy:
-                            return await proxy_rdap_request(target_url)
+                            return await proxy_rdap_request(target_url, request.headers.get("accept-language"))
                         return RedirectResponse(url=target_url, status_code=307)
                 except: continue
                 
@@ -528,7 +539,7 @@ async def get_entity(handle: str, request: Request, proxy: bool = False):
                     bootstrap_manager.record_hit("entity", client_ip, object_key=handle)
                     target_url = f"{target_urls[0]}entity/{handle}"
                     if proxy:
-                        return await proxy_rdap_request(target_url)
+                        return await proxy_rdap_request(target_url, request.headers.get("accept-language"))
                     return RedirectResponse(url=target_url, status_code=307)
                     
     bootstrap_manager.record_miss()
