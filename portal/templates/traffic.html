@@ -151,6 +151,31 @@
     </div>
 
     <div class="section-label">
+        <span>서버가 받은 두드림</span>
+        <span style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--fg-faint);">
+            사람 수가 아니라 요청 수입니다 — 자동 갱신·훑기가 함께 들어 있습니다
+        </span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">요청 수</div>
+            <div class="stat-value" id="sum-hits">-</div>
+            <div class="stat-sub" id="sum-hits-sub">꾸밈 파일(그림·글꼴 등)은 세지 않습니다</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">접속 주소 수</div>
+            <div class="stat-value" id="sum-ips">-</div>
+            <div class="stat-sub" id="sum-direct">서로 다른 주소의 개수</div>
+        </div>
+        <div class="glass-card">
+            <div style="font-size:0.75rem; color:var(--fg-soft);">나라 수</div>
+            <div class="stat-value" id="sum-countries">-</div>
+            <div class="stat-sub" id="sum-services">서비스별 내역</div>
+        </div>
+    </div>
+
+    <div class="section-label">
         <span>사람이 실제로 본 것</span>
         <span style="text-transform:none; letter-spacing:0; font-weight:400;" id="visit-note"></span>
     </div>
@@ -171,14 +196,6 @@
             <div class="stat-value" id="vis-hits">-</div>
             <div class="stat-sub" id="vis-hits-sub">사람이 넘겨 본 화면의 장수</div>
         </div>
-    </div>
-
-    <div class="section-label"><span>많이 본 화면</span></div>
-    <div class="glass-card table-scroll">
-        <table>
-            <thead><tr><th>서비스</th><th>화면</th><th class="num">조회</th></tr></thead>
-            <tbody id="tbody-screen"></tbody>
-        </table>
     </div>
 
     <div class="section-label">
@@ -211,29 +228,12 @@
         <b>그게 누구인지는 서버 밖으로 나가지 않습니다.</b>
     </p>
 
-    <div class="section-label">
-        <span>서버가 받은 두드림</span>
-        <span style="text-transform:none; letter-spacing:0; font-weight:400; color:var(--fg-faint);">
-            사람 수가 아니라 요청 수입니다 — 자동 갱신·훑기가 함께 들어 있습니다
-        </span>
-    </div>
-
-    <div class="stats-grid">
-        <div class="glass-card">
-            <div style="font-size:0.75rem; color:var(--fg-soft);">요청 수</div>
-            <div class="stat-value" id="sum-hits">-</div>
-            <div class="stat-sub" id="sum-hits-sub">꾸밈 파일(그림·글꼴 등)은 세지 않습니다</div>
-        </div>
-        <div class="glass-card">
-            <div style="font-size:0.75rem; color:var(--fg-soft);">접속 주소 수</div>
-            <div class="stat-value" id="sum-ips">-</div>
-            <div class="stat-sub" id="sum-direct">서로 다른 주소의 개수</div>
-        </div>
-        <div class="glass-card">
-            <div style="font-size:0.75rem; color:var(--fg-soft);">나라 수</div>
-            <div class="stat-value" id="sum-countries">-</div>
-            <div class="stat-sub" id="sum-services">서비스별 내역</div>
-        </div>
+    <div class="section-label"><span>많이 본 화면</span></div>
+    <div class="glass-card table-scroll">
+        <table>
+            <thead><tr><th>서비스</th><th>화면</th><th class="num">조회</th></tr></thead>
+            <tbody id="tbody-screen"></tbody>
+        </table>
     </div>
 
     <div class="section-label"><span id="bars-title">시간대별 요청</span><span style="text-transform:none; letter-spacing:0; font-weight:400;" id="bars-peak"></span></div>
