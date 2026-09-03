@@ -9,11 +9,14 @@
 
 - **사전 승인**: 코드 수정·파일 생성·명령 실행 전 계획 보고 후 착수.
 - **커밋**: 메시지 반드시 **한글**. 커밋 후 `git push origin main` 자동 실행.
-- **히트맵**: 작업 완료 후 포털 API로 `work_history` 기록. (포털은 Docker named volume 사용 — 로컬 sqlite3 직접 접근 불가)
+- **히트맵**: 깃 배포(push → Actions)로 반영되는 작업은 배포 절차가 커밋 제목을 히트맵에 **자동 기록**한다(`scripts/deploy.ps1` 마지막 단계). **직접 기록하지 말 것.** 깃을 거치지 않은 작업(미니PC 데이터 파일 직접 수정, 조사·설계만 한 작업)만 아래 명령으로 직접 남긴다. 이 명령은 열쇠 파일(`gallery/.env`)이 있는 **미니PC에서만** 동작하므로, 다른 기계에서는 사용자에게 실행을 요청한다. (포털은 Docker named volume 사용 — 로컬 sqlite3 직접 접근 불가)
 - **완료 보고**: "완료되었습니다" 대신 "수정을 완료했으며 확인이 필요합니다".
 - **영향도 분석**: 수정 전 연관 모듈 영향 먼저 분석·보고.
 
+**아래는 깃을 거치지 않은 작업에만 쓴다. 깃 배포한 작업에는 쓰지 않는다(자동 기록됨).**
+
 ```bash
+# 미니PC에서만 동작한다 — gallery/.env 가 그 기계에만 있다.
 SECRET_KEY=$(grep SECRET_KEY gallery/.env | cut -d= -f2)
 curl -s -X POST https://onnamu.kr/api/work/save \
   -H "X-API-Key: $SECRET_KEY" \
