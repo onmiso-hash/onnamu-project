@@ -551,6 +551,7 @@ def api_visits_summary():
 _MEMBERS_URL = os.environ.get("NAMU_CLOUD_MEMBERS_URL",
                               "https://namu-cloud.onnamu.kr/api/members/count")
 _MEMBERS_CACHE_SECONDS = 60
+_MEMBERS_AGENT = "onnamu-portal/1.0 (admin traffic map)"
 _members_cache = {"때": 0.0, "값": None}
 
 
@@ -568,7 +569,12 @@ def api_members_count():
             and now - _members_cache["때"] < _MEMBERS_CACHE_SECONDS):
         return jsonify({"회원": _members_cache["값"]})
     try:
-        with urllib.request.urlopen(_MEMBERS_URL, timeout=3) as res:
+        # 이름표를 반드시 붙인다. 파이썬이 기본으로 붙이는 이름표
+        # (Python-urllib/…)로 부르면 Cloudflare가 봇으로 보고 403으로 막는다 —
+        # 2026-09-04 배포 뒤 미니PC의 포털 안에서 실제로 불러 확인했다.
+        req = urllib.request.Request(_MEMBERS_URL,
+                                     headers={"User-Agent": _MEMBERS_AGENT})
+        with urllib.request.urlopen(req, timeout=3) as res:
             body = json.loads(res.read().decode("utf-8"))
         count = body.get("회원")
         if not isinstance(count, int):
