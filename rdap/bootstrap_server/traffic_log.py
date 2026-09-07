@@ -5,7 +5,8 @@
 
   한 줄  = {"t":시각, "svc":서비스, "ip":접속주소, "cc":나라,
             "city":도시, "lat":위도, "lon":경도, "path":경로,
-            "via":"cf" 또는 "direct", "st":응답코드, "ua":접속프로그램이름표}
+            "via":"cf" 또는 "direct", "st":응답코드, "ua":접속프로그램이름표,
+            "w":우리화면에서온조회인가(1/0, 도메인 조회에서만 붙는다)}
   한 파일 = <보관함>/<서비스>-YYYY-MM-DD.jsonl  (하루 한 장)
 
 지켜야 할 것 셋:
@@ -78,7 +79,7 @@ def is_asset(path):
     return lowered.endswith(_ASSET_SUFFIXES)
 
 
-def record(service, path, get_header, direct_ip=None, status=None):
+def record(service, path, get_header, direct_ip=None, status=None, web=None):
     """접속 한 건을 적는다. 실패해도 예외를 밖으로 내보내지 않는다.
 
     status 는 서버가 뭐라고 답했는지다(200·404 …). 이것이 있어야 "유효한 요청만"을
@@ -88,6 +89,12 @@ def record(service, path, get_header, direct_ip=None, status=None):
     direct_ip 는 서버가 직접 본 주소다. Cloudflare를 거쳐 오면 그것은 터널의
     주소라 쓸모가 없지만, 공유기에 열린 포트로 곧장 들어온 접속에는 그것이
     유일한 단서다. 그래서 머리말이 없을 때만 쓰고 'direct'로 표시해 둔다.
+
+    web 은 우리 조회 화면이 낸 요청인지다. 도메인 조회는 사람이 화면에서 누르든
+    남의 프로그램이 부르든 주소가 똑같아서, 이 표시가 없으면 둘을 가를 방법이
+    없다(2026-09-07 확인). 우리 화면만 물음표 뒤에 proxy=true 를 붙이므로
+    부르는 쪽에서 그것을 보고 넘겨 준다. 안 넘기면 칸 자체를 안 적는다 —
+    표시를 남기기 전의 옛 기록과 '표시가 없는 요청'이 섞이면 안 되기 때문이다.
     """
     try:
         if is_asset(path):
@@ -119,6 +126,10 @@ def record(service, path, get_header, direct_ip=None, status=None):
             # 길게 오는 값이라 앞부분만 남긴다(판별에 필요한 이름은 앞에 나온다).
             "ua": (_first_value(get_header, "User-Agent") or "")[:160],
         }
+        # 넘겨주지 않은 서비스에는 칸을 아예 안 만든다. 읽는 쪽이 '칸이 없음'과
+        # '우리 화면이 아님'을 갈라 볼 수 있어야 옛 기록을 잘못 세지 않는다.
+        if web is not None:
+            line["w"] = 1 if web else 0
         file_name = "%s-%s.jsonl" % (service, now.strftime("%Y-%m-%d"))
         text = json.dumps(line, ensure_ascii=False)
     except Exception:

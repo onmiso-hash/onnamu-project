@@ -130,6 +130,21 @@
     </section>
 
     <section class="grid g2">
+        <!-- 조회가 어디서 왔나 -->
+        <div>
+            <h2>조회가 어디서 왔나
+                <span class="hint">우리 조회 화면인가, 남의 프로그램이 곧장 부른 것인가</span>
+            </h2>
+            <div class="card scroll" id="origins"></div>
+        </div>
+        <!-- 화면별 방문 -->
+        <div>
+            <h2>어느 화면을 봤나 <span class="hint">화면마다 몇 명이 몇 장</span></h2>
+            <div class="card scroll" id="screens"></div>
+        </div>
+    </section>
+
+    <section class="grid g2">
         <!-- 최상위 도메인 -->
         <div>
             <h2>최상위 도메인별 조회 <span class="hint">답할 수 있는 곳과 없는 곳</span></h2>
@@ -291,6 +306,42 @@ function 그리기() {
             + '<div class="seg-look" style="height:' + h(b['조회']) + '%"></div>'
             + '</div><div class="col-lab">' + esc(이름) + '</div></div>';
     }).join('') : '<div class="empty">이 기간에는 기록이 없습니다.</div>';
+
+    // 조회가 어디서 왔나 — 우리 조회 화면은 주소 뒤에 proxy=true 를 붙이므로
+    // 그 표시로 가른다. 표시를 남기기 전(2026-09-07 이전)의 기록은 어느 쪽인지
+    // 알 수 없어 '판정 전'으로 따로 둔다 — 0으로 밀어 넣으면 숫자가 거짓이 된다.
+    var 어디서 = 조회['어디서'] || {};
+    var 어디서합 = (어디서['우리화면'] || 0) + (어디서['직접호출'] || 0) + (어디서['판정전'] || 0);
+    function 몫(v) {
+        return 어디서합 ? (Math.round((v || 0) * 1000 / 어디서합) / 10) + '%' : '—';
+    }
+    document.getElementById('origins').innerHTML = 표(
+        '<th>어디서</th><th class="num">조회</th><th class="num">비율</th>',
+        어디서합 ? [
+            ['<span class="tag human">우리 조회 화면</span>', 어디서['우리화면']],
+            ['<span class="tag machine">곧장 부른 요청</span>', 어디서['직접호출']],
+            ['<span class="tag unknown">판정 전</span>', 어디서['판정전']]
+        ].map(function (r) {
+            return '<tr><td>' + r[0] + '</td>'
+                + '<td class="num">' + n(r[1] || 0) + '</td>'
+                + '<td class="num">' + 몫(r[1]) + '</td></tr>';
+        }) : [],
+        '이 기간에는 조회가 없습니다.');
+
+    // 어느 화면을 봤나 — 접속 기록이 아니라 방문 신호로 센다(사람이 실제로 연 화면).
+    var 화면들 = (방문자료 && 방문자료['화면별']) || [];
+    document.getElementById('screens').innerHTML = 방문자료 === false
+        ? '<div class="empty">방문 집계를 불러오지 못했습니다.</div>'
+        : 방문자료 === null
+        ? '<div class="empty">방문 집계를 불러오는 중입니다…</div>'
+        : 표(
+            '<th>화면</th><th class="num">방문자</th><th class="num">조회</th>',
+            화면들.map(function (r) {
+                return '<tr><td>' + esc(r['경로']) + '</td>'
+                    + '<td class="num">' + n(r['방문자']) + '</td>'
+                    + '<td class="num">' + n(r['조회']) + '</td></tr>';
+            }),
+            '아직 쌓인 방문이 없습니다.');
 
     // 최상위 도메인
     document.getElementById('tlds').innerHTML = 표(

@@ -90,7 +90,7 @@ def _count_sessions(times):
 
 def summarize(days=1, only_service=None):
     per_service = {}       # {서비스: {"조회":n, "표":set()}}
-    per_path = {}          # {(서비스, 경로): 조회수}
+    per_path = {}          # {(서비스, 경로): {"조회":n, "표":set()}}
     per_country = {}       # {나라: {"조회":n, "표":set()}}
     per_bucket = {}        # {시각칸: 조회수}
     times_by_vid = {}      # {표: [시각...]}
@@ -129,8 +129,12 @@ def summarize(days=1, only_service=None):
                 s["조회"] += 1
                 s["표"].add(vid)
 
+                # 화면마다 사람 수도 센다 — 조회 수만으로는 한 사람이 여러 번
+                # 넘겨 본 것과 여러 사람이 한 번씩 들른 것이 구별되지 않는다.
                 key = (service, screen)
-                per_path[key] = per_path.get(key, 0) + 1
+                sc = per_path.setdefault(key, {"조회": 0, "표": set()})
+                sc["조회"] += 1
+                sc["표"].add(vid)
 
                 c = per_country.setdefault(country, {"조회": 0, "표": set()})
                 c["조회"] += 1
@@ -157,7 +161,8 @@ def summarize(days=1, only_service=None):
         key=lambda d: -d["조회"],
     )
     화면별 = sorted(
-        ({"서비스": svc, "경로": p, "조회": n} for (svc, p), n in per_path.items()),
+        ({"서비스": svc, "경로": p, "조회": v["조회"], "방문자": len(v["표"])}
+         for (svc, p), v in per_path.items()),
         key=lambda d: -d["조회"],
     )[:TOP_PATHS]
     시간별 = [{"때": k, "조회": v} for k, v in sorted(per_bucket.items())]
