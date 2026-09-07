@@ -314,6 +314,20 @@ async def get_javascript_en():
     return get_nocache_html_response("rdap-javascript-en.html")
 
 
+@app.get("/ads.txt")
+async def get_ads_txt():
+    """광고 인증 파일 — 우리 광고 자리를 팔 수 있는 곳이 어디인지 밝힌다.
+
+    도메인 뿌리(rdap.kr/ads.txt)에 있어야 하고 글자 파일로 나가야 한다.
+    구글이 하루 한두 번 받아 가며, 없으면 '수익 손실 위험'으로 표시한다.
+    내용이 바뀌는 일이 거의 없어 캐시를 막지 않는다 — 막을 이유가 없다.
+    """
+    file_path = os.path.join(BASE_DIR, "ads.txt")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="ads.txt not found")
+    return FileResponse(file_path, media_type="text/plain; charset=utf-8")
+
+
 # ── 통계 화면과 로그인 ────────────────────────────────────────────
 # 통계는 누구나 볼 수 있게 두되, 접속 주소만은 로그인한 사람에게만 보인다.
 # 로그인 판정은 이 서버가 하지 않고 포털에 물어본다(portal_auth.py 참고).
