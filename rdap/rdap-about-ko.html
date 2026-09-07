@@ -89,6 +89,41 @@
                                 </div>
                             </div>
                         </div>
+
+                        <h4 style="font-weight: 700; margin-top: 30px; margin-bottom: 15px;">RDAP와 WHOIS, 무엇이 다른가요?</h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered" style="margin-bottom: 0;">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>WHOIS (기존)</th>
+                                        <th>RDAP (현재)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>응답 형식</td>
+                                        <td class="text-muted">정형화되지 않은 평문 텍스트</td>
+                                        <td>표준 JSON — 기계가 바로 읽고 파싱 가능</td>
+                                    </tr>
+                                    <tr>
+                                        <td>국제 표준</td>
+                                        <td class="text-muted">사실상 표준 없이 레지스트리마다 형식이 제각각</td>
+                                        <td>IETF 표준(STD 95), ICANN 권고 프로토콜</td>
+                                    </tr>
+                                    <tr>
+                                        <td>보안 · 개인정보</td>
+                                        <td class="text-muted">접근 제어 없이 전체 정보를 그대로 노출</td>
+                                        <td>권한에 따라 응답 항목을 다르게 줄 수 있음</td>
+                                    </tr>
+                                    <tr>
+                                        <td>다국어 지원</td>
+                                        <td class="text-muted">ASCII 위주, 다국어 처리 제한적</td>
+                                        <td>국제화된 문자 집합을 표준으로 지원</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -141,6 +176,20 @@ curl -v https://bootstrap.rdap.kr/domain/nic.car
 
 # 최종 결과 데이터 바로 받기
 curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <h4 style="font-weight: 700; margin-top: 0; margin-bottom: 15px;">근거 표준 (RFC)</h4>
+                        <p class="text-muted">RDAP은 IETF STD 95로 표준화되어 있으며, 아래 RFC 문서들이 그 근거입니다.</p>
+                        <ul style="padding-left: 20px;">
+                            <li><b>RFC 7480</b> — <a href="https://www.rfc-editor.org/info/rfc7480" target="_blank">HTTP Usage in the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 7481</b> — <a href="https://www.rfc-editor.org/info/rfc7481" target="_blank">Security Services in the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 9082</b> — <a href="https://www.rfc-editor.org/info/rfc9082" target="_blank">Registration Data Access Protocol (RDAP) Query Format</a></li>
+                            <li><b>RFC 9083</b> — <a href="https://www.rfc-editor.org/info/rfc9083" target="_blank">JSON Responses for the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 9224</b> — <a href="https://www.rfc-editor.org/info/rfc9224" target="_blank">Finding the Authoritative Registration Data Access Protocol (RDAP) Service</a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
