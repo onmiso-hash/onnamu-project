@@ -133,7 +133,7 @@
         <!-- 조회가 어디서 왔나 -->
         <div>
             <h2>조회가 어디서 왔나
-                <span class="hint">우리 조회 화면인가, 남의 프로그램이 곧장 부른 것인가</span>
+                <span class="hint">웹 조회 화면에서 왔나, API로 곧장 불렀나</span>
             </h2>
             <div class="card scroll" id="origins"></div>
         </div>
@@ -324,8 +324,8 @@ function 그리기() {
     document.getElementById('origins').innerHTML = 표(
         '<th>어디서</th><th class="num">조회</th><th class="num">비율</th>',
         어디서합 ? [
-            ['<span class="tag human">우리 조회 화면</span>', 어디서['우리화면']],
-            ['<span class="tag machine">곧장 부른 요청</span>', 어디서['직접호출']],
+            ['<span class="tag human">Web Client 요청</span>', 어디서['우리화면']],
+            ['<span class="tag machine">API 요청</span>', 어디서['직접호출']],
             ['<span class="tag unknown">판정 전</span>', 어디서['판정전']]
         ].map(function (r) {
             return '<tr><td>' + r[0] + '</td>'
