@@ -128,6 +128,25 @@ app.add_middleware(
 # 1:1이라 남긴다. /help는 다른 RDAP 서버도 부르는 규격 자리라 그대로 센다.
 _TRAFFIC_SKIP_EXACT = {"/dashboard", "/api/stats/traffic", "/api/visits/summary"}
 
+# 우리 조회 화면은 조회할 때 주소 뒤에 proxy=true 를 붙인다(client/js/rdap-client-view.js).
+# 남의 프로그램이 부르는 주소와 글자가 똑같아서 이 표시 말고는 둘을 가를 단서가
+# 없다 — 그래서 기록에 남겨 둔다. FastAPI 가 참으로 읽는 낱말과 같은 목록을 쓴다.
+_PROXY_TRUE_WORDS = {"1", "t", "true", "y", "yes", "on"}
+
+
+def _from_our_screen(request):
+    """이 요청이 우리 조회 화면에서 나온 조회인가.
+
+    조회가 아닌 주소(소개 화면·목록 파일 등)에는 아무 표시도 남기지 않는다 —
+    표시가 붙은 줄은 곧 '조회'라야 읽는 쪽이 헷갈리지 않는다. 표시를 남기기
+    전의 옛 기록과도 갈라야 하므로, 해당 없음은 0이 아니라 None으로 돌려준다.
+    """
+    if traffic_stats is None:
+        return None
+    if traffic_stats.classify_path(request.url.path)[0] != "조회":
+        return None
+    return (request.query_params.get("proxy") or "").strip().lower() in _PROXY_TRUE_WORDS
+
 
 @app.middleware("http")
 async def record_traffic(request: Request, call_next):
@@ -136,7 +155,8 @@ async def record_traffic(request: Request, call_next):
         # 답을 받은 뒤에 적는다 — 응답 코드가 있어야 '유효한 요청'을 가릴 수 있다.
         traffic_log.record("rdap", request.url.path, request.headers.get,
                            request.client.host if request.client else None,
-                           response.status_code)
+                           response.status_code,
+                           web=_from_our_screen(request))
     return response
 
 async def proxy_rdap_request(target_url: str, accept_language: str = None):
