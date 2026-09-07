@@ -89,6 +89,41 @@
                                 </div>
                             </div>
                         </div>
+
+                        <h4 style="font-weight: 700; margin-top: 30px; margin-bottom: 15px;">RDAP vs. WHOIS — What's the Difference?</h4>
+                        <div class="table-responsive">
+                            <table class="table table-bordered" style="margin-bottom: 0;">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>WHOIS (Legacy)</th>
+                                        <th>RDAP (Current)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Response format</td>
+                                        <td class="text-muted">Unstructured free-form text</td>
+                                        <td>Standard JSON — directly machine-readable</td>
+                                    </tr>
+                                    <tr>
+                                        <td>International standard</td>
+                                        <td class="text-muted">No real standard; format varies by registry</td>
+                                        <td>IETF standard (STD 95), recommended by ICANN</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Security &amp; privacy</td>
+                                        <td class="text-muted">No access control; exposes full data to anyone</td>
+                                        <td>Can tailor response fields by requester's authorization</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Internationalization</td>
+                                        <td class="text-muted">ASCII-centric, limited multilingual support</td>
+                                        <td>Internationalized character sets supported by design</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
 
@@ -141,6 +176,20 @@ curl -v https://bootstrap.rdap.kr/domain/nic.car
 
 # Get final result data directly
 curl -L https://bootstrap.rdap.kr/ip/211.231.99.17</pre>
+                    </div>
+                </div>
+
+                <div class="panel panel-default">
+                    <div class="panel-body">
+                        <h4 style="font-weight: 700; margin-top: 0; margin-bottom: 15px;">Underlying Standards (RFC)</h4>
+                        <p class="text-muted">RDAP is standardized as IETF STD 95, defined across the following RFCs.</p>
+                        <ul style="padding-left: 20px;">
+                            <li><b>RFC 7480</b> — <a href="https://www.rfc-editor.org/info/rfc7480" target="_blank">HTTP Usage in the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 7481</b> — <a href="https://www.rfc-editor.org/info/rfc7481" target="_blank">Security Services in the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 9082</b> — <a href="https://www.rfc-editor.org/info/rfc9082" target="_blank">Registration Data Access Protocol (RDAP) Query Format</a></li>
+                            <li><b>RFC 9083</b> — <a href="https://www.rfc-editor.org/info/rfc9083" target="_blank">JSON Responses for the Registration Data Access Protocol (RDAP)</a></li>
+                            <li><b>RFC 9224</b> — <a href="https://www.rfc-editor.org/info/rfc9224" target="_blank">Finding the Authoritative Registration Data Access Protocol (RDAP) Service</a></li>
+                        </ul>
                     </div>
                 </div>
             </div>
