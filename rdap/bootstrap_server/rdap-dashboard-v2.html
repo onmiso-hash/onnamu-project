@@ -133,7 +133,7 @@
         <!-- 조회가 어디서 왔나 -->
         <div>
             <h2>조회가 어디서 왔나
-                <span class="hint">우리 조회 화면인가, 남의 프로그램이 곧장 부른 것인가</span>
+                <span class="hint">웹 조회 화면에서 왔나, API로 곧장 불렀나</span>
             </h2>
             <div class="card scroll" id="origins"></div>
         </div>
@@ -313,13 +313,19 @@ function 그리기() {
     var 어디서 = 조회['어디서'] || {};
     var 어디서합 = (어디서['우리화면'] || 0) + (어디서['직접호출'] || 0) + (어디서['판정전'] || 0);
     function 몫(v) {
-        return 어디서합 ? (Math.round((v || 0) * 1000 / 어디서합) / 10) + '%' : '—';
+        if (!어디서합) return '—';
+        var 값 = v || 0;
+        var 비율 = Math.round(값 * 1000 / 어디서합) / 10;
+        // 0건과 '있지만 아주 적음'은 다르다. 반올림해서 0%가 되는 것을 그대로
+        // 적으면 건수가 있는데 없는 것처럼 읽힌다.
+        if (값 > 0 && 비율 === 0) return '<0.1%';
+        return 비율 + '%';
     }
     document.getElementById('origins').innerHTML = 표(
         '<th>어디서</th><th class="num">조회</th><th class="num">비율</th>',
         어디서합 ? [
-            ['<span class="tag human">우리 조회 화면</span>', 어디서['우리화면']],
-            ['<span class="tag machine">곧장 부른 요청</span>', 어디서['직접호출']],
+            ['<span class="tag human">Web Client 요청</span>', 어디서['우리화면']],
+            ['<span class="tag machine">API 요청</span>', 어디서['직접호출']],
             ['<span class="tag unknown">판정 전</span>', 어디서['판정전']]
         ].map(function (r) {
             return '<tr><td>' + r[0] + '</td>'
