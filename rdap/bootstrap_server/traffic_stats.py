@@ -65,6 +65,12 @@ LOOKUP_KINDS = {
 # 훑기로 세면 안 된다.
 BOOTSTRAP_FILES = {"dns.json", "ipv4.json", "ipv6.json", "asn.json", "object-tags.json"}
 
+# 우리가 도메인 뿌리에 두는 규격 파일. 광고 인증 파일(ads.txt)은 구글이 주기적으로
+# 받아 간다 — 우리에게 실제로 있는 자리이므로 '훑기(없는 자리를 찾아본 요청)'가
+# 아니다. 기계가 받아 가는 파일이라는 점에서 위의 목록 파일과 성격이 같아 '자료'로 센다.
+# 여기 없는 이름을 넣으면 진짜 404가 '자료'로 둔갑하므로, 실제로 내주는 것만 적는다.
+ROOT_FILES = {"ads.txt"}
+
 # 사람이 브라우저로 여는 화면들.
 PAGE_PATHS = {
     "/", "/dashboard", "/help", "/docs", "/redoc", "/openapi.json",
@@ -99,6 +105,9 @@ def classify_path(path):
         return "조회", head, parts[1].strip().lower()
 
     if head in BOOTSTRAP_FILES or (head + ".json") in BOOTSTRAP_FILES:
+        return "자료", None, None
+
+    if head in ROOT_FILES and len(parts) == 1:
         return "자료", None, None
 
     return "훑기", None, None
