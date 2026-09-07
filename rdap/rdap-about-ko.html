@@ -90,36 +90,36 @@
                             </div>
                         </div>
 
-                        <h4 style="font-weight: 700; margin-top: 30px; margin-bottom: 15px;">RDAP와 WHOIS, 무엇이 다른가요?</h4>
-                        <div class="table-responsive">
-                            <table class="table table-bordered" style="margin-bottom: 0;">
+                        <h4 style="font-weight: 700; margin-top: 35px; margin-bottom: 18px;">RDAP와 WHOIS, 무엇이 다른가요?</h4>
+                        <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px;">
+                            <table style="width: 100%; min-width: 540px; border-collapse: collapse; margin: 0; font-size: 14px;">
                                 <thead>
                                     <tr>
-                                        <th></th>
-                                        <th>WHOIS (기존)</th>
-                                        <th>RDAP (현재)</th>
+                                        <th style="width: 24%; padding: 15px 18px; background: #f7f9f8;"></th>
+                                        <th style="padding: 15px 18px; background: #f7f9f8; color: var(--text-muted); font-weight: 700;">WHOIS <span style="font-weight: 500; font-size: 12px;">기존</span></th>
+                                        <th style="padding: 15px 18px; background: var(--gradient-green); color: var(--white); font-weight: 700;">RDAP <span style="font-weight: 500; font-size: 12px; opacity: 0.85;">현재 표준</span></th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td>응답 형식</td>
-                                        <td class="text-muted">정형화되지 않은 평문 텍스트</td>
-                                        <td>표준 JSON — 기계가 바로 읽고 파싱 가능</td>
+                                        <th scope="row" style="padding: 15px 18px; background: #fcfdfc; border-top: 1px solid #eef2f0; font-weight: 700; color: var(--text-dark);">응답 형식</th>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">정형화되지 않은 평문 텍스트</td>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; background: #f6fbf7; color: var(--text-dark);">표준 <b>JSON</b> — 기계가 바로 읽고 파싱 가능</td>
                                     </tr>
                                     <tr>
-                                        <td>국제 표준</td>
-                                        <td class="text-muted">사실상 표준 없이 레지스트리마다 형식이 제각각</td>
-                                        <td>IETF 표준(STD 95), ICANN 권고 프로토콜</td>
+                                        <th scope="row" style="padding: 15px 18px; background: #fcfdfc; border-top: 1px solid #eef2f0; font-weight: 700; color: var(--text-dark);">국제 표준</th>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">사실상 표준 없이 레지스트리마다 형식이 제각각</td>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; background: #f6fbf7; color: var(--text-dark);"><b>IETF 표준(STD 95)</b>, ICANN 권고 프로토콜</td>
                                     </tr>
                                     <tr>
-                                        <td>보안 · 개인정보</td>
-                                        <td class="text-muted">접근 제어 없이 전체 정보를 그대로 노출</td>
-                                        <td>권한에 따라 응답 항목을 다르게 줄 수 있음</td>
+                                        <th scope="row" style="padding: 15px 18px; background: #fcfdfc; border-top: 1px solid #eef2f0; font-weight: 700; color: var(--text-dark);">보안 · 개인정보</th>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">접근 제어 없이 전체 정보를 그대로 노출</td>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; background: #f6fbf7; color: var(--text-dark);">권한에 따라 <b>응답 항목을 다르게</b> 줄 수 있음</td>
                                     </tr>
                                     <tr>
-                                        <td>다국어 지원</td>
-                                        <td class="text-muted">ASCII 위주, 다국어 처리 제한적</td>
-                                        <td>국제화된 문자 집합을 표준으로 지원</td>
+                                        <th scope="row" style="padding: 15px 18px; background: #fcfdfc; border-top: 1px solid #eef2f0; font-weight: 700; color: var(--text-dark);">다국어 지원</th>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">ASCII 위주, 다국어 처리 제한적</td>
+                                        <td style="padding: 15px 18px; border-top: 1px solid #eef2f0; background: #f6fbf7; color: var(--text-dark);"><b>국제화된 문자 집합</b>을 표준으로 지원</td>
                                     </tr>
                                 </tbody>
                             </table>
