@@ -313,7 +313,13 @@ function 그리기() {
     var 어디서 = 조회['어디서'] || {};
     var 어디서합 = (어디서['우리화면'] || 0) + (어디서['직접호출'] || 0) + (어디서['판정전'] || 0);
     function 몫(v) {
-        return 어디서합 ? (Math.round((v || 0) * 1000 / 어디서합) / 10) + '%' : '—';
+        if (!어디서합) return '—';
+        var 값 = v || 0;
+        var 비율 = Math.round(값 * 1000 / 어디서합) / 10;
+        // 0건과 '있지만 아주 적음'은 다르다. 반올림해서 0%가 되는 것을 그대로
+        // 적으면 건수가 있는데 없는 것처럼 읽힌다.
+        if (값 > 0 && 비율 === 0) return '<0.1%';
+        return 비율 + '%';
     }
     document.getElementById('origins').innerHTML = 표(
         '<th>어디서</th><th class="num">조회</th><th class="num">비율</th>',
