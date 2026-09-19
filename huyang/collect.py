@@ -29,6 +29,7 @@ except Exception:
 
 ENV_PATH = pathlib.Path(r"C:\Users\onmis\project\gallery\.env")
 OUT_PATH = pathlib.Path(r"C:\Users\onmis\project\huyang_data\availability.json")
+LOG_PATH = pathlib.Path(r"C:\Users\onmis\project\huyang_data\collect.log")
 BASE = "https://www.foresttrip.go.kr"
 MAIN = BASE + "/rep/or/fcfsRsrvtMain.do?hmpgId=FRIP&menuId=001001"
 
@@ -48,6 +49,42 @@ MAX_PAGES = 5
 # 전국을 다 모으면 네 시간이 넘고 요청이 3,000번에 가까워, 관심 권역만 둔다.
 # 나머지 권역은 휴양림 이름·남은 객실 수·숙박/야영 구분까지만 모은다.
 DETAIL_REGIONS = ["5", "6"]  # 전북, 전남/광주
+
+
+class Tee:
+    """화면과 기록 파일에 같이 쓴다. 한 줄이 나올 때마다 바로 밀어 넣는다.
+
+    파일로 흘려보내기만 하면 파이썬이 글을 모아 두었다가 끝날 때 한꺼번에
+    쓴다. 그러면 한 시간 동안 기록이 비어 있어 살았는지 죽었는지 알 수 없다.
+    시작·끝 표시까지 여기서 적는 이유는, 명령 파일이 적으면 한 파일에 글자
+    방식이 섞여 한글이 깨지기 때문이다."""
+
+    def __init__(self, path):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        self.f = open(path, "a", encoding="utf-8")
+        self.out = sys.__stdout__
+
+    def write(self, text):
+        try:
+            self.out.write(text)
+            self.out.flush()
+        except Exception:
+            pass
+        self.f.write(text)
+        self.f.flush()
+
+    def flush(self):
+        try:
+            self.out.flush()
+        except Exception:
+            pass
+        self.f.flush()
+
+    def close(self):
+        try:
+            self.f.close()
+        except Exception:
+            pass
 
 
 def read_credentials():
@@ -232,6 +269,7 @@ def main():
     ap.add_argument("--only", default="", choices=["", "숙박", "야영"],
                     help="한 갈래만 모은다")
     ap.add_argument("--out", default=str(OUT_PATH))
+    ap.add_argument("--log", default="", help="기록을 남길 파일. 비우면 화면에만")
     args = ap.parse_args()
 
     uid, pw = read_credentials()
@@ -360,5 +398,42 @@ def main():
              len(failures), out))
 
 
+def _run():
+    """기록 파일을 열고 main()을 부른다. 시작·끝 표시와 걸린 시간을 남긴다."""
+    log_arg = ""
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--log" and i + 1 < len(argv):
+            log_arg = argv[i + 1]
+        elif a.startswith("--log="):
+            log_arg = a.split("=", 1)[1]
+    tee = Tee(pathlib.Path(log_arg)) if log_arg else None
+    if tee:
+        sys.stdout = tee
+    t0 = dt.datetime.now()
+    print("\n===== %s 시작 =====" % t0.strftime("%Y-%m-%d %H:%M:%S"))
+    code = 0
+    try:
+        main()
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else 1
+        if code:
+            print("멈췄다: %s" % e)
+    except Exception as e:
+        code = 1
+        import traceback
+        print("터졌다: %s" % e)
+        print(traceback.format_exc())
+    t1 = dt.datetime.now()
+    took = (t1 - t0).total_seconds()
+    print("===== %s 끝 (걸린 시간 %d분 %d초 / 결과 %s) =====" % (
+        t1.strftime("%Y-%m-%d %H:%M:%S"), int(took // 60), int(took % 60),
+        "정상" if code == 0 else "실패"))
+    if tee:
+        sys.stdout = sys.__stdout__
+        tee.close()
+    sys.exit(code)
+
+
 if __name__ == "__main__":
-    main()
+    _run()
