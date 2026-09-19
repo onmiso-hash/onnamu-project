@@ -290,13 +290,16 @@ def index():
     username = payload.get('username') if payload else None
     # 관리자 메뉴를 보일지도 지금 표를 보고 정한다 — 출입증에 박힌 값은 30일 묵을 수 있다.
     is_admin = False
+    can_huyang = False
     if payload:
         user, blocked = resolve_user(payload)
         if blocked:
             username = None
         else:
             is_admin = user.get('is_admin', False)
-    return render_template('index.html', username=username, is_admin=is_admin)
+            can_huyang = is_admin or HUYANG_FOLDER in (user.get('folders') or [])
+    return render_template('index.html', username=username, is_admin=is_admin,
+                           can_huyang=can_huyang)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -388,16 +391,38 @@ def renewal_v2(): return render_template('renewal_v2.html')
 # 붙어 있어 볼륨을 새로 달지 않았다.
 HUYANG_JSON = "/host_c/Users/onmis/project/huyang_data/availability.json"
 
+# 휴양림 화면은 관리자와 가족에게 연다. 손님 계정(public만 가진 계정)은 막는다.
+# admin_only로 두면 가족이 못 들어와서, 폴더를 보고 정하는 검사를 따로 둔다.
+HUYANG_FOLDER = 'family'
+
+
+def huyang_allowed():
+    user = getattr(g, 'user', None) or {}
+    return bool(user.get('is_admin')) or HUYANG_FOLDER in (user.get('folders') or [])
+
+
+def huyang_guard():
+    """볼 수 없는 사람이면 막는 응답을, 볼 수 있으면 None을 돌려준다."""
+    if huyang_allowed():
+        return None
+    return "⛔ Forbidden: 휴양림 화면은 관리자와 가족만 볼 수 있습니다.", 403
+
 
 @app.route('/huyang')
-@login_required(admin_only=True)
+@login_required()
 def huyang():
+    blocked = huyang_guard()
+    if blocked:
+        return blocked
     return render_template('huyang.html')
 
 
 @app.route('/api/huyang')
-@login_required(admin_only=True)
+@login_required()
 def huyang_data():
+    blocked = huyang_guard()
+    if blocked:
+        return blocked
     try:
         with open(HUYANG_JSON, encoding='utf-8') as f:
             return Response(f.read(), content_type='application/json; charset=utf-8')
