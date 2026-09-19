@@ -2,13 +2,17 @@
 """자연휴양림 빈자리 모으기.
 
 숲나들e는 '지역 하나 + 날짜 하나'씩만 검색을 받는다. 그래서 권역 9개와
-밤 하나하나를 돌며 한 번씩 조회하고, 그 결과를 파일 한 장에 담는다.
+밤 하나하나를 돌며 목록을 받고, 빈자리가 있는 휴양림마다 상세 화면을 한 번
+더 열어 **어떤 물건이 비었는지**(숲속의집·휴양관·야영데크 …)까지 받아 둔다.
 
 브라우저를 그대로 띄워 쓰는 이유는 검색에 대기열 장치가 걸려 있어서다.
 장치가 발급하는 표 없이 주소만 두드리면 '비정상적인 접근'으로 거절당한다.
 표를 위조하지 않고 브라우저가 평소 받는 방식 그대로 받는다.
 
-사이트에 부담을 주지 않도록 조회 사이를 쉬고, 한 번에 한 건씩만 보낸다.
+쓰지 않는 길이 하나 있다. '월별현황조회'는 한 곳의 한 달치를 한 번에 주지만
+'자동예약 방지숫자'(CAPTCHA)가 화면을 막고 있어 손대지 않는다. 상세 화면에도
+같은 것이 있으나 그쪽은 **결제 칸**에 붙어 있고 물건 목록은 그냥 보인다.
+우리는 목록만 읽고 예약은 건드리지 않는다.
 """
 import argparse
 import datetime as dt
@@ -34,8 +38,16 @@ REGIONS = {
     "9": "제주",
 }
 
-# 조회 사이 쉬는 시간(초). 사람이 누르는 속도보다 느리게 잡았다.
-PAUSE = 3.0
+# 화면을 옮길 때마다 쉬는 시간(초). 사람이 누르는 속도보다 느리게 잡았다.
+PAUSE = 2.5
+# 한 휴양림에서 넘겨 볼 쪽의 상한. 한 쪽에 10개가 들어온다.
+MAX_PAGES = 5
+
+# 물건 상세(숲속의집·휴양관·야영데크 …)까지 모을 권역.
+# 휴양림 한 곳마다 화면을 한 번 더 열어야 해서 13.5초씩 든다(실측).
+# 전국을 다 모으면 네 시간이 넘고 요청이 3,000번에 가까워, 관심 권역만 둔다.
+# 나머지 권역은 휴양림 이름·남은 객실 수·숙박/야영 구분까지만 모은다.
+DETAIL_REGIONS = ["5", "6"]  # 전북, 전남/광주
 
 
 def read_credentials():
@@ -55,55 +67,91 @@ def read_credentials():
 def target_nights(weekend_only=True, limit=None):
     """오늘부터 다음 달 말일까지. 숲나들e가 여는 범위가 딱 그만큼이다."""
     today = dt.date.today()
-    if today.month == 12:
-        end = dt.date(today.year + 1, 1, 31)
-    else:
-        nxt = today.month + 1
-        year = today.year
-        if nxt == 12:
-            end = dt.date(year, 12, 31)
-        else:
-            end = dt.date(year, nxt + 1, 1) - dt.timedelta(days=1)
+    year, nxt = today.year, today.month + 1
+    if nxt > 12:
+        year, nxt = year + 1, 1
+    end = (dt.date(year + 1, 1, 1) if nxt == 12
+           else dt.date(year, nxt + 1, 1)) - dt.timedelta(days=1)
     out = []
     d = today
     while d <= end:
-        # 4=금, 5=토
-        if (not weekend_only) or d.weekday() in (4, 5):
+        if (not weekend_only) or d.weekday() in (4, 5):  # 4=금, 5=토
             out.append(d)
         d += dt.timedelta(days=1)
     return out[:limit] if limit else out
 
 
-def parse_available(html):
-    """결과 화면에서 '[예약가능]'이 붙은 휴양림만 뽑는다.
+# ---- 화면에서 꺼내는 부분 -------------------------------------------------
 
-    한 칸의 생김새는 이렇다:
-        <div class="rc_ti"><i>[예약가능]</i><b>[국립](홍천군)삼봉자연휴양림</b></div>
-    표시가 없는 칸은 그날 빈자리가 없는 곳이라 건너뛴다.
-    """
-    body = re.sub(r"(?is)<script.*?</script>", " ", html)
-    rows = []
-    for block in re.findall(r'(?is)<div class="rc_ti">(.*?)</div>', body):
-        label = re.search(r"(?is)<i>\s*(.*?)\s*</i>", block)
-        name = re.search(r"(?is)<b>\s*(.*?)\s*</b>", block)
-        if not (label and name):
-            continue
-        if "가능" not in re.sub(r"<[^>]+>", "", label.group(1)):
-            continue
-        full = re.sub(r"<[^>]+>", "", name.group(1)).strip()
-        m = re.match(r"\[(국립|공립|사립)\]\s*(?:\(([^)]*)\))?\s*(.*)$", full)
-        rows.append({
-            "tier": m.group(1) if m else "",
-            "city": (m.group(2) or "") if m else "",
-            "name": (m.group(3) or full).strip() if m else full,
-            "full": full,
-        })
-    total = re.search(r"<span>(\d+)개의 휴양시설 검색</span>", body)
-    return rows, int(total.group(1)) if total else len(rows)
+LIST_JS = """() => {
+    const out = [];
+    document.querySelectorAll('.rc_item').forEach(it => {
+        const lab = it.querySelector('.rc_ti i');
+        if (!lab || !lab.textContent.includes('가능')) return;
+        const a = it.querySelector('.ut_button a');
+        const m = a && a.getAttribute('onclick') &&
+                  a.getAttribute('onclick').match(/'([^']+)'/);
+        const cnt = it.querySelector('.ut_roomcount');
+        const loc = it.querySelector('.lnk_locate');
+        const site = it.querySelector('.lnk_site');
+        const txt = e => e ? e.textContent.replace(/\\s+/g, ' ').trim() : '';
+        out.push({
+            instt_id: m ? m[1] : null,
+            full: txt(it.querySelector('.rc_ti b')),
+            rooms: (txt(cnt).match(/(\\d+)/) || [])[1] || null,
+            address: txt(loc),
+            homepage: site ? site.getAttribute('href') : null
+        });
+    });
+    return out;
+}"""
+
+UNITS_JS = """() => {
+    const txt = e => e ? e.textContent.replace(/\\s+/g, ' ').trim() : '';
+    const rows = [];
+    document.querySelectorAll('.goods_list_area .list_box').forEach(box => {
+        const o1 = box.querySelector('.opt1');
+        if (!o1) return;
+        const hid = o1.querySelector('.hide');
+        const state = txt(hid);
+        const clone = o1.cloneNode(true);
+        clone.querySelectorAll('.icon_group, .hide').forEach(n => n.remove());
+        rows.push({
+            state: state,
+            label: txt(clone),
+            spec: txt(box.querySelector('.opt2')),
+            price: txt(box.querySelector('.opt3'))
+        });
+    });
+    const pc = document.querySelector('.paging_count');
+    const m = pc ? txt(pc).match(/\\((\\d+)\\s*\\/\\s*(\\d+)\\)/) : null;
+    return { rows: rows, page: m ? +m[1] : 1, pages: m ? +m[2] : 1 };
+}"""
 
 
-def search_once(pg, arcd, night):
-    """권역 하나, 밤 하나를 조회한다. 실패하면 빈 목록과 사유를 돌려준다."""
+def split_label(label):
+    """'[한옥동]방우재' 를 종류와 이름으로 가른다."""
+    m = re.match(r"\[([^\]]+)\]\s*(.*)$", label or "")
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return "", (label or "").strip()
+
+
+def split_full(full):
+    """'[사립](삼척시)삼척활기자연휴양림' 을 구분·시군·이름으로 가른다."""
+    m = re.match(r"\[(국립|공립|사립)\]\s*(?:\(([^)]*)\))?\s*(.*)$", full or "")
+    if m:
+        return m.group(1), (m.group(2) or ""), m.group(3).strip()
+    return "", "", (full or "").strip()
+
+
+# ---- 움직이는 부분 --------------------------------------------------------
+
+def run_list(pg, arcd, night, camp=False):
+    """권역 하나, 밤 하나의 목록 화면으로 간다.
+
+    camp=True면 화면 안의 '야영' 칸을 눌러 목록을 바꿔 읽는다. 이쪽은 화면
+    안에서만 바뀌므로 대기열을 다시 거치지 않는다."""
     bg = night.strftime("%Y%m%d")
     ed = (night + dt.timedelta(days=1)).strftime("%Y%m%d")
     pg.evaluate(
@@ -122,17 +170,55 @@ def search_once(pg, arcd, night):
         }""",
         [bg, ed, arcd],
     )
-    try:
-        with pg.expect_navigation(timeout=90000):
-            pg.evaluate("fn_top_goSearch()")
-    except Exception as e:
-        return [], 0, "이동 실패(%s)" % type(e).__name__
+    with pg.expect_navigation(timeout=90000):
+        pg.evaluate("fn_top_goSearch()")
     time.sleep(1.5)
     if "alert.do" in pg.url:
         m = re.search(r'alertMsg\s*=\s*"([^"]*)"', pg.content())
-        return [], 0, "거절됨: " + (m.group(1) if m else "사유 못 읽음")
-    rows, total = parse_available(pg.content())
-    return rows, total, None
+        raise RuntimeError("거절됨: " + (m.group(1) if m else "사유 못 읽음"))
+    if camp:
+        pg.evaluate("fn_switchFilter('2')")
+        time.sleep(2.5)
+    return pg.evaluate(LIST_JS)
+
+
+def run_units(pg, instt_id, sctin="01"):
+    """휴양림 한 곳의 상세 화면으로 가서 물건 목록을 쪽까지 넘겨 가며 읽는다.
+
+    sctin은 '01'이 숙박, '02'가 야영이다."""
+    with pg.expect_navigation(timeout=90000):
+        pg.evaluate("fn_fsfsRsrvtPssblGoodsList('%s', '', '%s')" % (instt_id, sctin))
+    time.sleep(2.0)
+    if "alert.do" in pg.url:
+        m = re.search(r'alertMsg\s*=\s*"([^"]*)"', pg.content())
+        raise RuntimeError("상세 거절됨: " + (m.group(1) if m else "사유 못 읽음"))
+
+    got = pg.evaluate(UNITS_JS)
+    rows, pages = list(got["rows"]), min(got["pages"], MAX_PAGES)
+    for n in range(2, pages + 1):
+        try:
+            pg.evaluate("fn_goPage('%d')" % n)
+        except Exception:
+            break
+        time.sleep(1.5)
+        more = pg.evaluate(UNITS_JS)
+        if not more["rows"]:
+            break
+        rows.extend(more["rows"])
+    truncated = got["pages"] > MAX_PAGES
+
+    units, seen = [], set()
+    for r in rows:
+        if r["state"] and "가능" not in r["state"]:
+            continue
+        cat, nm = split_label(r["label"])
+        key = (cat, nm, r["spec"])
+        if key in seen:
+            continue
+        seen.add(key)
+        units.append({"category": cat, "name": nm,
+                      "spec": r["spec"], "price": r["price"]})
+    return units, truncated
 
 
 def main():
@@ -140,26 +226,38 @@ def main():
     ap.add_argument("--regions", default="", help="권역 번호를 쉼표로. 비우면 전부")
     ap.add_argument("--nights", type=int, default=0, help="밤을 몇 개만. 0이면 전부")
     ap.add_argument("--all-days", action="store_true", help="금·토만이 아니라 매일")
+    ap.add_argument("--no-units", action="store_true", help="물건 목록은 어디서도 안 모은다")
+    ap.add_argument("--detail-regions", default=",".join(DETAIL_REGIONS),
+                    help="물건 상세까지 모을 권역 번호를 쉼표로. 'all'이면 전부")
+    ap.add_argument("--only", default="", choices=["", "숙박", "야영"],
+                    help="한 갈래만 모은다")
     ap.add_argument("--out", default=str(OUT_PATH))
     args = ap.parse_args()
 
     uid, pw = read_credentials()
     regions = [r for r in args.regions.split(",") if r] or list(REGIONS)
-    nights = target_nights(weekend_only=not args.all_days,
-                           limit=args.nights or None)
-    print("모을 범위: 권역 %d개 × 밤 %d개 = 조회 %d번"
-          % (len(regions), len(nights), len(regions) * len(nights)))
+    if args.detail_regions.strip() == "all":
+        detail_regions = set(REGIONS)
+    else:
+        detail_regions = {r for r in args.detail_regions.split(",") if r}
+    nights = target_nights(weekend_only=not args.all_days, limit=args.nights or None)
     if not nights:
         raise SystemExit("모을 밤이 없다")
+    print("모을 범위: 권역 %d개 × 밤 %d개 × 갈래 2 = 목록 조회 %d번"
+          % (len(regions), len(nights), len(regions) * len(nights) * 2))
+    print("물건 상세까지 모을 권역: %s"
+          % (", ".join(REGIONS.get(r, r) for r in sorted(detail_regions))
+             if detail_regions and not args.no_units else "없음"))
 
     from playwright.sync_api import sync_playwright
 
     started = dt.datetime.now()
     records, failures = [], []
+    total_lists = len(regions) * len(nights)
 
     with sync_playwright() as p:
         br = p.chromium.launch(headless=True)
-        ctx = br.new_context(locale="ko-KR", viewport={"width": 1440, "height": 1000})
+        ctx = br.new_context(locale="ko-KR", viewport={"width": 1600, "height": 1200})
         pg = ctx.new_page()
 
         pg.goto(BASE + "/com/login.do", wait_until="domcontentloaded", timeout=60000)
@@ -170,48 +268,96 @@ def main():
         time.sleep(2)
         if pg.query_selector("input[name='loginPwd']") is not None:
             br.close()
-            raise SystemExit("로그인 실패 — 비밀번호를 5번 틀리면 계정이 잠긴다. 멈춘다.")
+            raise SystemExit("로그인 실패 — 5번 틀리면 계정이 잠긴다. 멈춘다.")
         print("로그인 성공")
 
         pg.goto(MAIN, wait_until="domcontentloaded", timeout=60000)
         time.sleep(2)
 
         done = 0
+        total_steps = total_lists * 2  # 숙박 한 번, 야영 한 번
         for night in nights:
             for arcd in regions:
-                done += 1
-                rows, total, err = search_once(pg, arcd, night)
-                tag = "%s %s" % (night.isoformat(), REGIONS.get(arcd, arcd))
-                if err:
-                    failures.append({"date": night.isoformat(), "region": arcd,
-                                     "reason": err})
-                    print("  [%d/%d] %s -> %s" % (done, len(nights) * len(regions), tag, err))
-                    # 거절당하면 처음 화면으로 돌아가 숨을 고른다.
-                    pg.goto(MAIN, wait_until="domcontentloaded", timeout=60000)
-                    time.sleep(5)
-                    continue
-                for r in rows:
-                    r.update({"date": night.isoformat(), "region": arcd,
-                              "region_name": REGIONS.get(arcd, arcd)})
-                    records.append(r)
-                print("  [%d/%d] %s -> 빈자리 %d곳 (검색 %d곳)"
-                      % (done, len(nights) * len(regions), tag, len(rows), total))
-                time.sleep(PAUSE)
+                for sctin, kind_nm in (("01", "숙박"), ("02", "야영")):
+                    if args.only and kind_nm != args.only:
+                        continue
+                    done += 1
+                    tag = "%s %s %s" % (night.isoformat(),
+                                        REGIONS.get(arcd, arcd), kind_nm)
+                    try:
+                        found = run_list(pg, arcd, night, camp=(sctin == "02"))
+                    except Exception as e:
+                        failures.append({"date": night.isoformat(), "region": arcd,
+                                         "kind": kind_nm, "step": "목록",
+                                         "reason": str(e)[:120]})
+                        print("  [%d/%d] %s -> %s" % (done, total_steps, tag, e))
+                        pg.goto(MAIN, wait_until="domcontentloaded", timeout=60000)
+                        time.sleep(5)
+                        continue
+
+                    made = units_n = 0
+                    for f in found:
+                        tier, city, name = split_full(f["full"])
+                        rec = {
+                            "date": night.isoformat(), "region": arcd,
+                            "region_name": REGIONS.get(arcd, arcd),
+                            "kind": kind_nm,
+                            "tier": tier, "city": city, "name": name,
+                            "full": f["full"], "instt_id": f["instt_id"],
+                            "rooms": int(f["rooms"]) if f["rooms"] else None,
+                            "address": f["address"], "homepage": f["homepage"],
+                            "units": [], "units_truncated": False,
+                        }
+                        want_units = (not args.no_units
+                                      and arcd in detail_regions
+                                      and f["instt_id"])
+                        if want_units:
+                            try:
+                                time.sleep(PAUSE)
+                                rec["units"], rec["units_truncated"] = \
+                                    run_units(pg, f["instt_id"], sctin)
+                            except Exception as e:
+                                failures.append({"date": night.isoformat(),
+                                                 "region": arcd, "kind": kind_nm,
+                                                 "step": "상세", "name": name,
+                                                 "reason": str(e)[:120]})
+                            # 상세를 보면 목록이 사라진다. 뒤로 돌아가면 대기열을
+                            # 다시 거치지 않고 목록이 되살아난다(실측 확인).
+                            try:
+                                time.sleep(PAUSE)
+                                pg.go_back(wait_until="domcontentloaded", timeout=60000)
+                                time.sleep(1.5)
+                            except Exception as e:
+                                failures.append({"date": night.isoformat(),
+                                                 "region": arcd, "kind": kind_nm,
+                                                 "step": "목록복귀",
+                                                 "reason": str(e)[:120]})
+                                pg.goto(MAIN, wait_until="domcontentloaded", timeout=60000)
+                                time.sleep(5)
+                                records.append(rec)
+                                made += 1
+                                break
+                        records.append(rec)
+                        made += 1
+                        units_n += len(rec["units"])
+                    print("  [%d/%d] %s -> 휴양림 %d곳 / 물건 %d개"
+                          % (done, total_steps, tag, made, units_n))
+                    time.sleep(PAUSE)
         br.close()
 
     out = pathlib.Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
+    out.write_text(json.dumps({
         "collected_at": started.isoformat(timespec="seconds"),
         "finished_at": dt.datetime.now().isoformat(timespec="seconds"),
         "regions": REGIONS,
         "nights": [n.isoformat() for n in nights],
         "records": records,
         "failures": failures,
-    }
-    out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
-    print("다 모았다: 빈자리 %d건 / 실패 %d건 -> %s"
-          % (len(records), len(failures), out))
+    }, ensure_ascii=False, indent=1), encoding="utf-8")
+    print("다 모았다: 휴양림 %d건 / 물건 %d개 / 실패 %d건 -> %s"
+          % (len(records), sum(len(r["units"]) for r in records),
+             len(failures), out))
 
 
 if __name__ == "__main__":

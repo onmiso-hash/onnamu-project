@@ -30,49 +30,62 @@
         .top h1 { font-size: 1.5rem; font-weight: 800; }
         .top .when { font-size: 0.8rem; color: var(--fg-soft); }
         .back { margin-left: auto; font-size: 0.8rem; color: var(--accent); text-decoration: none; }
-        .note { font-size: 0.78rem; color: var(--fg-faint); margin-bottom: 22px; }
+        .note { font-size: 0.78rem; color: var(--fg-faint); margin-bottom: 18px; }
 
         .section-label {
             font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
-            text-transform: uppercase; letter-spacing: 2px; margin: 24px 0 12px 4px;
+            text-transform: uppercase; letter-spacing: 2px; margin: 20px 0 10px 4px;
         }
         .chips { display: flex; flex-wrap: wrap; gap: 8px; }
         .chip {
             border: 1px solid var(--border); background: var(--bg-sunken); color: var(--fg-muted);
-            border-radius: var(--radius-full, 999px); padding: 6px 14px; font-size: 0.82rem;
+            border-radius: 999px; padding: 6px 14px; font-size: 0.82rem;
             cursor: pointer; transition: all .15s; font-family: inherit;
         }
         .chip:hover { background: var(--bg-elev); }
         .chip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 700; }
 
-        .summary { margin: 26px 0 10px; font-size: 0.85rem; color: var(--fg-soft); }
+        .summary { margin: 24px 0 10px; font-size: 0.85rem; color: var(--fg-soft); }
         .summary b { color: var(--fg); font-size: 1.05rem; }
 
-        .daygroup { margin-bottom: 22px; }
+        .daygroup { margin-bottom: 24px; }
         .dayhead {
             display: flex; align-items: baseline; gap: 10px;
-            font-weight: 800; font-size: 1rem; margin: 0 0 10px 4px;
+            font-weight: 800; font-size: 1.05rem; margin: 0 0 10px 4px;
         }
         .dayhead .dow { font-size: 0.8rem; color: var(--fg-soft); font-weight: 600; }
         .dayhead .cnt { margin-left: auto; font-size: 0.78rem; color: var(--fg-faint); font-weight: 600; }
 
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-        .item { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
-        .item .nm { font-weight: 700; font-size: 0.95rem; }
-        .item .sub { font-size: 0.78rem; color: var(--fg-soft); display: flex; gap: 8px; align-items: center; }
-        .tier { font-size: 0.68rem; font-weight: 800; padding: 1px 7px; border-radius: var(--radius-sm, 6px); }
-        .tier.국립 { background: var(--accent-soft); color: var(--accent); }
-        .tier.공립 { background: rgba(56, 189, 248, .16); color: #38bdf8; }
-        .tier.사립 { background: rgba(251, 191, 36, .16); color: #fbbf24; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+        .item { padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; }
+        .ihead { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+        .ihead .nm { font-weight: 700; font-size: 1rem; }
+        .ihead .rooms { margin-left: auto; font-size: 0.75rem; color: var(--accent); font-weight: 700; }
+        .isub { font-size: 0.76rem; color: var(--fg-soft); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+        .badge { font-size: 0.66rem; font-weight: 800; padding: 1px 7px; border-radius: 6px; }
+        .b-국립 { background: var(--accent-soft); color: var(--accent); }
+        .b-공립 { background: rgba(56, 189, 248, .16); color: #38bdf8; }
+        .b-사립 { background: rgba(251, 191, 36, .16); color: #fbbf24; }
+        .b-숙박 { background: rgba(52, 211, 153, .16); color: #34d399; }
+        .b-야영 { background: rgba(244, 114, 182, .16); color: #f472b6; }
+
+        .units { border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 7px; }
+        .ucat { font-size: 0.72rem; font-weight: 800; color: var(--fg-soft); letter-spacing: .5px; }
+        .urow { display: flex; gap: 8px; align-items: baseline; font-size: 0.8rem; padding-left: 2px; }
+        .urow .un { font-weight: 600; }
+        .urow .us { color: var(--fg-faint); font-size: 0.74rem; }
+        .urow .up { margin-left: auto; color: var(--fg-muted); font-size: 0.76rem; white-space: nowrap; }
+        .nounit { font-size: 0.76rem; color: var(--fg-faint); border-top: 1px solid var(--border); padding-top: 8px; }
+        .addr { font-size: 0.72rem; color: var(--fg-faint); }
 
         .empty { padding: 40px 20px; text-align: center; color: var(--fg-soft); }
         .empty b { display: block; font-size: 1.05rem; color: var(--fg); margin-bottom: 6px; }
         .go {
-            display: inline-block; margin-top: 18px; padding: 10px 18px; border-radius: var(--radius);
+            display: inline-block; margin-top: 20px; padding: 10px 18px; border-radius: var(--radius);
             background: var(--accent); color: var(--on-accent); text-decoration: none;
             font-weight: 700; font-size: 0.85rem;
         }
-        .fail { margin-top: 24px; font-size: 0.78rem; color: var(--fg-faint); }
+        .fail { margin-top: 20px; font-size: 0.78rem; color: var(--fg-faint); }
     </style>
 </head>
 <body>
@@ -83,18 +96,21 @@
         <a class="back" href="/">← 홈으로</a>
     </div>
     <p class="note">
-        숲나들e에서 하루 한 번 모아 둔 것입니다. 실시간이 아니므로, 들어가 보면 이미 나갔을 수 있습니다.
+        숲나들e에서 하루 한 번 모아 둔 것입니다. 실시간이 아니므로 들어가 보면 이미 나갔을 수 있습니다.
         예약은 숲나들e에서 직접 하십시오.
     </p>
+
+    <div class="section-label">갈래</div>
+    <div class="chips" id="kindChips"></div>
+
+    <div class="section-label">종류</div>
+    <div class="chips" id="catChips"></div>
 
     <div class="section-label">지역</div>
     <div class="chips" id="regionChips"></div>
 
     <div class="section-label">날짜</div>
     <div class="chips" id="dateChips"></div>
-
-    <div class="section-label">구분</div>
-    <div class="chips" id="tierChips"></div>
 
     <div class="summary" id="summary"></div>
     <div id="list"></div>
@@ -107,15 +123,13 @@
 <script>
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 let DATA = null;
-const pick = { region: new Set(), date: new Set(), tier: new Set() };
+const pick = { kind: new Set(), category: new Set(), region: new Set(), date: new Set() };
 
-function fmtDate(iso) {
+const fmtDate = iso => {
     const d = new Date(iso + 'T00:00:00');
     return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
-}
-function dow(iso) {
-    return DOW[new Date(iso + 'T00:00:00').getDay()];
-}
+};
+const dow = iso => DOW[new Date(iso + 'T00:00:00').getDay()];
 
 function chip(label, key, value, box) {
     const b = document.createElement('button');
@@ -131,40 +145,129 @@ function chip(label, key, value, box) {
 
 function buildFilters() {
     const recs = DATA.records || [];
-    const regions = [...new Set(recs.map(r => r.region))].sort();
-    const rbox = document.getElementById('regionChips');
-    regions.forEach(r => chip(DATA.regions[r] || r, 'region', r, rbox));
+    const add = (vals, key, box, fmt) =>
+        vals.forEach(v => chip(fmt ? fmt(v) : v, key, v, document.getElementById(box)));
 
-    const dates = [...new Set(recs.map(r => r.date))].sort();
-    const dbox = document.getElementById('dateChips');
-    dates.forEach(d => chip(fmtDate(d) + '(' + dow(d) + ')', 'date', d, dbox));
+    add([...new Set(recs.map(r => r.kind).filter(Boolean))], 'kind', 'kindChips');
+    const cats = [...new Set(recs.flatMap(r => (r.units || []).map(u => u.category)).filter(Boolean))].sort();
+    add(cats, 'category', 'catChips');
+    add([...new Set(recs.map(r => r.region))].sort(), 'region', 'regionChips',
+        v => DATA.regions[v] || v);
+    add([...new Set(recs.map(r => r.date))].sort(), 'date', 'dateChips',
+        v => fmtDate(v) + '(' + dow(v) + ')');
+}
 
-    const tiers = [...new Set(recs.map(r => r.tier).filter(Boolean))];
-    const tbox = document.getElementById('tierChips');
-    tiers.forEach(t => chip(t, 'tier', t, tbox));
+/* 종류를 고르면 그 종류의 물건만 남기고, 하나도 안 남는 휴양림은 뺀다. */
+function applyFilters() {
+    const out = [];
+    (DATA.records || []).forEach(r => {
+        if (pick.kind.size && !pick.kind.has(r.kind)) return;
+        if (pick.region.size && !pick.region.has(r.region)) return;
+        if (pick.date.size && !pick.date.has(r.date)) return;
+        let units = r.units || [];
+        if (pick.category.size) {
+            units = units.filter(u => pick.category.has(u.category));
+            if (units.length === 0) return;
+        }
+        out.push(Object.assign({}, r, { units: units }));
+    });
+    return out;
+}
+
+function card(r) {
+    const c = document.createElement('div');
+    c.className = 'glass-card item';
+
+    const head = document.createElement('div');
+    head.className = 'ihead';
+    const nm = document.createElement('span');
+    nm.className = 'nm'; nm.textContent = r.name || r.full;
+    head.appendChild(nm);
+    if (r.rooms != null) {
+        const rm = document.createElement('span');
+        rm.className = 'rooms'; rm.textContent = '남은 ' + r.rooms + '개';
+        head.appendChild(rm);
+    }
+    c.appendChild(head);
+
+    const sub = document.createElement('div');
+    sub.className = 'isub';
+    [[r.tier, 'b-' + r.tier], [r.kind, 'b-' + r.kind]].forEach(([t, cls]) => {
+        if (!t) return;
+        const s = document.createElement('span');
+        s.className = 'badge ' + cls; s.textContent = t;
+        sub.appendChild(s);
+    });
+    const loc = document.createElement('span');
+    loc.textContent = [r.region_name, r.city].filter(Boolean).join(' · ');
+    sub.appendChild(loc);
+    if (r.homepage) {
+        const a = document.createElement('a');
+        a.href = r.homepage; a.target = '_blank'; a.rel = 'noopener';
+        a.textContent = '홈페이지'; a.style.color = 'var(--accent)';
+        sub.appendChild(a);
+    }
+    c.appendChild(sub);
+
+    if ((r.units || []).length) {
+        const box = document.createElement('div');
+        box.className = 'units';
+        const by = {};
+        r.units.forEach(u => { (by[u.category || '기타'] = by[u.category || '기타'] || []).push(u); });
+        Object.keys(by).sort().forEach(cat => {
+            const h = document.createElement('div');
+            h.className = 'ucat'; h.textContent = cat + ' ' + by[cat].length + '개';
+            box.appendChild(h);
+            by[cat].forEach(u => {
+                const row = document.createElement('div');
+                row.className = 'urow';
+                const n = document.createElement('span');
+                n.className = 'un'; n.textContent = u.name;
+                const s = document.createElement('span');
+                s.className = 'us'; s.textContent = u.spec || '';
+                const p = document.createElement('span');
+                p.className = 'up'; p.textContent = u.price || '';
+                row.appendChild(n); row.appendChild(s); row.appendChild(p);
+                box.appendChild(row);
+            });
+        });
+        if (r.units_truncated) {
+            const t = document.createElement('div');
+            t.className = 'us'; t.textContent = '※ 너무 많아 일부만 담았습니다.';
+            box.appendChild(t);
+        }
+        c.appendChild(box);
+    } else {
+        const n = document.createElement('div');
+        n.className = 'nounit';
+        n.textContent = '종류별 목록은 이 지역에서 모으지 않습니다. 숲나들e에서 확인하십시오.';
+        c.appendChild(n);
+    }
+
+    if (r.address) {
+        const a = document.createElement('div');
+        a.className = 'addr'; a.textContent = r.address;
+        c.appendChild(a);
+    }
+    return c;
 }
 
 function render() {
-    const recs = (DATA.records || []).filter(r =>
-        (pick.region.size === 0 || pick.region.has(r.region)) &&
-        (pick.date.size === 0 || pick.date.has(r.date)) &&
-        (pick.tier.size === 0 || pick.tier.has(r.tier))
-    );
-
+    const recs = applyFilters();
+    const units = recs.reduce((n, r) => n + (r.units || []).length, 0);
     document.getElementById('summary').innerHTML =
-        '빈자리 <b>' + recs.length + '</b>건';
+        '휴양림 <b>' + recs.length + '</b>곳 · 빈 물건 <b>' + units + '</b>개';
 
     const list = document.getElementById('list');
     list.innerHTML = '';
-    if (recs.length === 0) {
+    if (!recs.length) {
         list.innerHTML = '<div class="glass-card empty"><b>조건에 맞는 빈자리가 없습니다.</b>' +
-            '조건을 줄이거나, 다음 수집을 기다려 주십시오.</div>';
+            '조건을 줄이거나 다음 수집을 기다려 주십시오.</div>';
         return;
     }
 
     const byDate = {};
     recs.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
-
     Object.keys(byDate).sort().forEach(d => {
         const rows = byDate[d].sort((a, b) =>
             (a.region_name || '').localeCompare(b.region_name || '') ||
@@ -178,25 +281,7 @@ function render() {
         g.appendChild(h);
         const grid = document.createElement('div');
         grid.className = 'grid';
-        rows.forEach(r => {
-            const c = document.createElement('div');
-            c.className = 'glass-card item';
-            const nm = document.createElement('div');
-            nm.className = 'nm';
-            nm.textContent = r.name || r.full;
-            const sub = document.createElement('div');
-            sub.className = 'sub';
-            const t = document.createElement('span');
-            t.className = 'tier ' + (r.tier || '');
-            t.textContent = r.tier || '기타';
-            sub.appendChild(t);
-            const loc = document.createElement('span');
-            loc.textContent = [r.region_name, r.city].filter(Boolean).join(' · ');
-            sub.appendChild(loc);
-            c.appendChild(nm);
-            c.appendChild(sub);
-            grid.appendChild(c);
-        });
+        rows.forEach(r => grid.appendChild(card(r)));
         g.appendChild(grid);
         list.appendChild(g);
     });
@@ -206,18 +291,17 @@ fetch('/api/huyang')
     .then(r => r.json())
     .then(d => {
         DATA = d;
-        if (!d.records || d.records.length === 0) {
+        if (!d.records || !d.records.length) {
             document.getElementById('when').textContent = '아직 모은 것이 없습니다';
             document.getElementById('list').innerHTML =
                 '<div class="glass-card empty"><b>아직 모은 것이 없습니다.</b>' +
                 '새벽에 한 번 모읍니다. 그 뒤에 다시 열어 주십시오.</div>';
             return;
         }
-        const when = new Date(d.collected_at);
+        const w = new Date(d.collected_at);
         document.getElementById('when').textContent =
-            '모은 때 ' + (when.getMonth() + 1) + '월 ' + when.getDate() + '일 ' +
-            String(when.getHours()).padStart(2, '0') + ':' +
-            String(when.getMinutes()).padStart(2, '0');
+            '모은 때 ' + (w.getMonth() + 1) + '월 ' + w.getDate() + '일 ' +
+            String(w.getHours()).padStart(2, '0') + ':' + String(w.getMinutes()).padStart(2, '0');
         buildFilters();
         render();
         if (d.failures && d.failures.length) {
@@ -225,9 +309,7 @@ fetch('/api/huyang')
                 '모으는 중 ' + d.failures.length + '건은 실패했습니다. 그만큼은 빠져 있습니다.';
         }
     })
-    .catch(() => {
-        document.getElementById('when').textContent = '불러오지 못했습니다';
-    });
+    .catch(() => { document.getElementById('when').textContent = '불러오지 못했습니다'; });
 </script>
 </body>
 </html>
