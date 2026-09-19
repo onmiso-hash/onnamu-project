@@ -25,7 +25,7 @@ app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 # 관리자가 접속자 지도(/admin/traffic)를 열어 두면 그 화면의 자동 갱신이
 # 자기 IP의 요청 수를 1분에 두 건씩 계속 부풀리던 것을 2026-09-04에 확인했다.
 # 방문 신호(/api/page)는 화면 한 장과 1:1로 맞는 정직한 수라 그대로 남긴다.
-_TRAFFIC_SKIP_PREFIXES = ("/admin/",)
+_TRAFFIC_SKIP_PREFIXES = ("/admin/", "/huyang")
 _TRAFFIC_SKIP_EXACT = {"/api/traffic/summary", "/api/visits/summary",
                        "/api/members/count"}
 
@@ -382,6 +382,31 @@ def renewal_v1(): return render_template('renewal_v1.html')
 
 @app.route('/v2')
 def renewal_v2(): return render_template('renewal_v2.html')
+
+# 휴양림 빈자리 — 모으는 일은 huyang/collect.py가 미니PC에서 하고,
+# 여기서는 그 결과 파일을 읽어 넘기기만 한다. C드라이브가 이미 /host_c로
+# 붙어 있어 볼륨을 새로 달지 않았다.
+HUYANG_JSON = "/host_c/Users/onmis/project/huyang_data/availability.json"
+
+
+@app.route('/huyang')
+@login_required(admin_only=True)
+def huyang():
+    return render_template('huyang.html')
+
+
+@app.route('/api/huyang')
+@login_required(admin_only=True)
+def huyang_data():
+    try:
+        with open(HUYANG_JSON, encoding='utf-8') as f:
+            return Response(f.read(), content_type='application/json; charset=utf-8')
+    except FileNotFoundError:
+        return jsonify(records=[], regions={}, failures=[], collected_at=None)
+    except Exception as e:
+        return jsonify(records=[], regions={}, failures=[],
+                       collected_at=None, error=str(e)), 200
+
 
 @app.route('/stats')
 @login_required(admin_only=True)

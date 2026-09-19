@@ -24,3 +24,6 @@ portal/data/
 
 # 배포 전 보존한 컨테이너 접속 기록 (미니PC 로컬 전용)
 container_logs/
+
+# 휴양림 빈자리 수집 결과 — 미니PC에서 매일 갈아 끼운다(이력 남길 것 없음)
+huyang_data/

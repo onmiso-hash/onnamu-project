@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>onnamu.kr | 휴양림 빈자리</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('onnamu-theme');
+                if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', -apple-system, sans-serif;
+            background: linear-gradient(135deg, var(--bg-soft) 0%, var(--bg) 100%);
+            color: var(--fg); min-height: 100vh; padding: 40px 20px; line-height: 1.6;
+        }
+        .container { max-width: var(--maxw); margin: 0 auto; }
+        .glass-card {
+            background: var(--bg-card); backdrop-filter: blur(12px);
+            border-radius: var(--radius-xl); padding: 20px; border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+        }
+        .top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+        .top h1 { font-size: 1.5rem; font-weight: 800; }
+        .top .when { font-size: 0.8rem; color: var(--fg-soft); }
+        .back { margin-left: auto; font-size: 0.8rem; color: var(--accent); text-decoration: none; }
+        .note { font-size: 0.78rem; color: var(--fg-faint); margin-bottom: 22px; }
+
+        .section-label {
+            font-size: 0.7rem; font-weight: 700; color: var(--fg-soft);
+            text-transform: uppercase; letter-spacing: 2px; margin: 24px 0 12px 4px;
+        }
+        .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+        .chip {
+            border: 1px solid var(--border); background: var(--bg-sunken); color: var(--fg-muted);
+            border-radius: var(--radius-full, 999px); padding: 6px 14px; font-size: 0.82rem;
+            cursor: pointer; transition: all .15s; font-family: inherit;
+        }
+        .chip:hover { background: var(--bg-elev); }
+        .chip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 700; }
+
+        .summary { margin: 26px 0 10px; font-size: 0.85rem; color: var(--fg-soft); }
+        .summary b { color: var(--fg); font-size: 1.05rem; }
+
+        .daygroup { margin-bottom: 22px; }
+        .dayhead {
+            display: flex; align-items: baseline; gap: 10px;
+            font-weight: 800; font-size: 1rem; margin: 0 0 10px 4px;
+        }
+        .dayhead .dow { font-size: 0.8rem; color: var(--fg-soft); font-weight: 600; }
+        .dayhead .cnt { margin-left: auto; font-size: 0.78rem; color: var(--fg-faint); font-weight: 600; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+        .item { padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+        .item .nm { font-weight: 700; font-size: 0.95rem; }
+        .item .sub { font-size: 0.78rem; color: var(--fg-soft); display: flex; gap: 8px; align-items: center; }
+        .tier { font-size: 0.68rem; font-weight: 800; padding: 1px 7px; border-radius: var(--radius-sm, 6px); }
+        .tier.국립 { background: var(--accent-soft); color: var(--accent); }
+        .tier.공립 { background: rgba(56, 189, 248, .16); color: #38bdf8; }
+        .tier.사립 { background: rgba(251, 191, 36, .16); color: #fbbf24; }
+
+        .empty { padding: 40px 20px; text-align: center; color: var(--fg-soft); }
+        .empty b { display: block; font-size: 1.05rem; color: var(--fg); margin-bottom: 6px; }
+        .go {
+            display: inline-block; margin-top: 18px; padding: 10px 18px; border-radius: var(--radius);
+            background: var(--accent); color: var(--on-accent); text-decoration: none;
+            font-weight: 700; font-size: 0.85rem;
+        }
+        .fail { margin-top: 24px; font-size: 0.78rem; color: var(--fg-faint); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top">
+        <h1>🌲 휴양림 빈자리</h1>
+        <span class="when" id="when">불러오는 중…</span>
+        <a class="back" href="/">← 홈으로</a>
+    </div>
+    <p class="note">
+        숲나들e에서 하루 한 번 모아 둔 것입니다. 실시간이 아니므로, 들어가 보면 이미 나갔을 수 있습니다.
+        예약은 숲나들e에서 직접 하십시오.
+    </p>
+
+    <div class="section-label">지역</div>
+    <div class="chips" id="regionChips"></div>
+
+    <div class="section-label">날짜</div>
+    <div class="chips" id="dateChips"></div>
+
+    <div class="section-label">구분</div>
+    <div class="chips" id="tierChips"></div>
+
+    <div class="summary" id="summary"></div>
+    <div id="list"></div>
+    <div class="fail" id="fail"></div>
+
+    <a class="go" href="https://www.foresttrip.go.kr/rep/or/fcfsRsrvtMain.do?hmpgId=FRIP&menuId=001001"
+       target="_blank" rel="noopener">숲나들e에서 예약하기 →</a>
+</div>
+
+<script>
+const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+let DATA = null;
+const pick = { region: new Set(), date: new Set(), tier: new Set() };
+
+function fmtDate(iso) {
+    const d = new Date(iso + 'T00:00:00');
+    return (d.getMonth() + 1) + '월 ' + d.getDate() + '일';
+}
+function dow(iso) {
+    return DOW[new Date(iso + 'T00:00:00').getDay()];
+}
+
+function chip(label, key, value, box) {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = label;
+    b.onclick = () => {
+        pick[key].has(value) ? pick[key].delete(value) : pick[key].add(value);
+        b.classList.toggle('on');
+        render();
+    };
+    box.appendChild(b);
+}
+
+function buildFilters() {
+    const recs = DATA.records || [];
+    const regions = [...new Set(recs.map(r => r.region))].sort();
+    const rbox = document.getElementById('regionChips');
+    regions.forEach(r => chip(DATA.regions[r] || r, 'region', r, rbox));
+
+    const dates = [...new Set(recs.map(r => r.date))].sort();
+    const dbox = document.getElementById('dateChips');
+    dates.forEach(d => chip(fmtDate(d) + '(' + dow(d) + ')', 'date', d, dbox));
+
+    const tiers = [...new Set(recs.map(r => r.tier).filter(Boolean))];
+    const tbox = document.getElementById('tierChips');
+    tiers.forEach(t => chip(t, 'tier', t, tbox));
+}
+
+function render() {
+    const recs = (DATA.records || []).filter(r =>
+        (pick.region.size === 0 || pick.region.has(r.region)) &&
+        (pick.date.size === 0 || pick.date.has(r.date)) &&
+        (pick.tier.size === 0 || pick.tier.has(r.tier))
+    );
+
+    document.getElementById('summary').innerHTML =
+        '빈자리 <b>' + recs.length + '</b>건';
+
+    const list = document.getElementById('list');
+    list.innerHTML = '';
+    if (recs.length === 0) {
+        list.innerHTML = '<div class="glass-card empty"><b>조건에 맞는 빈자리가 없습니다.</b>' +
+            '조건을 줄이거나, 다음 수집을 기다려 주십시오.</div>';
+        return;
+    }
+
+    const byDate = {};
+    recs.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
+
+    Object.keys(byDate).sort().forEach(d => {
+        const rows = byDate[d].sort((a, b) =>
+            (a.region_name || '').localeCompare(b.region_name || '') ||
+            (a.name || '').localeCompare(b.name || ''));
+        const g = document.createElement('div');
+        g.className = 'daygroup';
+        const h = document.createElement('div');
+        h.className = 'dayhead';
+        h.innerHTML = fmtDate(d) + ' <span class="dow">' + dow(d) + '요일 밤</span>' +
+            '<span class="cnt">' + rows.length + '곳</span>';
+        g.appendChild(h);
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        rows.forEach(r => {
+            const c = document.createElement('div');
+            c.className = 'glass-card item';
+            const nm = document.createElement('div');
+            nm.className = 'nm';
+            nm.textContent = r.name || r.full;
+            const sub = document.createElement('div');
+            sub.className = 'sub';
+            const t = document.createElement('span');
+            t.className = 'tier ' + (r.tier || '');
+            t.textContent = r.tier || '기타';
+            sub.appendChild(t);
+            const loc = document.createElement('span');
+            loc.textContent = [r.region_name, r.city].filter(Boolean).join(' · ');
+            sub.appendChild(loc);
+            c.appendChild(nm);
+            c.appendChild(sub);
+            grid.appendChild(c);
+        });
+        g.appendChild(grid);
+        list.appendChild(g);
+    });
+}
+
+fetch('/api/huyang')
+    .then(r => r.json())
+    .then(d => {
+        DATA = d;
+        if (!d.records || d.records.length === 0) {
+            document.getElementById('when').textContent = '아직 모은 것이 없습니다';
+            document.getElementById('list').innerHTML =
+                '<div class="glass-card empty"><b>아직 모은 것이 없습니다.</b>' +
+                '새벽에 한 번 모읍니다. 그 뒤에 다시 열어 주십시오.</div>';
+            return;
+        }
+        const when = new Date(d.collected_at);
+        document.getElementById('when').textContent =
+            '모은 때 ' + (when.getMonth() + 1) + '월 ' + when.getDate() + '일 ' +
+            String(when.getHours()).padStart(2, '0') + ':' +
+            String(when.getMinutes()).padStart(2, '0');
+        buildFilters();
+        render();
+        if (d.failures && d.failures.length) {
+            document.getElementById('fail').textContent =
+                '모으는 중 ' + d.failures.length + '건은 실패했습니다. 그만큼은 빠져 있습니다.';
+        }
+    })
+    .catch(() => {
+        document.getElementById('when').textContent = '불러오지 못했습니다';
+    });
+</script>
+</body>
+</html>
