@@ -85,6 +85,37 @@
             background: var(--accent); color: var(--on-accent); text-decoration: none;
             font-weight: 700; font-size: 0.85rem;
         }
+
+        /* 날짜 띠 — 하나만 고른다. */
+        .datestrip { display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 10px; scrollbar-width: thin; }
+        .dchip {
+            flex: 0 0 auto; min-width: 74px; text-align: center; cursor: pointer;
+            border: 1px solid var(--border); background: var(--bg-sunken);
+            border-radius: var(--radius); padding: 8px 12px; font-family: inherit;
+            color: var(--fg-muted); transition: all .15s;
+        }
+        .dchip:hover { background: var(--bg-elev); }
+        .dchip.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+        .dchip .dd { font-size: 0.95rem; font-weight: 800; display: block; }
+        .dchip .dw { font-size: 0.68rem; opacity: .8; }
+        .dchip .dn { font-size: 0.66rem; opacity: .7; display: block; margin-top: 2px; }
+
+        /* 접힌 카드 */
+        .item { cursor: pointer; }
+        .item.open { border-color: var(--accent-line); }
+        .pills { display: flex; flex-wrap: wrap; gap: 5px; }
+        .pill {
+            font-size: 0.7rem; padding: 2px 8px; border-radius: 999px;
+            background: var(--bg-sunken); border: 1px solid var(--border); color: var(--fg-muted);
+        }
+        .more {
+            display: block; width: 100%; margin: 14px 0 4px; padding: 11px;
+            border: 1px dashed var(--accent-line); background: var(--bg-sunken);
+            color: var(--accent); border-radius: var(--radius); font-weight: 700;
+            font-size: 0.85rem; cursor: pointer; font-family: inherit;
+        }
+        .more:hover { background: var(--bg-elev); }
+        .hint { font-size: 0.72rem; color: var(--fg-faint); margin-left: 4px; }
         .fail { margin-top: 20px; font-size: 0.78rem; color: var(--fg-faint); }
     </style>
 </head>
@@ -109,8 +140,8 @@
     <div class="section-label">지역</div>
     <div class="chips" id="regionChips"></div>
 
-    <div class="section-label">날짜</div>
-    <div class="chips" id="dateChips"></div>
+    <div class="section-label">날짜 <span class="hint">하루씩 봅니다</span></div>
+    <div class="datestrip" id="dateStrip"></div>
 
     <div class="summary" id="summary"></div>
     <div id="list"></div>
@@ -122,8 +153,12 @@
 
 <script>
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const PAGE = 60;                 // 한 번에 그리는 카드 수
 let DATA = null;
-const pick = { kind: new Set(), category: new Set(), region: new Set(), date: new Set() };
+let shown = PAGE;                // 지금 몇 개까지 그렸나
+/* 날짜는 하루씩만 본다. 열세 밤을 한꺼번에 그리면 카드가 천 장을 넘는다. */
+let pickedDate = null;
+const pick = { kind: new Set(), category: new Set(), region: new Set() };
 
 const fmtDate = iso => {
     const d = new Date(iso + 'T00:00:00');
@@ -138,32 +173,56 @@ function chip(label, key, value, box) {
     b.onclick = () => {
         pick[key].has(value) ? pick[key].delete(value) : pick[key].add(value);
         b.classList.toggle('on');
+        shown = PAGE;
         render();
     };
     box.appendChild(b);
+}
+
+function buildDateStrip() {
+    const box = document.getElementById('dateStrip');
+    const counts = {};
+    (DATA.records || []).forEach(r => { counts[r.date] = (counts[r.date] || 0) + 1; });
+    const dates = Object.keys(counts).sort();
+    const today = new Date().toISOString().slice(0, 10);
+    pickedDate = dates.find(d => d >= today) || dates[0];
+
+    dates.forEach(d => {
+        const b = document.createElement('button');
+        b.className = 'dchip' + (d === pickedDate ? ' on' : '');
+        b.innerHTML = '<span class="dd">' + fmtDate(d) + '</span>' +
+            '<span class="dw">' + dow(d) + '요일 밤</span>' +
+            '<span class="dn">' + counts[d] + '곳</span>';
+        b.onclick = () => {
+            pickedDate = d;
+            shown = PAGE;
+            box.querySelectorAll('.dchip').forEach(x => x.classList.remove('on'));
+            b.classList.add('on');
+            render();
+        };
+        box.appendChild(b);
+    });
 }
 
 function buildFilters() {
     const recs = DATA.records || [];
     const add = (vals, key, box, fmt) =>
         vals.forEach(v => chip(fmt ? fmt(v) : v, key, v, document.getElementById(box)));
-
     add([...new Set(recs.map(r => r.kind).filter(Boolean))], 'kind', 'kindChips');
     const cats = [...new Set(recs.flatMap(r => (r.units || []).map(u => u.category)).filter(Boolean))].sort();
     add(cats, 'category', 'catChips');
     add([...new Set(recs.map(r => r.region))].sort(), 'region', 'regionChips',
         v => DATA.regions[v] || v);
-    add([...new Set(recs.map(r => r.date))].sort(), 'date', 'dateChips',
-        v => fmtDate(v) + '(' + dow(v) + ')');
+    buildDateStrip();
 }
 
 /* 종류를 고르면 그 종류의 물건만 남기고, 하나도 안 남는 휴양림은 뺀다. */
 function applyFilters() {
     const out = [];
     (DATA.records || []).forEach(r => {
+        if (pickedDate && r.date !== pickedDate) return;
         if (pick.kind.size && !pick.kind.has(r.kind)) return;
         if (pick.region.size && !pick.region.has(r.region)) return;
-        if (pick.date.size && !pick.date.has(r.date)) return;
         let units = r.units || [];
         if (pick.category.size) {
             units = units.filter(u => pick.category.has(u.category));
@@ -171,7 +230,46 @@ function applyFilters() {
         }
         out.push(Object.assign({}, r, { units: units }));
     });
+    out.sort((a, b) =>
+        (a.region_name || '').localeCompare(b.region_name || '') ||
+        (a.name || '').localeCompare(b.name || ''));
     return out;
+}
+
+function unitList(r) {
+    const box = document.createElement('div');
+    box.className = 'units';
+    box.hidden = true;
+    const by = {};
+    r.units.forEach(u => { (by[u.category || '기타'] = by[u.category || '기타'] || []).push(u); });
+    Object.keys(by).sort().forEach(cat => {
+        const h = document.createElement('div');
+        h.className = 'ucat'; h.textContent = cat + ' ' + by[cat].length + '개';
+        box.appendChild(h);
+        by[cat].forEach(u => {
+            const row = document.createElement('div');
+            row.className = 'urow';
+            const n = document.createElement('span');
+            n.className = 'un'; n.textContent = u.name;
+            const sp = document.createElement('span');
+            sp.className = 'us'; sp.textContent = u.spec || '';
+            const pr = document.createElement('span');
+            pr.className = 'up'; pr.textContent = u.price || '';
+            row.appendChild(n); row.appendChild(sp); row.appendChild(pr);
+            box.appendChild(row);
+        });
+    });
+    if (r.units_truncated) {
+        const t = document.createElement('div');
+        t.className = 'us'; t.textContent = '※ 너무 많아 일부만 담았습니다.';
+        box.appendChild(t);
+    }
+    if (r.address) {
+        const a = document.createElement('div');
+        a.className = 'addr'; a.textContent = r.address;
+        box.appendChild(a);
+    }
+    return box;
 }
 
 function card(r) {
@@ -194,9 +292,9 @@ function card(r) {
     sub.className = 'isub';
     [[r.tier, 'b-' + r.tier], [r.kind, 'b-' + r.kind]].forEach(([t, cls]) => {
         if (!t) return;
-        const s = document.createElement('span');
-        s.className = 'badge ' + cls; s.textContent = t;
-        sub.appendChild(s);
+        const sp = document.createElement('span');
+        sp.className = 'badge ' + cls; sp.textContent = t;
+        sub.appendChild(sp);
     });
     const loc = document.createElement('span');
     loc.textContent = [r.region_name, r.city].filter(Boolean).join(' · ');
@@ -205,49 +303,36 @@ function card(r) {
         const a = document.createElement('a');
         a.href = r.homepage; a.target = '_blank'; a.rel = 'noopener';
         a.textContent = '홈페이지'; a.style.color = 'var(--accent)';
+        a.onclick = e => e.stopPropagation();
         sub.appendChild(a);
     }
     c.appendChild(sub);
 
     if ((r.units || []).length) {
-        const box = document.createElement('div');
-        box.className = 'units';
+        /* 물건은 접어 둔다. 종류와 개수만 알약으로 보이고, 누르면 펼쳐진다. */
         const by = {};
-        r.units.forEach(u => { (by[u.category || '기타'] = by[u.category || '기타'] || []).push(u); });
-        Object.keys(by).sort().forEach(cat => {
-            const h = document.createElement('div');
-            h.className = 'ucat'; h.textContent = cat + ' ' + by[cat].length + '개';
-            box.appendChild(h);
-            by[cat].forEach(u => {
-                const row = document.createElement('div');
-                row.className = 'urow';
-                const n = document.createElement('span');
-                n.className = 'un'; n.textContent = u.name;
-                const s = document.createElement('span');
-                s.className = 'us'; s.textContent = u.spec || '';
-                const p = document.createElement('span');
-                p.className = 'up'; p.textContent = u.price || '';
-                row.appendChild(n); row.appendChild(s); row.appendChild(p);
-                box.appendChild(row);
-            });
+        r.units.forEach(u => { by[u.category || '기타'] = (by[u.category || '기타'] || 0) + 1; });
+        const pills = document.createElement('div');
+        pills.className = 'pills';
+        Object.keys(by).sort().forEach(k => {
+            const sp = document.createElement('span');
+            sp.className = 'pill'; sp.textContent = k + ' ' + by[k];
+            pills.appendChild(sp);
         });
-        if (r.units_truncated) {
-            const t = document.createElement('div');
-            t.className = 'us'; t.textContent = '※ 너무 많아 일부만 담았습니다.';
-            box.appendChild(t);
-        }
+        c.appendChild(pills);
+
+        const box = unitList(r);
         c.appendChild(box);
+        c.onclick = () => {
+            box.hidden = !box.hidden;
+            c.classList.toggle('open', !box.hidden);
+        };
     } else {
         const n = document.createElement('div');
         n.className = 'nounit';
         n.textContent = '종류별 목록은 이 지역에서 모으지 않습니다. 숲나들e에서 확인하십시오.';
         c.appendChild(n);
-    }
-
-    if (r.address) {
-        const a = document.createElement('div');
-        a.className = 'addr'; a.textContent = r.address;
-        c.appendChild(a);
+        c.style.cursor = 'default';
     }
     return c;
 }
@@ -256,35 +341,29 @@ function render() {
     const recs = applyFilters();
     const units = recs.reduce((n, r) => n + (r.units || []).length, 0);
     document.getElementById('summary').innerHTML =
+        (pickedDate ? fmtDate(pickedDate) + '(' + dow(pickedDate) + ') 밤 · ' : '') +
         '휴양림 <b>' + recs.length + '</b>곳 · 빈 물건 <b>' + units + '</b>개';
 
     const list = document.getElementById('list');
     list.innerHTML = '';
     if (!recs.length) {
         list.innerHTML = '<div class="glass-card empty"><b>조건에 맞는 빈자리가 없습니다.</b>' +
-            '조건을 줄이거나 다음 수집을 기다려 주십시오.</div>';
+            '다른 날짜를 골라 보십시오.</div>';
         return;
     }
 
-    const byDate = {};
-    recs.forEach(r => { (byDate[r.date] = byDate[r.date] || []).push(r); });
-    Object.keys(byDate).sort().forEach(d => {
-        const rows = byDate[d].sort((a, b) =>
-            (a.region_name || '').localeCompare(b.region_name || '') ||
-            (a.name || '').localeCompare(b.name || ''));
-        const g = document.createElement('div');
-        g.className = 'daygroup';
-        const h = document.createElement('div');
-        h.className = 'dayhead';
-        h.innerHTML = fmtDate(d) + ' <span class="dow">' + dow(d) + '요일 밤</span>' +
-            '<span class="cnt">' + rows.length + '곳</span>';
-        g.appendChild(h);
-        const grid = document.createElement('div');
-        grid.className = 'grid';
-        rows.forEach(r => grid.appendChild(card(r)));
-        g.appendChild(grid);
-        list.appendChild(g);
-    });
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    recs.slice(0, shown).forEach(r => grid.appendChild(card(r)));
+    list.appendChild(grid);
+
+    if (recs.length > shown) {
+        const b = document.createElement('button');
+        b.className = 'more';
+        b.textContent = '더 보기 (' + (recs.length - shown) + '곳 남음)';
+        b.onclick = () => { shown += PAGE; render(); };
+        list.appendChild(b);
+    }
 }
 
 fetch('/api/huyang')
