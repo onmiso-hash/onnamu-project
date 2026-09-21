@@ -314,6 +314,66 @@ async def get_javascript_en():
     return get_nocache_html_response("rdap-javascript-en.html")
 
 
+# ── 글 화면 ──────────────────────────────────────────────────────
+# 조회 도구 말고 읽을거리가 실린 화면들이다. 2026-09 애드센스가 "게시자
+# 콘텐츠가 없는 화면"을 문제 삼아, 도구 화면에서 광고를 떼고 설명을 이쪽에
+# 모았다. 광고는 이 화면들에만 붙는다.
+
+@app.get("/rdap-guide-ko.html")
+async def get_guide_ko():
+    return get_nocache_html_response("rdap-guide-ko.html")
+
+@app.get("/rdap-guide-en.html")
+async def get_guide_en():
+    return get_nocache_html_response("rdap-guide-en.html")
+
+@app.get("/rdap-faq-ko.html")
+async def get_faq_ko():
+    return get_nocache_html_response("rdap-faq-ko.html")
+
+@app.get("/rdap-faq-en.html")
+async def get_faq_en():
+    return get_nocache_html_response("rdap-faq-en.html")
+
+@app.get("/rdap-privacy-ko.html")
+async def get_privacy_ko():
+    return get_nocache_html_response("rdap-privacy-ko.html")
+
+@app.get("/rdap-privacy-en.html")
+async def get_privacy_en():
+    return get_nocache_html_response("rdap-privacy-en.html")
+
+@app.get("/rdap-terms-ko.html")
+async def get_terms_ko():
+    return get_nocache_html_response("rdap-terms-ko.html")
+
+@app.get("/rdap-terms-en.html")
+async def get_terms_en():
+    return get_nocache_html_response("rdap-terms-en.html")
+
+
+@app.get("/robots.txt")
+async def get_robots_txt():
+    """훑기 로봇에게 주는 안내 — 어디를 봐도 되는지 알린다.
+
+    관리자 통계 화면과 부트스트랩 원본 JSON은 검색 결과에 실릴 이유가 없어
+    막는다. 사람이 읽는 화면은 모두 열어 둔다.
+    """
+    file_path = os.path.join(BASE_DIR, "robots.txt")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="robots.txt not found")
+    return FileResponse(file_path, media_type="text/plain; charset=utf-8")
+
+
+@app.get("/sitemap.xml")
+async def get_sitemap_xml():
+    """화면 목록 — 검색엔진이 새 글 화면을 빨리 찾아가게 한다."""
+    file_path = os.path.join(BASE_DIR, "sitemap.xml")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="sitemap.xml not found")
+    return FileResponse(file_path, media_type="application/xml")
+
+
 @app.get("/ads.txt")
 async def get_ads_txt():
     """광고 인증 파일 — 우리 광고 자리를 팔 수 있는 곳이 어디인지 밝힌다.

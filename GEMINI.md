@@ -103,6 +103,10 @@
 - 2026-05-23: Games 마이크로서비스 추가 및 포털 연동 (Snake, 2048, Pong, Flappy Clone). 상세 내용은 `history/GAMES_INTEGRATION_20260523.md` 참조.
 - 2026-05-23: 1943 스타일 슈팅 게임 '1943 Retro' 추가. 상세 내용은 `history/GAMES_1943_ADDITION_20260523.md` 참조.
 - 2026-05-23: 모든 게임에 시작 버튼 추가 및 Snake 게임 버그 수정. 상세 내용은 `history/GAMES_START_BUTTON_20260523.md` 참조.
+- **2026-09-21**: rdap.kr 애드센스 지적 조치 — 조회 도구 화면(`rdap-javascript-*.html`)은
+  읽을 글이 없어 광고를 붙일 수 없는 자리였다. 광고를 떼고, 글 화면 여덟 장(결과 읽는 법·
+  자주 묻는 질문·이용약관·개인정보처리방침, 한/영)을 새로 지어 광고를 그쪽으로 옮겼다.
+  `robots.txt`·`sitemap.xml`·`canonical`/`hreflang` 추가. 상세: `history/TASK_20260921.md`
 - **2026-08-20**: Chronicle AI가 휴대폰에서 대화 목록을 못 보여주고 늘 새 대화로 시작하던 것을
   고침. 목록은 서랍의 세로 배치에서 **혼자 높이 0으로 눌려** 사라지고 있었고(`flex-shrink: 0`),
   "무엇을 보고 있었나"는 그 기기 브라우저에만 있어 기기를 못 건넜다 —

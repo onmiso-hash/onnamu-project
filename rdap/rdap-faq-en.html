@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frequently Asked Questions - onnamu RDAP Service</title>
+    <meta name="description" content="Fifteen common questions about RDAP lookups and the onnamu RDAP service, answered.">
+    <meta name="author" content="onnamu">
+    <link rel="canonical" href="https://rdap.kr/rdap-faq-en.html">
+    <link rel="alternate" hreflang="ko" href="https://rdap.kr/rdap-faq-ko.html">
+    <link rel="alternate" hreflang="en" href="https://rdap.kr/rdap-faq-en.html">
+
+    <!-- 구글 애드센스 — rdap.kr 로 등록한 계정 번호다. async 라 화면 그리기를 막지 않는다.
+         글이 실린 화면에만 넣는다. 조회 도구 화면(rdap-javascript-*.html)과
+         관리자 통계 화면(bootstrap_server/rdap-dashboard*.html)에는 넣지 않는다. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3638470080967532"
+            crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="./client/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./client/css/rdap-v3.css">
+    <script src="./client/js/jquery.min.js"></script>
+    <script src="./client/js/bootstrap.min.js"></script>
+</head>
+<body style="padding-top: 70px;">
+    <!-- Navbar -->
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="rdap-about-en.html">🌲 onnamu RDAP</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="rdap-faq-ko.html">한국어 (KOR)</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h2 class="blog-title"><b>Frequently Asked</b> Questions</h2>
+            <p class="text-muted">The questions we hear most about RDAP lookups</p>
+        </div>
+
+        <ul class="nav nav-tabs">
+            <li><a href="rdap-about-en.html">About Service</a></li>
+            <li><a href="rdap-javascript-en.html">Web Client</a></li>
+            <li><a href="rdap-guide-en.html">Reading Results</a></li>
+            <li class="active"><a href="#">FAQ</a></li>
+        </ul>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <p style="margin-bottom: 0;">Questions we are asked most often about RDAP lookups and about this service. For what each field in a response means, see <a href="rdap-guide-en.html">Reading Results</a>.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q1. What exactly is RDAP?</h4>
+                <p>RDAP (Registration Data Access Protocol) is the <b>international standard for looking up registration data</b> about domains, IP addresses and AS numbers. The IETF designed it to replace WHOIS, which had been in use for nearly forty years, and it is now an IETF standard (STD 95).</p>
+     <p>The biggest difference is <b>the shape of the answer</b>. WHOIS returned free-form text that differed from server to server; RDAP answers in structured JSON that software can parse directly.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q2. Is WHOIS dead?</h4>
+                <p>Not immediately, but the centre of gravity has clearly moved. ICANN requires gTLD operators (<code>.com</code>, <code>.org</code> and so on) to run RDAP, and the obligation to keep the legacy WHOIS service on port 43 is being withdrawn in stages.</p>
+     <p>Some country-code TLDs still offer only WHOIS, or run both. That is why a few domains still return nothing over RDAP.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q3. Is this service free? Do I need an account?</h4>
+                <p>It is free and needs no account or API key.</p>
+     <p>It runs on a privately operated server, however, so it does not offer commercial-grade availability. For business-critical lookups, use the official RDAP servers of each registry alongside it.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q4. Is there a rate limit?</h4>
+                <p>The onnamu bootstrap service does not impose a request quota of its own, but two things are worth knowing.</p>
+     <ul style="line-height: 1.9; padding-left: 20px;">
+       <li>The final data comes from <b>each registry's own server</b>, so their limits (usually an HTTP 429) still apply.</li>
+       <li>The bootstrap files (<code>/dns.json</code> and friends) are refreshed from IANA once a day, so heavy users are better off downloading them and working locally.</li>
+     </ul>
+     <p>Automated traffic heavy enough to threaten the server may be blocked.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q5. Why are the registrant's name and contact details hidden?</h4>
+                <p>Privacy law. Since the GDPR came into force, most registries withhold an individual registrant's name, address and phone number by default. Responses carry placeholders such as <code>REDACTED FOR PRIVACY</code>, or a <b>web contact form URL</b> instead of an email address.</p>
+     <p>Records held by companies are not personal data and are often shown in full. See the "redacted data" section of <a href="rdap-guide-en.html">Reading Results</a> for details.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q6. Can I look up internationalised domain names?</h4>
+                <p>Yes. Enter the name in its native script, or the <code>xn--</code> punycode form — either works. The response carries punycode in <code>ldhName</code> and the human-readable form in <code>unicodeName</code>.</p>
+     <p>The TLD does of course need to operate an RDAP server for a result to come back.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q7. I searched and got nothing back.</h4>
+                <p>There are four common causes.</p>
+     <ul style="line-height: 1.9; padding-left: 20px;">
+       <li><b>The domain is not registered</b> — an unregistered name returns 404.</li>
+       <li><b>Input format</b> — drop any <code>http://</code> prefix or trailing path and enter just the name, e.g. <code>example.com</code>.</li>
+       <li><b>The TLD has no RDAP server</b> — still true of some country-code domains.</li>
+       <li><b>The authoritative server is down</b> — that produces a 503; try again shortly.</li>
+     </ul>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q8. How fresh is the data?</h4>
+                <p>The registration data itself is <b>live</b>: it is produced by the authoritative registry at the moment you ask. We do not cache it and serve it back to you.</p>
+     <p>Only the bootstrap lists used to locate those servers are downloaded from IANA, <b>once a day</b>. Those lists change only when a new TLD appears or a server moves, so a daily refresh is ample.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q9. Can I call this from my own application?</h4>
+                <p>Yes. Request <code>https://bootstrap.rdap.kr/domain/google.com</code> and you get a 302 to the authoritative server; a client that follows redirects (<code>curl -L</code>) receives the final JSON in one go.</p>
+     <p>Cross-origin requests are allowed, so browser JavaScript can call the bootstrap service. Note that the <b>destination</b> server sets its own CORS policy, so some registries cannot be read directly from a browser. The <a href="rdap-about-en.html">About</a> page documents the endpoints.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q10. How do I tell whether a domain is still live?</h4>
+                <p>Start with <code>status</code>. <code>client hold</code> or <code>server hold</code> means the name has been removed from DNS and <b>does not resolve</b>. <code>inactive</code> means no nameservers are set.</p>
+     <p>Be careful not to misread <code>client transfer prohibited</code> and similar values: those are ordinary <b>anti-hijacking locks</b> and appear on perfectly healthy domains.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q11. Where do I report spam or abuse?</h4>
+                <p>Find the entry in <code>entities</code> whose <code>roles</code> includes <code>abuse</code>; the email or phone number there is the official reporting channel. Failing that, the <code>registrar</code> contact is the next best option.</p>
+     <p>If the source is an IP address, look the address up and use the <code>abuse</code> contact of the network operator.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q12. The domain expired — why can't I register it yet?</h4>
+                <p>Because several grace periods follow expiry. Typically a <code>redemption period</code> of about 30 days, during which the former holder can still restore the name, then roughly five days of <code>pending delete</code> before it is released.</p>
+     <p>In practice, more than a month usually separates the <code>expiration</code> date from the day the name becomes available.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q13. Do you log what I searched for?</h4>
+                <p>Lookups are <b>not stored in a way that links them to you</b>. We keep only the access records needed to operate the service — timestamp, IP address, country and requested path — for 30 days, after which they are deleted automatically.</p>
+     <p>Everything we record, and why, is set out in the <a href="rdap-privacy-en.html">Privacy Policy</a>.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q14. Can I use the results commercially?</h4>
+                <p>The results are not onnamu's data; they belong to the registries that publish them. The terms therefore follow <b>each registry's policy</b>, which is often stated in the <code>notices</code> block of the response.</p>
+     <p>Bulk harvesting for marketing and any use for spam are generally prohibited. Terms for this service itself are in the <a href="rdap-terms-en.html">Terms of Service</a>.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q15. I want my personal data removed.</h4>
+                <p>Domain registration data is not ours to hold or amend. It is maintained by the <b>registrar and registry</b> where the domain was registered, so correction and deletion requests must go to them.</p>
+     <p>For the access records kept on our own server, write to the address in the <a href="rdap-privacy-en.html">Privacy Policy</a>.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-primary">
+            <div class="panel-heading"><h3 class="panel-title">💬 Not answered here?</h3></div>
+            <div class="panel-body">
+                <p style="margin-bottom: 0;">Questions about the standard itself are best answered by the RFCs listed on the <a href="rdap-about-en.html">About</a> page, and response fields are covered in <a href="rdap-guide-en.html">Reading Results</a>. For anything about the service, write to the address in the <a href="rdap-terms-en.html">Terms of Service</a>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p style="font-size: 20px; margin-bottom: 10px;">🌲 <b>onnamu RDAP Service</b></p>
+            <p style="font-size: 13px; opacity: 0.7;">This service complies with the IETF standard RDAP protocol,<br>providing transparent access to global internet resource data.</p>
+            <div style="margin-top: 25px; line-height: 2;">
+                <a href="rdap-about-en.html">About</a> |
+                <a href="rdap-javascript-en.html">Web Client</a> |
+                <a href="rdap-guide-en.html">Reading Results</a> |
+                <a href="rdap-faq-en.html">FAQ</a> |
+                <a href="rdap-terms-en.html">Terms</a> |
+                <a href="rdap-privacy-en.html">Privacy Policy</a>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.5;">© 2026 onnamu Project</p>
+        </div>
+    </footer>
+
+<!-- 방문 신호 — 화면이 사람 앞에 그려졌을 때 딱 한 번 알린다.
+     자동 갱신과 화면 속 호출은 이 신호를 보내지 않으므로 조회 수에 섞이지 않고,
+     훑기 도구는 자바스크립트를 돌리지 않으므로 저절로 빠진다.
+     받는 쪽은 bootstrap_server/visit_log.py 이고, 왜 이렇게 세는지도 그 머리말에 있다.
+     포털의 templates/_visit.html 과 같은 내용이다 — 한쪽만 고치지 말 것. -->
+<script>
+(function () {
+  try {
+    var KEY = 'onnamu_vid';
+
+    function newId() {
+      try {
+        if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+      } catch (e) {}
+      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    }
+
+    var vid = null;
+    try {
+      vid = localStorage.getItem(KEY);
+      if (!vid) { vid = newId(); localStorage.setItem(KEY, vid); }
+    } catch (e) { vid = null; }
+
+    // 저장이 막힌 브라우저(사생활 보호 모드 등)는 이번 한 번만 쓰는 임시 표를 붙인다.
+    // 조회 수는 제대로 세어지고 방문자 수만 그만큼 부풀 수 있어, 그 수를 따로 세어
+    // 관리 화면에 함께 알린다.
+    if (!vid) { vid = 't-' + newId(); }
+
+    fetch('/api/page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vid: vid, p: location.pathname }),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

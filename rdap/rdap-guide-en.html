@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How to Read RDAP Results - onnamu RDAP Service</title>
+    <meta name="description" content="A field-by-field guide to RDAP responses: status, events, entities, vcardArray, secureDNS and error codes, with examples.">
+    <meta name="author" content="onnamu">
+    <link rel="canonical" href="https://rdap.kr/rdap-guide-en.html">
+    <link rel="alternate" hreflang="ko" href="https://rdap.kr/rdap-guide-ko.html">
+    <link rel="alternate" hreflang="en" href="https://rdap.kr/rdap-guide-en.html">
+
+    <!-- 구글 애드센스 — rdap.kr 로 등록한 계정 번호다. async 라 화면 그리기를 막지 않는다.
+         글이 실린 화면에만 넣는다. 조회 도구 화면(rdap-javascript-*.html)과
+         관리자 통계 화면(bootstrap_server/rdap-dashboard*.html)에는 넣지 않는다. -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3638470080967532"
+            crossorigin="anonymous"></script>
+
+    <link rel="stylesheet" href="./client/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./client/css/rdap-v3.css">
+    <script src="./client/js/jquery.min.js"></script>
+    <script src="./client/js/bootstrap.min.js"></script>
+</head>
+<body style="padding-top: 70px;">
+    <!-- Navbar -->
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="rdap-about-en.html">🌲 onnamu RDAP</a>
+            </div>
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="rdap-guide-ko.html">한국어 (KOR)</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h2 class="blog-title"><b>Reading</b> RDAP Results</h2>
+            <p class="text-muted">Every field in a lookup response, explained with examples</p>
+        </div>
+
+        <ul class="nav nav-tabs">
+            <li><a href="rdap-about-en.html">About Service</a></li>
+            <li><a href="rdap-javascript-en.html">Web Client</a></li>
+            <li class="active"><a href="#">Reading Results</a></li>
+            <li><a href="rdap-faq-en.html">FAQ</a></li>
+        </ul>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">What happens when you press Search?</h3>
+                <p>There is no single server that holds registration data for the whole Internet. Each registry keeps its own domain records, and each Regional Internet Registry (RIR) keeps its own address records. A lookup therefore takes <b>two steps</b>.</p>
+                <ol style="padding-left: 22px; line-height: 2;">
+                    <li><b>Find who to ask (bootstrap)</b> — <code>.com</code> belongs to Verisign, <code>8.8.8.8</code> belongs to ARIN. The authoritative server is looked up in the registry files published by IANA, which onnamu RDAP downloads once a day.</li>
+                    <li><b>Hand the query over (redirect)</b> — the service answers with an HTTP 302 pointing at that server. The registration data itself is produced by the authoritative server, not by us.</li>
+                </ol>
+                <p class="text-muted" style="margin-bottom: 0;">So what you see on screen is the <b>original response from the authoritative registry</b>. When a field is empty, the answer almost always lies in that registry's disclosure policy.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">Fields common to every response</h3>
+                <p>Whatever you look up, an RDAP response shares the same skeleton (RFC 9083).</p>
+                <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px; margin-top: 15px;">
+                    <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 26%; padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Field</th>
+                                <th style="padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>rdapConformance</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Which specifications this response follows. Usually <code>rdap_level_0</code>, plus extension names such as <code>redacted</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>objectClassName</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">What this block is: <code>domain</code>, <code>nameserver</code>, <code>entity</code>, <code>ip network</code> or <code>autnum</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>handle</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The registry's own identifier for the object, e.g. <code>2138514_DOMAIN_COM-VRSN</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>links</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);"><code>rel: "self"</code> is this object's own RDAP URL; <code>rel: "related"</code> points at further material such as the registrar's record.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>notices</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Statements about the <b>service</b> — terms of use, privacy notices — not about the object you queried.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>remarks</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Notes about <b>the object itself</b>, such as "some fields have been withheld for privacy".</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>port43</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Hostname of the legacy WHOIS server, when one is still operated.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>lang</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Language of the response text; almost always <code>en</code>.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">Reading a domain response</h3>
+                <p>A lookup for <code>google.com</code>, trimmed down, looks like this.</p>
+                <pre>{
+  "objectClassName": "domain",
+  "handle": "2138514_DOMAIN_COM-VRSN",
+  "ldhName": "GOOGLE.COM",
+  "status": ["client delete prohibited", "client transfer prohibited"],
+  "events": [
+    { "eventAction": "registration",  "eventDate": "1997-09-15T04:00:00Z" },
+    { "eventAction": "expiration",    "eventDate": "2028-09-14T04:00:00Z" },
+    { "eventAction": "last changed",  "eventDate": "2019-09-09T15:39:04Z" }
+  ],
+  "nameservers": [ { "objectClassName": "nameserver", "ldhName": "NS1.GOOGLE.COM" } ],
+  "entities": [ { "objectClassName": "entity", "roles": ["registrar"] } ],
+  "secureDNS": { "delegationSigned": false }
+}</pre>
+                <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px; margin-top: 20px;">
+                    <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 26%; padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Field</th>
+                                <th style="padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>ldhName</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The name in letters, digits and hyphens only. Internationalised names appear here as <code>xn--</code> punycode.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>unicodeName</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The human-readable form, e.g. <code>한국.kr</code>. Often absent for ASCII-only names.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>status</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Current locks and holds; each value is explained in the table below.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>events</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Registration, expiry and change timestamps. All times are UTC (trailing <code>Z</code>).</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>entities</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">People and organisations, separated by <code>roles</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>nameservers</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The DNS servers that actually answer for this domain.</td></tr>
+                            <tr><th scope="row" style="padding: 14px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>secureDNS</code></th><td style="padding: 14px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">DNSSEC settings. <code>delegationSigned: true</code> means the zone is signed.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-primary">
+            <div class="panel-heading"><h3 class="panel-title">🔒 A dictionary of status values</h3></div>
+            <div class="panel-body">
+                <p>These values come from the domain provisioning protocol (EPP), mapped into RDAP wording. A <b>client</b> prefix means the lock was set by the <b>registrar</b>; a <b>server</b> prefix means it was set by the <b>registry</b>. Registry locks are the stronger ones and usually relate to disputes or legal action.</p>
+                <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px; margin-top: 15px;">
+                    <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 34%; padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Value</th>
+                                <th style="padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>active</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">In normal use, with no restriction applied.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>client transfer prohibited</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Transfers to another registrar are blocked. Commonly a default anti-theft setting, so it <b>does not indicate a problem</b>.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>client delete prohibited</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Protects the name from accidental deletion.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>client update prohibited</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Changes to nameservers or contacts are locked.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>client hold</code> · <code>server hold</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The domain has been pulled out of DNS and <b>does not resolve</b>. Non-payment, abuse reports and disputes are the usual causes.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>pending transfer</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">A registrar transfer is under way; it usually completes within five days.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>pending delete</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The final stage of deletion. When it ends the name becomes available again.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>redemption period</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Grace period after expiry during which the original holder can still restore the name for a fee.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>add period</code> · <code>renew period</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The window right after registration or renewal, during which cancellation may be refundable.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>inactive</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">No nameservers are set, so the domain does not work.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>validated</code> · <code>pending validation</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Whether contact verification has been completed. Missing it can suspend the domain.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>associated</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Mostly seen on contacts, meaning the record is linked to something in use.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">events — reading the dates</h3>
+                <p>Each entry pairs an <code>eventAction</code> with an <code>eventDate</code>. Times are written in UTC, as in <code>2028-09-14T04:00:00Z</code>.</p>
+                <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px; margin-top: 15px;">
+                    <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 34%; padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">eventAction</th>
+                                <th style="padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>registration</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">When the object was first registered — the age of the domain.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>expiration</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">When the current term ends. <b>Deletion does not happen on that day</b>; grace periods follow.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>last changed</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The last time the registration record was modified.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>transfer</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">When the sponsoring registrar last changed.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>last update of RDAP database</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">When the database behind this response was refreshed — not when the domain changed.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>deletion</code> · <code>reinstantiation</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">When the object was deleted, and when it was restored.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">entities — people and organisations</h3>
+                <p>Contacts live in the <code>entities</code> array, and each one's <code>roles</code> says what it is.</p>
+                <ul style="line-height: 2; padding-left: 22px;">
+                    <li><code>registrant</code> — the <b>holder</b> of the domain</li>
+                    <li><code>administrative</code> — the administrative contact</li>
+                    <li><code>technical</code> — handles nameservers and technical issues</li>
+                    <li><code>billing</code> — handles payment</li>
+                    <li><code>registrar</code> — the company through which the name was registered</li>
+                    <li><code>reseller</code> — a reseller working under that registrar</li>
+                    <li><code>abuse</code> — the channel for spam and abuse reports. If you are looking for somewhere to file a complaint, <b>this is the one</b>.</li>
+                    <li><code>sponsor</code> · <code>noc</code> — sponsoring organisation and network operations centre, mostly on IP and ASN records</li>
+                </ul>
+                <h4 style="font-weight: 700; margin-top: 30px;">Why does vcardArray look like that?</h4>
+                <p>Names, addresses and phone numbers are carried in <code>vcardArray</code>, a jCard structure. It looks odd at first, but the rule is simple: each line is <b>[property, parameters, type, value]</b>.</p>
+                <pre>["vcard", [
+  ["version", {}, "text", "4.0"],
+  ["fn",      {}, "text", "Google LLC"],
+  ["adr",     { "cc": "US" }, "text", ["", "", "", "Mountain View", "CA", "94043", "US"]],
+  ["email",   {}, "text", "abuse@example.com"],
+  ["tel",     { "type": "voice" }, "uri", "tel:+1.6502530000"]
+]]</pre>
+                <p class="text-muted" style="margin-bottom: 0;"><code>fn</code> is the display name, <code>org</code> the organisation, <code>adr</code> the postal address (PO box, extended address, street, city, region, postcode, country) and <code>kind</code> tells you whether it is an individual or an organisation. The onnamu web client renders this array as a readable table.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">Nameservers and DNSSEC</h3>
+                <p>A nameserver entry carries its <code>ldhName</code> and sometimes <code>ipAddresses</code>, split into <code>v4</code> and <code>v6</code>. Those are <b>glue records</b>, which solve the chicken-and-egg problem when a nameserver sits inside the very domain it serves.</p>
+                <p><code>secureDNS</code> describes the DNSSEC configuration.</p>
+                <ul style="line-height: 2; padding-left: 22px; margin-bottom: 0;">
+                    <li><code>delegationSigned</code> — whether the delegation is signed. <code>false</code> means DNSSEC is not in use.</li>
+                    <li><code>dsData</code> — the signature fingerprint: <code>keyTag</code>, <code>algorithm</code>, <code>digestType</code> and <code>digest</code>.</li>
+                    <li><code>maxSigLife</code> — maximum signature lifetime in seconds; usually absent.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">IP network and AS number responses</h3>
+                <p>Looking up an IP address returns the <b>whole block that contains it</b>, not just that one address.</p>
+                <div style="overflow-x: auto; border: 1px solid #e6ece8; border-radius: 14px; margin-top: 15px;">
+                    <table style="width: 100%; min-width: 620px; border-collapse: collapse; font-size: 14px;">
+                        <thead>
+                            <tr>
+                                <th style="width: 28%; padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Field</th>
+                                <th style="padding: 14px 18px; background: #f7f9f8; color: var(--primary-green); font-weight: 700;">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>startAddress</code> · <code>endAddress</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">First and last address of the allocated block.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>ipVersion</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Either <code>v4</code> or <code>v6</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>name</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The label given to the block (e.g. <code>GOGL</code>), a clue to who operates it.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>type</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">How it was allocated (<code>DIRECT ALLOCATION</code>, <code>ASSIGNED PA</code>, …), distinguishing direct holdings from sub-allocations.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>country</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">The registered country code. <b>It may differ from where the machines actually are</b> — it is a paperwork value.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>parentHandle</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">Identifier of the block this one was carved out of.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>cidr0_cidrs</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">An extension expressing the same range in CIDR form, e.g. <code>8.8.8.0/24</code>.</td></tr>
+                            <tr><th scope="row" style="padding: 13px 18px; border-top: 1px solid #eef2f0; text-align: left;"><code>startAutnum</code> · <code>endAutnum</code></th><td style="padding: 13px 18px; border-top: 1px solid #eef2f0; color: var(--text-muted);">For AS lookups: the range of AS numbers assigned.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="text-muted" style="margin-top: 18px; margin-bottom: 0;">An AS number identifies an organisation that announces routes on the Internet — <code>15169</code> is Google, <code>3356</code> is Lumen.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">Why is the registrant's name missing? — redacted data</h3>
+                <p>Classic WHOIS published personal names, addresses and phone numbers in full. Since the GDPR took effect in 2018, withholding the personal data of individual registrants has become standard practice, which is why responses often show:</p>
+                <ul style="line-height: 2; padding-left: 22px;">
+                    <li>placeholders such as <code>REDACTED FOR PRIVACY</code> or <code>DATA REDACTED</code></li>
+                    <li>a <b>web contact form URL</b> in place of an email address</li>
+                    <li>an explicit list of <b>what was withheld and why</b>, on servers that implement the <code>redacted</code> extension (RFC 9537)</li>
+                </ul>
+                <p style="margin-bottom: 0;">Domains held by companies are not personal data, so those records are often shown in full. Requesters with a legitimate basis, such as law enforcement or rights holders, can obtain the data through the registry's own process. This is precisely why RDAP was designed to <b>vary its answer by requester</b>, which WHOIS could not do.</p>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h3 style="margin-top: 0; color: var(--primary-green); font-weight: 700;">When nothing comes back — reading errors</h3>
+                <p>RDAP reports failures as structured JSON too.</p>
+                <pre>{
+  "errorCode": 404,
+  "title": "Not Found",
+  "description": ["The requested object does not exist."]
+}</pre>
+                <ul style="line-height: 2; padding-left: 22px; margin-bottom: 0;">
+                    <li><b>404</b> — not registered, or not held by that server. <b>An unregistered domain is the most likely cause.</b></li>
+                    <li><b>400 · 422</b> — the query does not match the expected format. Check for stray spaces or a leading <code>http://</code>.</li>
+                    <li><b>429</b> — too many queries in a short time. Wait a moment and retry.</li>
+                    <li><b>501</b> — that registry does not support this kind of lookup.</li>
+                    <li><b>503</b> — the authoritative server is down or under maintenance. This is usually <b>their</b> side, not ours.</li>
+                    <li><b>No response at all</b> — the TLD does not run an RDAP server yet. Some country-code domains are still in this position.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="panel panel-default">
+            <div class="panel-body">
+                <h4 style="font-weight: 700; margin-top: 0;">Three things people commonly get wrong</h4>
+                <ol style="line-height: 2; padding-left: 22px; margin-bottom: 0;">
+                    <li><b>Expiry is not availability</b> — after <code>expiration</code> come the redemption period and pending delete, typically well over a month before anyone can register the name.</li>
+                    <li><b><code>client … prohibited</code> is not a warning</b> — most registrars set these locks by default to prevent hijacking.</li>
+                    <li><b><code>country</code> is not server location</b> — it is the country on the registration paperwork; the hardware may sit elsewhere.</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="panel panel-primary">
+            <div class="panel-heading"><h3 class="panel-title">🔎 Try it yourself</h3></div>
+            <div class="panel-body">
+                <p>Run these through the web client to see the fields described above in a real response.</p>
+                <div style="margin-bottom: 18px;">
+                    <a href="rdap-javascript-en.html?type=domain&amp;object=google.com" class="tag-example">Domain: google.com</a>
+                    <a href="rdap-javascript-en.html?type=ip&amp;object=8.8.8.8" class="tag-example">IP: 8.8.8.8</a>
+                    <a href="rdap-javascript-en.html?type=autnum&amp;object=15169" class="tag-example">ASN: 15169</a>
+                    <a href="rdap-javascript-en.html?type=nameserver&amp;object=ns1.google.com" class="tag-example">NS: ns1.google.com</a>
+                </div>
+                <p class="text-muted" style="margin-bottom: 0;">More questions are answered in the <a href="rdap-faq-en.html">FAQ</a>, and API usage is covered on the <a href="rdap-about-en.html">About</a> page.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container text-center">
+            <p style="font-size: 20px; margin-bottom: 10px;">🌲 <b>onnamu RDAP Service</b></p>
+            <p style="font-size: 13px; opacity: 0.7;">This service complies with the IETF standard RDAP protocol,<br>providing transparent access to global internet resource data.</p>
+            <div style="margin-top: 25px; line-height: 2;">
+                <a href="rdap-about-en.html">About</a> |
+                <a href="rdap-javascript-en.html">Web Client</a> |
+                <a href="rdap-guide-en.html">Reading Results</a> |
+                <a href="rdap-faq-en.html">FAQ</a> |
+                <a href="rdap-terms-en.html">Terms</a> |
+                <a href="rdap-privacy-en.html">Privacy Policy</a>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.5;">© 2026 onnamu Project</p>
+        </div>
+    </footer>
+
+<!-- 방문 신호 — 화면이 사람 앞에 그려졌을 때 딱 한 번 알린다.
+     자동 갱신과 화면 속 호출은 이 신호를 보내지 않으므로 조회 수에 섞이지 않고,
+     훑기 도구는 자바스크립트를 돌리지 않으므로 저절로 빠진다.
+     받는 쪽은 bootstrap_server/visit_log.py 이고, 왜 이렇게 세는지도 그 머리말에 있다.
+     포털의 templates/_visit.html 과 같은 내용이다 — 한쪽만 고치지 말 것. -->
+<script>
+(function () {
+  try {
+    var KEY = 'onnamu_vid';
+
+    function newId() {
+      try {
+        if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+      } catch (e) {}
+      return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 12);
+    }
+
+    var vid = null;
+    try {
+      vid = localStorage.getItem(KEY);
+      if (!vid) { vid = newId(); localStorage.setItem(KEY, vid); }
+    } catch (e) { vid = null; }
+
+    // 저장이 막힌 브라우저(사생활 보호 모드 등)는 이번 한 번만 쓰는 임시 표를 붙인다.
+    // 조회 수는 제대로 세어지고 방문자 수만 그만큼 부풀 수 있어, 그 수를 따로 세어
+    // 관리 화면에 함께 알린다.
+    if (!vid) { vid = 't-' + newId(); }
+
+    fetch('/api/page', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ vid: vid, p: location.pathname }),
+      keepalive: true
+    }).catch(function () {});
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
