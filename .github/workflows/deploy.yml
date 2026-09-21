@@ -5,6 +5,20 @@ on:
     branches:
       - main
 
+# 배포는 한 번에 하나만 돈다.
+#
+# 미니PC는 한 대뿐인데 배포가 겹치면 두 세션이 같은 폴더에서 git reset --hard 와
+# docker compose 를 동시에 돌려 서로를 밀어낸다. 2026-09-21 에 커밋 하나에 실행이
+# 둘 떠서, 한쪽이 RDAP 차례에 닿기도 전에 21초 만에 잘린 채 '성공'으로 끝났다.
+#
+# cancel-in-progress 를 켜지 않는 까닭: 돌고 있는 배포를 중간에 끊으면 컨테이너를
+# 내려놓고 다시 못 올린 자리에서 멈출 수 있다. 그래서 끊지 않고 줄을 세운다.
+# 기다리는 것이 여럿이면 깃허브가 가장 나중 것만 남기고 나머지를 버리며, 어차피
+# 배포 스크립트가 origin/main 을 새로 받아 가므로 남은 하나가 최신을 올린다.
+concurrency:
+  group: deploy-minipc
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
