@@ -59,31 +59,31 @@
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q1. What exactly is RDAP?</h4>
-                <p>RDAP (Registration Data Access Protocol) is the <b>international standard for looking up registration data</b> about domains, IP addresses and AS numbers. The IETF designed it to replace WHOIS, which had been in use for nearly forty years, and it is now an IETF standard (STD 95).</p>
-     <p>The biggest difference is <b>the shape of the answer</b>. WHOIS returned free-form text that differed from server to server; RDAP answers in structured JSON that software can parse directly.</p>
+                <p>It is the international standard for looking up registration data about domains, IP addresses and AS numbers. Its full name is the Registration Data Access Protocol. The IETF designed it to replace WHOIS, which had been in use for nearly forty years, and it now carries IETF standard status (STD 95).</p>
+     <p>The biggest difference is the shape of the answer. WHOIS returned free-form text that varied from server to server, while RDAP replies in structured JSON that software can read directly.</p>
             </div>
         </div>
 
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q2. Is WHOIS dead?</h4>
-                <p>Not immediately, but the centre of gravity has clearly moved. ICANN requires gTLD operators (<code>.com</code>, <code>.org</code> and so on) to run RDAP, and the obligation to keep the legacy WHOIS service on port 43 is being withdrawn in stages.</p>
-     <p>Some country-code TLDs still offer only WHOIS, or run both. That is why a few domains still return nothing over RDAP.</p>
+                <p>Not yet, but the centre of gravity has clearly moved. ICANN requires gTLD operators such as <code>.com</code> and <code>.org</code> to run RDAP, and the obligation to keep legacy WHOIS on port 43 is being withdrawn in stages.</p>
+     <p>Some country-code TLDs still offer only WHOIS, or run both, which is why a handful of domains come back empty over RDAP.</p>
             </div>
         </div>
 
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q3. Is this service free? Do I need an account?</h4>
-                <p>It is free and needs no account or API key.</p>
-     <p>It runs on a privately operated server, however, so it does not offer commercial-grade availability. For business-critical lookups, use the official RDAP servers of each registry alongside it.</p>
+                <p>It is free, and there is no account or API key to obtain.</p>
+     <p>It does run on a privately operated server, so we cannot promise commercial-grade availability. For business-critical lookups, keep each registry's official RDAP server in the loop as well.</p>
             </div>
         </div>
 
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q4. Is there a rate limit?</h4>
-                <p>The onnamu bootstrap service does not impose a request quota of its own, but two things are worth knowing.</p>
+                <p>The onnamu bootstrap service sets no quota of its own, but two things are worth knowing.</p>
      <ul style="line-height: 1.9; padding-left: 20px;">
        <li>The final data comes from <b>each registry's own server</b>, so their limits (usually an HTTP 429) still apply.</li>
        <li>The bootstrap files (<code>/dns.json</code> and friends) are refreshed from IANA once a day, so heavy users are better off downloading them and working locally.</li>
@@ -103,7 +103,7 @@
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q6. Can I look up internationalised domain names?</h4>
-                <p>Yes. Enter the name in its native script, or the <code>xn--</code> punycode form — either works. The response carries punycode in <code>ldhName</code> and the human-readable form in <code>unicodeName</code>.</p>
+                <p>Yes. Enter the name in its native script, or the <code>xn--</code> punycode form; either works. The response carries punycode in <code>ldhName</code> and the human-readable form in <code>unicodeName</code>.</p>
      <p>The TLD does of course need to operate an RDAP server for a result to come back.</p>
             </div>
         </div>
@@ -111,12 +111,12 @@
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q7. I searched and got nothing back.</h4>
-                <p>There are four common causes.</p>
+                <p>Usually it comes down to one of these.</p>
      <ul style="line-height: 1.9; padding-left: 20px;">
-       <li><b>The domain is not registered</b> — an unregistered name returns 404.</li>
-       <li><b>Input format</b> — drop any <code>http://</code> prefix or trailing path and enter just the name, e.g. <code>example.com</code>.</li>
-       <li><b>The TLD has no RDAP server</b> — still true of some country-code domains.</li>
-       <li><b>The authoritative server is down</b> — that produces a 503; try again shortly.</li>
+       <li><b>The domain is not registered</b>: an unregistered name returns 404.</li>
+       <li><b>Input format</b>: drop any <code>http://</code> prefix or trailing path and enter just the name, e.g. <code>example.com</code>.</li>
+       <li><b>The TLD has no RDAP server</b>: still true of some country-code domains.</li>
+       <li><b>The authoritative server is down</b>: that produces a 503; try again shortly.</li>
      </ul>
             </div>
         </div>
@@ -164,7 +164,7 @@
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q13. Do you log what I searched for?</h4>
-                <p>Lookups are <b>not stored in a way that links them to you</b>. We keep only the access records needed to operate the service — timestamp, IP address, country and requested path — for 30 days, after which they are deleted automatically.</p>
+                <p>Lookups are not stored in any way that links them back to you. We keep only what running the service requires: timestamp, IP address, country and requested path, all of it deleted automatically after 30 days.</p>
      <p>Everything we record, and why, is set out in the <a href="rdap-privacy-en.html">Privacy Policy</a>.</p>
             </div>
         </div>
@@ -180,7 +180,7 @@
         <div class="panel panel-default">
             <div class="panel-body">
                 <h4 style="font-weight: 700; margin-top: 0; color: var(--primary-green);">Q15. I want my personal data removed.</h4>
-                <p>Domain registration data is not ours to hold or amend. It is maintained by the <b>registrar and registry</b> where the domain was registered, so correction and deletion requests must go to them.</p>
+                <p>Domain registration data is not ours to hold or amend. The registrar and registry where the domain was registered maintain it, so corrections and deletions have to be requested from them.</p>
      <p>For the access records kept on our own server, write to the address in the <a href="rdap-privacy-en.html">Privacy Policy</a>.</p>
             </div>
         </div>
