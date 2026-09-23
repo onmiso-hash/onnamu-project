@@ -7,7 +7,8 @@
  * - 장면은 인물 그림이 아니라 배경판이다. 감정 초상과 따로 두고 화면에서 겹친다
  *   (감정 × 장면 전조합 그림을 만들지 않는다).
  * - image가 비어 있으면 gradient로 그린다. 그림을 붙이려면 파일을 공개 목록에 올리고 주소를 적는다.
- * - 'studio'는 배경 없음과 같다 — 무대가 예전 카드 모습 그대로다.
+ * - 'studio'는 은은한 단색 배경이다. 초상은 모든 장면에서 같은 3:4 세운 그림이라
+ *   장면을 바꿔도 초상 모양·크기가 흔들리지 않는다(2026-09-23 사용자 결정).
  *
  * 일반 스크립트로 싣는다. 브라우저 window.SceneRegistry, 노드 require('./sceneRegistry').
  */
@@ -15,7 +16,8 @@
     const DEFAULT_SCENE = 'studio';
 
     const SCENES = [
-        { id: 'studio',       label: '스튜디오',     icon: '🎙️', image: '', gradient: '' },
+        { id: 'studio',       label: '스튜디오',     icon: '🎙️', image: '',
+          gradient: 'linear-gradient(160deg, #1e293b 0%, #334155 55%, #475569 100%)' },
         { id: 'cafe',         label: '카페',         icon: '☕', image: '',
           gradient: 'linear-gradient(160deg, #6b4423 0%, #a47148 45%, #e0b98a 100%)' },
         { id: 'office',       label: '사무실',       icon: '💼', image: '',
