@@ -23,6 +23,11 @@ class ChronicleApp {
         this.memoryList = [];
         this.dialogueVectors = []; // Stores embedded text vectors for RAG (2단계)
         this.characterImages = {}; // Stores generated image bytes for each emotion
+        // 지금 대화의 장면(배경). 주인은 대화다(meta.sceneId) — 수위와 같은 규칙.
+        this.sceneId = SceneRegistry.DEFAULT_SCENE;
+        // 휴대폰에서 무대를 접어 둘지(이 기기만의 편의값)
+        this.stageCollapsed = false;
+        try { this.stageCollapsed = localStorage.getItem('studio_stage_collapsed') === '1'; } catch (e) { /* 기억창고를 못 쓰면 펼친 채로 */ }
 
         this.storyHistory = []; // Tracks generated chapters / chat dialogues
         this.currentChapterIndex = 0;
@@ -176,6 +181,14 @@ class ChronicleApp {
         if (this.btnToggleChatLevel) {
             this.btnToggleChatLevel.addEventListener('click', () => this.toggleConversationChatLevel());
         }
+        // 이 대화 장면 — 목록은 sceneRegistry.js에서 채운다
+        this.sceneMenuRow = document.getElementById('conversation-scene-row');
+        this.selectConversationScene = document.getElementById('select-conversation-scene');
+        if (this.selectConversationScene) {
+            this.selectConversationScene.innerHTML = SceneRegistry.SCENES
+                .map(sc => `<option value="${sc.id}">${sc.icon} ${sc.label}</option>`).join('');
+            this.selectConversationScene.addEventListener('change', () => this.changeConversationScene(this.selectConversationScene.value));
+        }
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
         // Setup Password Visibility Toggle
@@ -260,6 +273,12 @@ class ChronicleApp {
         // 캐릭터 프로필 내 메모리 vault 토글 (이벤트 위임)
         if (this.charProfileContainer) {
             this.charProfileContainer.addEventListener('click', (e) => {
+                if (e.target.closest('.stage-collapse-toggle')) {
+                    this.stageCollapsed = !this.stageCollapsed;
+                    try { localStorage.setItem('studio_stage_collapsed', this.stageCollapsed ? '1' : '0'); } catch (err) { /* 이 기기만의 편의값 */ }
+                    this.renderChatProfile(this.currentProfileEmotion || 'normal');
+                    return;
+                }
                 const toggleBtn = e.target.closest('.memory-vault-toggle');
                 if (toggleBtn) {
                     const parentVault = toggleBtn.closest('.memory-vault');
@@ -2615,6 +2634,11 @@ JSON Schema:
             return;
         }
 
+        // 무대 = 장면 배경 + 감정 초상. 말풍선을 눌러 초상만 바꿀 때도 이 감정을 기억해 둔다.
+        this.currentProfileEmotion = emotion;
+        const scene = SceneRegistry.resolveScene(this.sceneId);
+        const stageBg = SceneRegistry.sceneBackground(scene.id);
+
         let imgUrl = EmotionRegistry.resolveEmotionImage(this.characterImages, emotion);
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
@@ -2638,12 +2662,17 @@ JSON Schema:
                 profileCard = document.createElement('div');
                 profileCard.className = 'character-profile-card';
                 profileCard.innerHTML = `
-                    <div class="profile-header">
-                        <div class="profile-avatar-wrapper">${avatarHtml}</div>
-                        <div class="profile-meta">
-                            <h3 class="char-name-el">${this.chatCharName}</h3>
-                            <p class="char-relation-el">${this.chatRelation}</p>
+                    <div class="profile-stage">
+                        <div class="stage-backdrop"></div>
+                        <div class="profile-header">
+                            <div class="profile-avatar-wrapper">${avatarHtml}</div>
+                            <div class="profile-meta">
+                                <h3 class="char-name-el">${this.chatCharName}</h3>
+                                <p class="char-relation-el">${this.chatRelation}</p>
+                                <span class="stage-scene-chip"></span>
+                            </div>
                         </div>
+                        <button class="stage-collapse-toggle" type="button"></button>
                     </div>
                     <div class="affection-section">
                         <div class="affection-label">
@@ -2667,6 +2696,7 @@ JSON Schema:
                     </div>
                 `;
                 this.charProfileContainer.appendChild(profileCard);
+                this.applyStage(profileCard, scene, stageBg);
             } else {
                 const avatarWrapper = profileCard.querySelector('.profile-avatar-wrapper');
                 const nameEl = profileCard.querySelector('.char-name-el');
@@ -2685,7 +2715,26 @@ JSON Schema:
                 if (memoryListEl) {
                     memoryListEl.innerHTML = memoryItemsHtml || '<li>기억된 대화가 아직 없습니다.</li>';
                 }
+                this.applyStage(profileCard, scene, stageBg);
             }
+        }
+    }
+
+    // 무대의 배경·장면 이름표·접힘 상태를 맞춘다. 배경이 없는 장면(studio)이면 예전 카드 그대로다.
+    applyStage(profileCard, scene, stageBg) {
+        const stage = profileCard.querySelector('.profile-stage');
+        if (!stage) return;
+        const backdrop = stage.querySelector('.stage-backdrop');
+        if (backdrop) backdrop.style.background = stageBg || '';
+        stage.classList.toggle('has-scene', !!stageBg);
+        stage.classList.toggle('collapsed', !!this.stageCollapsed);
+        stage.setAttribute('data-scene', scene.id);
+        const chip = stage.querySelector('.stage-scene-chip');
+        if (chip) chip.textContent = stageBg ? `${scene.icon} ${scene.label}` : '';
+        const toggle = stage.querySelector('.stage-collapse-toggle');
+        if (toggle) {
+            toggle.textContent = this.stageCollapsed ? '▼ 펼치기' : '▲ 접기';
+            toggle.setAttribute('aria-expanded', this.stageCollapsed ? 'false' : 'true');
         }
     }
 
@@ -3748,6 +3797,9 @@ JSON Schema:
     }
 
     setCurrentConversation(convId) {
+        // 대화를 비우면 장면도 기본으로 — 앞 대화의 배경이 새 대화에 남지 않게.
+        // (첫 마디 전에 고른 장면은 ensureConversation이 새 대화에 실어 보낸다.)
+        if (!convId && this.convId) this.sceneId = SceneRegistry.DEFAULT_SCENE;
         this.convId = convId || null;
         if (convId) localStorage.setItem(this.conversationIdKey(), convId);
         else localStorage.removeItem(this.conversationIdKey());
@@ -3777,6 +3829,8 @@ JSON Schema:
         this.applyCharacterOfConversation(conv);
         if (conv.userName) this.characterName = conv.userName;
         if (conv.chatLevel && (this.canAdult || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
+        // 장면도 대화의 것이다. 옛 대화(키 없음)·모르는 값은 기본 장면.
+        this.sceneId = SceneRegistry.resolveScene(conv.sceneId).id;
         this.syncChatSettingsInputs();
     }
 
@@ -3818,6 +3872,7 @@ JSON Schema:
         if (this.hudTone) this.hudTone.textContent = this.chatLevel === 'adult-19' ? "치명적 19금" : "일반 롤플레이";
         if (this.hudCharacter) this.hudCharacter.textContent = `${this.chatCharName} & 주인공`;
         this.updateChatLevelMenu();
+        this.updateSceneMenu();
     }
 
     // 인물에 저장된 '기본 수위'. 새 대화는 여기서 수위를 물려받는다.
@@ -3853,6 +3908,35 @@ JSON Schema:
         const textEl = this.btnToggleChatLevel.querySelector('.text');
         const label = this.chatLevel === 'adult-19' ? '19금 성인용' : '전체 이용가';
         if (textEl) textEl.textContent = `이 대화 수위: ${label}`;
+    }
+
+    // 대화창 메뉴의 '이 대화 장면' 칸을 지금 대화의 장면으로 맞춘다(대화 모드에서만 보인다).
+    updateSceneMenu() {
+        const usable = this.modeType === 'chat';
+        if (this.sceneMenuRow) this.sceneMenuRow.style.display = usable ? '' : 'none';
+        if (this.selectConversationScene) this.selectConversationScene.value = SceneRegistry.resolveScene(this.sceneId).id;
+    }
+
+    // 지금 보고 있는 대화의 장면만 바꾼다. 장면은 손으로만 바꾼다(sticky) — AI 응답이 바꾸지 않는다.
+    async changeConversationScene(sceneId) {
+        if (this.modeType !== 'chat' || !SceneRegistry.isKnownScene(sceneId)) return;
+        const before = this.sceneId;
+        if (sceneId === before) return;
+        this.sceneId = sceneId;
+        this.renderChatProfile(this.currentProfileEmotion || 'normal');
+
+        // 아직 서버에 대화가 없으면(첫 마디 전) 화면 값만 바꿔 둔다 — 대화를 만들 때 함께 저장된다.
+        if (!this.convId) return;
+
+        const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, { sceneId });
+        if (!r.ok) {
+            this.sceneId = before;
+            this.updateSceneMenu();
+            this.renderChatProfile(this.currentProfileEmotion || 'normal');
+            this.showStorageWarning('장면 변경이 서버에 반영되지 않았습니다.');
+            return;
+        }
+        this.clearStorageWarning();
     }
 
     // 지금 보고 있는 대화의 수위만 바꾼다 — 인물의 기본 수위와 다른 대화는 건드리지 않는다.
@@ -4003,7 +4087,8 @@ JSON Schema:
             charName: this.modeType === 'chat' ? (this.chatCharName || '') : '',
             title: this.conversationTitle(),
             chatLevel: this.chatLevel,
-            userName: this.characterName
+            userName: this.characterName,
+            sceneId: this.sceneId
         });
         if (!r.ok || !r.data || !r.data.id) {
             this.showStorageWarning('서버에 대화를 만들지 못했습니다.');
@@ -4444,7 +4529,8 @@ JSON Schema:
             affinityValue: this.affinityValue,
             memoryList: this.memoryList,
             chatLevel: this.chatLevel,
-            userName: this.characterName
+            userName: this.characterName,
+            sceneId: this.sceneId
         });
         if (!r.ok || !r.data || !r.data.id) return false;
         this.setCurrentConversation(r.data.id);

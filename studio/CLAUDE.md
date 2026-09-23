@@ -20,6 +20,11 @@
 - **`emotionRegistry.js`**: 감정 목록 **한 표**(12종 + 19금 전용 `lust`). 설정창 칸·AI 규칙·스키마 enum·그림 고르기(대체 사슬)·서버 업로드 검사가 모두 여기만 읽는다.
   기존 5개 id(`normal·happy·sad·angry·blush`)는 저장된 인물 JSON의 키라 바꾸지 말 것. `lust`는 `canAdult`로만 가린다.
   확인: 설정창 칸 12개(19금 권한+19금 수위면 13개), 5장만 있는 인물로 '빈 감정 칸 생성' 시 7번만 호출되고 기존 주소 불변.
+- **`sceneRegistry.js`**: 장면(배경) 목록 **한 표**(8개, 그림 없으면 그라데이션). 무대 배경·사이드바 '이 대화 장면'·저장 검사가 여기만 읽는다.
+  **장면의 주인은 대화다**(`meta.sceneId`, 수위와 같은 규칙). 새 대화는 `studio`(=배경 없음, 예전 카드 모습), 옛 대화(키 없음)도 `studio`로 본다.
+  장면은 손으로만 바꾼다(sticky) — AI 응답이 바꾸지 않는다. 감정 × 장면 전조합 그림은 만들지 않는다(배경과 초상을 겹친다).
+  확인: 장면을 바꾸고 새로고침·다른 기기에서 그 대화를 열면 같은 장면, 휴대폰에서 무대 '접기' 후 새로고침해도 접힌 채.
+- **대화 PATCH 허용 칸은 `store.js`의 `META_PATCH_KEYS` 한 표뿐이다.** `server.js`는 이 표를 읽는다 — 칸을 늘릴 때 여기만 고친다.
 - **공개 파일은 `server.js`의 `PUBLIC_FILES` 목록뿐이다.** 폴더를 통째로 열면 `data/` 아래 모든 계정 자료가
   로그인 없이 나간다(2026-09-23 실측·수정). 화면 파일을 새로 만들면 이 목록에 적을 것.
   `/data/uploads`는 로그인한 사람에게만 준다(`protectFiles`, 비로그인 401).
@@ -34,7 +39,7 @@
   - `conversations/<convId>/` — 대화 1개 = 폴더 1개
     - `turns.jsonl` — 한 줄 = 한 턴 `{"n":i,"t":{...}}` (append만)
     - `vectors.jsonl` — 한 줄 = 한 벡터 `{"n":i,"v":[...]}` (자리가 아니라 `n`으로 턴을 가리킨다)
-    - `meta.json` — 제목·모드·`charId`·`charName`·호감도·기억메모·`visibleTurns`·`updatedAt`
+    - `meta.json` — 제목·모드·`charId`·`charName`·호감도·기억메모·`visibleTurns`·`sceneId`·`updatedAt`
   - 목록 파일(index.json)은 **두지 않는다.** 목록은 각 `meta.json`을 훑어 만든다.
 - **턴 덧붙이기 규칙**(`POST .../turns`): 현재 위치의 유일한 기준은 `meta.visibleTurns`.
   `n < visibleTurns` → 무시(재전송) / `n = visibleTurns` → 이어쓰기 / `n > visibleTurns` → 400 거부.
