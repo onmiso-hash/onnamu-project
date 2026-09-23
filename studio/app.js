@@ -218,9 +218,15 @@ class ChronicleApp {
         this.charImagesPreview = document.getElementById('char-images-preview');
         this.charImageStatus = document.getElementById('char-image-status');
         this.charImageStatusText = document.getElementById('char-image-status-text');
+        this.inputRegenAllCharImages = document.getElementById('input-regen-all-char-images');
 
         if (this.btnGenerateCharImages) {
             this.btnGenerateCharImages.addEventListener('click', () => this.generateCharacterImages());
+        }
+        // 감정 칸은 JS가 그린다. 19금 전용 칸은 수위 설정에 따라 보였다 숨는다.
+        this.refreshCharacterImagePreviews();
+        if (this.selectChatLevel) {
+            this.selectChatLevel.addEventListener('change', () => this.refreshCharacterImagePreviews());
         }
 
         // Keyboard press for submission
@@ -359,6 +365,7 @@ class ChronicleApp {
                 // 19금 열람 가능 여부. 서버가 관리자면 자동으로 참으로 보내준다.
                 // 옛 화면이 남아 있을 때를 대비해 isAdmin도 함께 본다.
                 this.canAdult = (data.canAdult !== undefined) ? !!data.canAdult : !!data.isAdmin;
+                this.refreshCharacterImagePreviews(); // 19금 전용 감정 칸은 canAdult를 안 뒤에야 정해진다
                 
                 const displayNameEl = document.getElementById('user-display-name');
                 if (displayNameEl && data.username) {
@@ -507,18 +514,7 @@ class ChronicleApp {
                     if (this.inputCharImagePrompt) this.inputCharImagePrompt.value = '';
                     this.characterImages = {};
 
-                    const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
-                    emotions.forEach(emotion => {
-                        const imgEl = document.getElementById(`img-preview-${emotion}`);
-                        const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-                        if (imgEl) {
-                            imgEl.src = '';
-                            imgEl.style.display = 'none';
-                        }
-                        if (placeholderEl) {
-                            placeholderEl.style.display = 'flex';
-                        }
-                    });
+                    this.refreshCharacterImagePreviews();
                     if (this.charImagesPreview) {
                         this.charImagesPreview.style.display = 'grid';
                     }
@@ -1603,8 +1599,7 @@ JSON Schema:
             msgEl.setAttribute('data-emotion', emotion);
             msgEl.style.cursor = 'pointer';
             msgEl.setAttribute('title', '이 대화 시점의 표정으로 상단 프로필을 동기화합니다.');
-            const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
-            let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+            let imgUrl = EmotionRegistry.resolveEmotionImage(this.characterImages, emotion);
             if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
             
             let avatarHtml = '';
@@ -2458,8 +2453,8 @@ JSON Schema:
             this.removeLoadingIndicator();
 
             if (result) {
-                // Ensure emotion has a fallback value
-                result.emotion = result.emotion || 'normal';
+                // 모르는 감정 id(또는 빈 값)는 normal로 본다
+                result.emotion = EmotionRegistry.isKnownEmotion(result.emotion) ? result.emotion : 'normal';
                 result.actionText = actionText;
                 this.storyHistory.push(result);
                 this.currentChapterIndex = this.storyHistory.length;
@@ -2620,8 +2615,7 @@ JSON Schema:
             return;
         }
 
-        const hasImages = this.characterImages && Object.keys(this.characterImages).length > 0;
-        let imgUrl = hasImages ? (this.characterImages[emotion] || this.characterImages['normal']) : '';
+        let imgUrl = EmotionRegistry.resolveEmotionImage(this.characterImages, emotion);
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
         
         let avatarHtml = '';
@@ -2760,6 +2754,11 @@ JSON Schema:
 상대방을 자극하거나 유혹하는 노골적인 묘사, 매혹적인 행동, 신체적인 터치나 밀착 묘사, 부드럽거나 치명적인 도발, 심장박동을 뛰게 하는 야릇하고 에로틱한 호흡 등을 매우 매력적이고 노골적으로 서술하여 관능적인 성인용 19금 톤앤매너를 유지해 주세요. 검열을 최소화하고 매끄러운 19금 대사를 지어내야 합니다.` 
 : `이 세션은 일반 전체 이용가 등급의 대화 및 롤플레이 세션입니다. 폭력적이거나 선정적인 묘사는 배제하고, 일상적이며 소프트하고 다정한 분위기를 유지해 주세요.`;
 
+        // 이번 대화에서 고를 수 있는 감정. 19금 전용 감정은 볼 수 있는 계정(canAdult)의 19금 대화에서만.
+        const chatEmotions = EmotionRegistry.listEmotions({ adult: this.canAdult && this.chatLevel === 'adult-19' });
+        const emotionGuide = chatEmotions.map(e => `${e.id} (${e.label})`).join(', ');
+        const emotionIds = chatEmotions.map(e => e.id).join(' | ');
+
         const systemInstruction = `당신은 세계 최고의 대화형 시뮬레이션 AI이자 서사적 롤플레이 게임 마스터입니다.
 유저와 대화하며, 가상의 인물 [${this.chatCharName}]을 실감 나게 열연(Roleplay)하고 있습니다.
 
@@ -2775,13 +2774,13 @@ JSON Schema:
 4. 유저의 입력([${actionText}])과 대화 기록을 바탕으로 유저에게 품은 호감도 변화 수치(affinityChange)를 -10에서 +10 사이의 정수로 연산하여 알려주세요. 유저가 무례하거나 냉대하면 마이너스, 다정하거나 자극적인 유혹에 넘어가면 플러스를 줍니다.
 5. 이번 턴의 대화 결과를 인물이 머릿속에 기억할 내용(memoryNotes)을 한 문장으로 간결하게 작성해 주세요 (예: "주인공이 나의 어깨를 감싸 안아서 당황했지만 기뻤음").
 6. 인물의 대사가 끝났을 때 유저가 대답할 수 있는 매력적이고 자연스러운 대화 대답 선택지 3가지를 배열로 구성해 주세요.
-7. 이번 대사에서 드러나는 인물의 주된 감정을 normal (평온), happy (기쁨), sad (슬픔), angry (화남), blush (부끄러움) 중 하나로 정확히 판별하여 emotion 필드에 지정해 주세요.
+7. 이번 대사에서 드러나는 인물의 주된 감정을 ${emotionGuide} 중 하나로 정확히 판별하여 emotion 필드에 지정해 주세요.
 8. 반드시 아래 명시된 JSON Schema 구조를 완전하게 만족하여 JSON 문자열로만 응답해 주세요. 마크다운 기호(\`\`\`json)는 절대 포함하지 마세요.
 
 JSON Schema:
 {
   "dialogue": "인물의 반응 대사와 행동 지문 묘사 string",
-  "emotion": "인물의 현재 감정 상태 (normal | happy | sad | angry | blush) string",
+  "emotion": "인물의 현재 감정 상태 (${emotionIds}) string",
   "affinityChange": "이번 턴의 호감도 변화량 (-10~10 사이의 정수) number",
   "memoryNotes": "인물이 기억 보관소에 기록할 기억 메모리 string",
   "choices": [
@@ -2798,7 +2797,7 @@ JSON Schema:
                 dialogue: { type: "STRING" },
                 emotion: { 
                     type: "STRING", 
-                    enum: ["normal", "happy", "sad", "angry", "blush"] 
+                    enum: chatEmotions.map(e => e.id)
                 },
                 affinityChange: { type: "INTEGER" },
                 memoryNotes: { type: "STRING" },
@@ -3364,8 +3363,6 @@ JSON Schema:
             this.charProfileContainer.innerHTML = '';
         }
 
-        const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
-
         if (!selected) {
             // 프리셋을 선택하지 않은 경우(새 캐릭터) 폼 필드와 이미지 상태를 초기화
             this.inputChatCharName.value = '';
@@ -3376,17 +3373,7 @@ JSON Schema:
             this.inputCharImagePrompt.value = '';
             this.characterImages = {};
 
-            emotions.forEach(emotion => {
-                const imgEl = document.getElementById(`img-preview-${emotion}`);
-                const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-                if (imgEl) {
-                    imgEl.src = '';
-                    imgEl.style.display = 'none';
-                }
-                if (placeholderEl) {
-                    placeholderEl.style.display = 'flex';
-                }
-            });
+            this.refreshCharacterImagePreviews();
             this.charImagesPreview.style.display = 'grid'; // 수동 업로드할 수 있도록 항상 grid 노출
             return;
         }
@@ -3431,29 +3418,7 @@ JSON Schema:
                 this.inputCharImagePrompt.value = data.imagePrompt || '';
                 this.characterImages = data.characterImages || {};
                 
-                emotions.forEach(emotion => {
-                    const imgEl = document.getElementById(`img-preview-${emotion}`);
-                    const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-                    if (this.characterImages[emotion]) {
-                        if (imgEl) {
-                            let rawUrl = this.characterImages[emotion];
-                            if (rawUrl && rawUrl.startsWith('/data/uploads/')) rawUrl = '.' + rawUrl;
-                            imgEl.src = rawUrl;
-                            imgEl.style.display = 'block';
-                        }
-                        if (placeholderEl) {
-                            placeholderEl.style.display = 'none';
-                        }
-                    } else {
-                        if (imgEl) {
-                            imgEl.src = '';
-                            imgEl.style.display = 'none';
-                        }
-                        if (placeholderEl) {
-                            placeholderEl.style.display = 'flex';
-                        }
-                    }
-                });
+                this.refreshCharacterImagePreviews();
                 this.charImagesPreview.style.display = 'grid'; // 상시 grid 노출
 
                 // Restore dialogueVectors from preset session if it exists (2단계)
@@ -3492,33 +3457,33 @@ JSON Schema:
         this.charImagesPreview.style.display = 'none';
         this.btnGenerateCharImages.disabled = true;
 
-        const emotions = ['normal', 'happy', 'sad', 'angry', 'blush'];
-        const emotionPrompts = {
-            normal: promptInput,
-            happy: `${promptInput}, happy smiling expression, laughing, cheerful, bright eyes`,
-            sad: `${promptInput}, sad crying expression, tearful, looking down, melancholy`,
-            angry: `${promptInput}, angry frowning expression, glaring eyes, annoyed, upset`,
-            blush: `${promptInput}, blushing embarrassed expression, shy smile, looking away, cute`
-        };
-
-        this.characterImages = {};
+        // 기본은 빈 칸만 만든다 — 이미 있는 그림(올린 것 포함)은 건드리지 않는다.
+        // '전부 다시'에 체크했을 때만 지금 보이는 칸을 모두 새로 만든다.
+        const regenAll = !!(this.inputRegenAllCharImages && this.inputRegenAllCharImages.checked);
+        this.characterImages = this.characterImages || {};
+        const targets = this.gridEmotions().filter(e => regenAll || !this.characterImages[e.id]);
+        if (targets.length === 0) {
+            this.charImageStatusText.textContent = "빈 칸이 없습니다. 다시 만들려면 '전부 다시'에 체크하세요.";
+            this.charImagesPreview.style.display = 'grid';
+            this.btnGenerateCharImages.disabled = false;
+            setTimeout(() => { this.charImageStatus.style.display = 'none'; }, 3000);
+            return;
+        }
 
         try {
-            for (let i = 0; i < emotions.length; i++) {
-                const emotion = emotions[i];
-                const displayEmotion = emotion === 'normal' ? '평온' : 
-                                      emotion === 'happy' ? '기쁨' :
-                                      emotion === 'sad' ? '슬픔' :
-                                      emotion === 'angry' ? '화남' : '부끄러움';
+            for (let i = 0; i < targets.length; i++) {
+                const emotion = targets[i].id;
+                const displayEmotion = targets[i].label;
+                const suffix = EmotionRegistry.emotionPromptSuffix(emotion);
 
-                this.charImageStatusText.textContent = `[${i + 1}/${emotions.length}] ${displayEmotion} 감정 이미지 생성 중...`;
+                this.charImageStatusText.textContent = `[${i + 1}/${targets.length}] ${displayEmotion} 감정 이미지 생성 중...`;
 
                 const response = await fetch('/api/generate-image', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         apiKey: apiKey,
-                        prompt: emotionPrompts[emotion]
+                        prompt: suffix ? `${promptInput}, ${suffix}` : promptInput
                     })
                 });
 
@@ -3532,26 +3497,17 @@ JSON Schema:
                     throw new Error(`[${displayEmotion}] 이미지 데이터를 받지 못했습니다.`);
                 }
 
-                this.characterImages[emotion] = `data:image/jpeg;base64,${data.imageBytes}`;
-                
-                // Update preview image immediately
-                const imgEl = document.getElementById(`img-preview-${emotion}`);
-                const placeholderEl = document.getElementById(`placeholder-${emotion}`);
-                if (imgEl) {
-                    imgEl.src = this.characterImages[emotion];
-                    imgEl.style.display = 'block';
-                }
-                if (placeholderEl) {
-                    placeholderEl.style.display = 'none';
-                }
+                // 인물 JSON에는 파일 주소만 담는다 — base64를 그대로 담으면 인물 저장이 수 MB로 불어난다.
+                this.characterImages[emotion] = await this.uploadEmotionImage(emotion, `data:image/jpeg;base64,${data.imageBytes}`);
+                this.refreshCharacterImagePreviews();
             }
 
-            this.charImageStatusText.textContent = "모든 캐릭터 이미지 생성 완료!";
+            this.charImageStatusText.textContent = "캐릭터 이미지 생성 완료!";
             this.charImagesPreview.style.display = 'grid';
             this.playMagicChime();
         } catch (error) {
             console.error("Image generation error:", error);
-            alert(`이미지 생성 중 오류가 발생했습니다: ${error.message}`);
+            alert(`이미지 생성 중 오류가 발생했습니다: ${error.message}\n\n이미 만든 그림은 그대로 남아 있습니다. 빈 칸은 눌러서 직접 올릴 수 있습니다.`);
             this.charImageStatusText.textContent = "이미지 생성 실패";
             this.charImagesPreview.style.display = 'grid'; // 에러가 나도 그리드는 다시 보여야 함
         } finally {
@@ -3561,6 +3517,21 @@ JSON Schema:
                 this.charImageStatus.style.display = 'none';
             }, 3000);
         }
+    }
+
+    // 감정 그림 한 장을 서버에 파일로 남기고 그 주소를 돌려준다(올리기·생성 공용).
+    async uploadEmotionImage(emotion, dataUrl) {
+        const response = await fetch('/api/upload-image', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ emotion: emotion, imageBytes: dataUrl })
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({ error: '서버 통신 실패' }));
+            throw new Error(errData.error || '이미지 저장 서버 오류');
+        }
+        const data = await response.json();
+        return data.fileUrl;
     }
 
     // Handle manual local image upload (File Reader Base64 conversion + Server Upload)
@@ -3588,23 +3559,7 @@ JSON Schema:
             }
 
             try {
-                // Upload to server via API
-                const response = await fetch('/api/upload-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        emotion: emotion,
-                        imageBytes: base64Data
-                    })
-                });
-
-                if (!response.ok) {
-                    const errData = await response.json().catch(() => ({ error: '서버 통신 실패' }));
-                    throw new Error(errData.error || '이미지 저장 서버 오류');
-                }
-
-                const data = await response.json();
-                const fileUrl = data.fileUrl;
+                const fileUrl = await this.uploadEmotionImage(emotion, base64Data);
 
                 // Store to in-memory images map (uses server relative path instead of massive base64)
                 this.characterImages[emotion] = fileUrl;
@@ -3646,7 +3601,7 @@ JSON Schema:
                 if (placeholderEl) {
                     placeholderEl.innerHTML = oldPlaceholderHtml || `
                         <span class="upload-icon">➕</span>
-                        <span class="upload-text">${emotion === 'normal' ? '평온' : emotion === 'happy' ? '기쁨' : emotion === 'sad' ? '슬픔' : emotion === 'angry' ? '화남' : '부끄'}</span>
+                        <span class="upload-text">${EmotionRegistry.emotionLabel(emotion)}</span>
                     `;
                 }
             } finally {
@@ -3930,7 +3885,23 @@ JSON Schema:
 
     // 설정창의 감정별 그림 미리보기를 지금 인물 것으로 맞춘다.
     refreshCharacterImagePreviews() {
-        ['normal', 'happy', 'sad', 'angry', 'blush'].forEach(emotion => {
+        // 칸은 감정 목록(emotionRegistry.js)에서 그린다. 19금 전용 칸은 볼 수 있는 계정이
+        // 이 인물의 기본 수위를 19금으로 둘 때만 보인다. 칸이 안 보여도 그림은 지우지 않는다.
+        if (this.charImagesPreview) {
+            this.charImagesPreview.innerHTML = this.gridEmotions().map(e => `
+                <div class="preview-item">
+                    <span class="preview-label">${e.id === 'normal' ? `${e.label} (대표)` : e.label}</span>
+                    <div class="img-wrapper" onclick="document.getElementById('file-upload-${e.id}').click()">
+                        <img id="img-preview-${e.id}" src="" alt="${e.id}" style="display: none;">
+                        <div class="upload-placeholder" id="placeholder-${e.id}">
+                            <span class="upload-icon">➕</span>
+                            <span class="upload-text">${e.label}</span>
+                        </div>
+                    </div>
+                    <input type="file" id="file-upload-${e.id}" accept="image/png,image/jpeg,image/webp" style="display: none;" onchange="window.app.handleImageUpload('${e.id}', this)">
+                </div>`).join('');
+        }
+        this.gridEmotions().forEach(({ id: emotion }) => {
             const imgEl = document.getElementById(`img-preview-${emotion}`);
             const placeholderEl = document.getElementById(`placeholder-${emotion}`);
             const raw = this.characterImages ? this.characterImages[emotion] : '';
@@ -3948,6 +3919,12 @@ JSON Schema:
                 if (placeholderEl) placeholderEl.style.display = 'flex';
             }
         });
+    }
+
+    // 설정창에 칸을 보일 감정들. 기준은 설정창의 수위(= 인물 기본 수위)다.
+    gridEmotions() {
+        const adult = this.canAdult && !!this.selectChatLevel && this.selectChatLevel.value === 'adult-19';
+        return EmotionRegistry.listEmotions({ adult });
     }
 
     // 서버에 저장된 검색용 벡터를 화면 쪽 모양으로 되살린다.

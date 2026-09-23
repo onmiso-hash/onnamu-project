@@ -1330,13 +1330,19 @@ select {
    ========================================================================== */
 .char-images-preview-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr); /* 감정 12칸 = 두 줄 */
     gap: 0.5rem;
     margin-top: 1rem;
     background: rgba(255, 255, 255, 0.03);
     padding: 0.6rem;
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+@media (max-width: 480px) {
+    .char-images-preview-grid {
+        grid-template-columns: repeat(4, 1fr); /* 좁은 폰은 네 칸씩 세 줄 */
+    }
 }
 
 .preview-item {
