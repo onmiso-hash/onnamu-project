@@ -385,6 +385,82 @@ select {
     gap: 1rem;
 }
 
+/* ==========================================================================
+   무대(stage) — 장면 배경 위에 감정 초상을 겹친다.
+   배경이 없는 장면(studio)이면 .has-scene이 붙지 않아 예전 카드 모습 그대로다.
+   ========================================================================== */
+.profile-stage {
+    position: relative;
+}
+
+.stage-backdrop {
+    display: none;
+}
+
+.profile-stage.has-scene {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 1rem;
+    max-height: 36vh; /* 무대가 대화 피드를 삼키지 않게 */
+}
+
+.profile-stage.has-scene .stage-backdrop {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    transition: background 0.4s ease;
+}
+
+/* 글씨가 어떤 배경에서도 읽히도록 아래쪽을 어둡게 덮는다 */
+.profile-stage.has-scene .stage-backdrop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0) 30%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.profile-stage.has-scene .profile-header {
+    position: relative;
+    z-index: 1;
+    align-items: flex-end;
+}
+
+/* 배경이 있을 때 초상은 둥근 배지가 아니라 3:4 세운 그림 */
+.profile-stage.has-scene .profile-avatar-wrapper {
+    width: 120px;
+    height: 160px;
+    max-height: calc(36vh - 2rem);
+    border-radius: 10px;
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.profile-stage.has-scene .profile-meta h3,
+.profile-stage.has-scene .profile-meta p {
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.stage-scene-chip {
+    display: inline-block;
+    margin-top: 0.35rem;
+    font-size: 0.72rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.35);
+    border-radius: 999px;
+    padding: 0.1rem 0.55rem;
+}
+
+.stage-scene-chip:empty {
+    display: none;
+}
+
+/* 접기 단추는 휴대폰에서만 보인다(아래 @media) */
+.stage-collapse-toggle {
+    display: none;
+}
+
 .profile-avatar-wrapper {
     width: 120px;
     height: 120px;
@@ -1165,6 +1241,48 @@ select {
     .profile-meta p {
         font-size: 0.72rem;
     }
+
+    /* 무대: 휴대폰에서는 초상을 줄이고 접을 수 있다 */
+    .profile-stage.has-scene {
+        padding: 0.7rem;
+    }
+
+    .profile-stage.has-scene .profile-avatar-wrapper {
+        width: 105px !important;
+        height: 140px !important;
+    }
+
+    .stage-collapse-toggle {
+        display: block;
+        position: absolute;
+        top: 0.4rem;
+        right: 0.4rem;
+        z-index: 2;
+        padding: 0.15rem 0.5rem;
+        border: none;
+        border-radius: 999px;
+        background: rgba(0, 0, 0, 0.35);
+        color: #fff;
+        font-family: inherit;
+        font-size: 0.68rem;
+        cursor: pointer;
+    }
+
+    /* 접힘: 초상을 작은 얼굴로, 무대를 한 줄 높이로 */
+    .profile-stage.collapsed .profile-avatar-wrapper,
+    .profile-stage.collapsed .profile-avatar {
+        width: 48px !important;
+        height: 48px !important;
+        font-size: 1.8rem !important;
+    }
+
+    .profile-stage.has-scene.collapsed .profile-avatar-wrapper {
+        height: 64px !important;
+    }
+
+    .profile-stage.collapsed .profile-header {
+        flex-wrap: nowrap;
+    }
     
     .affection-section {
         gap: 0.2rem;
@@ -1610,8 +1728,33 @@ select {
    눌리지 않게 해 두면 대신 서랍(.sidebar-menu)이 통째로 스크롤된다. */
 .menu-section-title,
 .sidebar-menu-item,
+.sidebar-scene-row,
 .conversation-list {
     flex-shrink: 0;
+}
+
+/* 이 대화 장면 고르기 (수위 토글 아래) */
+.sidebar-scene-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.5rem 1rem;
+    color: #cbd5e1;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.sidebar-scene-row select {
+    margin-left: auto;
+    min-width: 0;
+    max-width: 55%;
+    padding: 0.3rem 0.4rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.8rem;
 }
 
 .menu-section-title {

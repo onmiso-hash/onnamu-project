@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const SceneRegistry = require('./sceneRegistry.js');
 
 const DATA_ROOT = process.env.STUDIO_DATA_DIR || path.join(__dirname, 'data');
 
@@ -684,7 +685,8 @@ function createConversation(username, opts) {
         affinityValue: 50,
         memoryList: [],
         chatLevel: (opts && opts.chatLevel) || 'normal',
-        userName: (opts && opts.userName) || ''
+        userName: (opts && opts.userName) || '',
+        sceneId: sceneIdOrDefault(opts && opts.sceneId)
     };
     fs.mkdirSync(conversationDirPath(username, id), { recursive: true });
     writeJsonAtomic(metaFilePath(username, id), meta);
@@ -737,7 +739,8 @@ function importConversation(username, opts) {
         affinityValue: typeof o.affinityValue === 'number' ? o.affinityValue : 50,
         memoryList: Array.isArray(o.memoryList) ? o.memoryList : [],
         chatLevel: o.chatLevel || 'normal',
-        userName: o.userName || ''
+        userName: o.userName || '',
+        sceneId: sceneIdOrDefault(o.sceneId)
     };
     bulkWriteConversation(username, id, meta, o.turns, o.vectors);
     return { ...meta, visibleTurns: o.turns.length };
@@ -754,14 +757,31 @@ function deleteConversation(username, convId) {
 
 // meta에 담을 수 있는 값만 골라 덮어쓴다. 여기 없는 키는 조용히 버린다 — 화면이 보낸
 // 아무 값이나 meta에 눌러앉지 않게 한다.
-const META_PATCH_KEYS = ['title', 'affinityValue', 'memoryList', 'chatLevel', 'userName'];
+// **이 표가 유일한 원본이다.** server.js의 PATCH 통로도 이 표를 읽는다(예전에는 두 벌이라
+// 한쪽에만 칸을 넣으면 조용히 버려졌다).
+const META_PATCH_KEYS = ['title', 'affinityValue', 'memoryList', 'chatLevel', 'userName', 'sceneId'];
+
+// 장면의 주인은 대화다(수위와 같다). 모르는 장면 id는 받지 않는다.
+function sceneIdOrDefault(value) {
+    if (value === undefined || value === null || value === '') return SceneRegistry.DEFAULT_SCENE;
+    if (!SceneRegistry.isKnownScene(value)) throw fail('INVALID', `알 수 없는 장면입니다: ${value}`);
+    return value;
+}
+
+// 덧씌울 값을 쓰기 **전에** 검사한다 — 턴 덧붙이기는 줄을 먼저 쓰므로, 쓰고 나서 거절하면
+// 같은 번호로 다시 보내도 매번 거절되는 줄이 남는다.
+function assertMetaPatch(patch) {
+    if (patch && typeof patch === 'object' && Object.prototype.hasOwnProperty.call(patch, 'sceneId')) {
+        sceneIdOrDefault(patch.sceneId);
+    }
+}
 
 function applyMetaPatch(meta, patch) {
     if (!patch || typeof patch !== 'object') return false;
     let changed = false;
     for (const key of META_PATCH_KEYS) {
         if (Object.prototype.hasOwnProperty.call(patch, key)) {
-            meta[key] = patch[key];
+            meta[key] = key === 'sceneId' ? sceneIdOrDefault(patch[key]) : patch[key];
             changed = true;
         }
     }
@@ -771,6 +791,7 @@ function applyMetaPatch(meta, patch) {
 function updateConversation(username, convId, patch) {
     ensureUser(username);
     const meta = requireMeta(username, convId);
+    assertMetaPatch(patch);
     applyMetaPatch(meta, patch);
     meta.updatedAt = new Date().toISOString();
     writeJsonAtomic(metaFilePath(username, convId), meta);
@@ -803,6 +824,7 @@ function appendTurn(username, convId, n, turn, patch) {
     if (n > expected) {
         throw fail('INVALID', `턴 번호에 구멍이 있습니다: ${expected}번이 와야 하는데 ${n}번이 왔습니다.`);
     }
+    assertMetaPatch(patch);
 
     appendLogLine(turnsFilePath(username, convId), { n, t: turn });
 
@@ -1013,6 +1035,7 @@ module.exports = {
     importConversation,
     getConversation,
     updateConversation,
+    META_PATCH_KEYS,
     deleteConversation,
     // 기록장
     appendTurn,
