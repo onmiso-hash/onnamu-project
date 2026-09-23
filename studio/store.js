@@ -686,7 +686,8 @@ function createConversation(username, opts) {
         memoryList: [],
         chatLevel: (opts && opts.chatLevel) || 'normal',
         userName: (opts && opts.userName) || '',
-        sceneId: sceneIdOrDefault(opts && opts.sceneId)
+        sceneId: sceneOfNewConversation(opts && opts.sceneId, (opts && opts.chatLevel) || 'normal', opts && opts.canAdult),
+        scenes: normalizeScenes(opts && opts.scenes, opts && opts.canAdult)
     };
     fs.mkdirSync(conversationDirPath(username, id), { recursive: true });
     writeJsonAtomic(metaFilePath(username, id), meta);
@@ -740,7 +741,8 @@ function importConversation(username, opts) {
         memoryList: Array.isArray(o.memoryList) ? o.memoryList : [],
         chatLevel: o.chatLevel || 'normal',
         userName: o.userName || '',
-        sceneId: sceneIdOrDefault(o.sceneId)
+        sceneId: sceneOfNewConversation(o.sceneId, o.chatLevel || 'normal', o.canAdult),
+        scenes: normalizeScenes(o.scenes, o.canAdult)
     };
     bulkWriteConversation(username, id, meta, o.turns, o.vectors);
     return { ...meta, visibleTurns: o.turns.length };
@@ -759,7 +761,7 @@ function deleteConversation(username, convId) {
 // 아무 값이나 meta에 눌러앉지 않게 한다.
 // **이 표가 유일한 원본이다.** server.js의 PATCH 통로도 이 표를 읽는다(예전에는 두 벌이라
 // 한쪽에만 칸을 넣으면 조용히 버려졌다).
-const META_PATCH_KEYS = ['title', 'affinityValue', 'memoryList', 'chatLevel', 'userName', 'sceneId'];
+const META_PATCH_KEYS = ['title', 'affinityValue', 'memoryList', 'chatLevel', 'userName', 'sceneId', 'scenes'];
 
 // 장면의 주인은 대화다(수위와 같다). 모르는 장면 id는 받지 않는다.
 function sceneIdOrDefault(value) {
@@ -768,31 +770,61 @@ function sceneIdOrDefault(value) {
     return value;
 }
 
-// 덧씌울 값을 쓰기 **전에** 검사한다 — 턴 덧붙이기는 줄을 먼저 쓰므로, 쓰고 나서 거절하면
-// 같은 번호로 다시 보내도 매번 거절되는 줄이 남는다.
-function assertMetaPatch(patch) {
-    if (patch && typeof patch === 'object' && Object.prototype.hasOwnProperty.call(patch, 'sceneId')) {
-        sceneIdOrDefault(patch.sceneId);
+// 19금 전용 장면은 canAdult이고 그 대화가 19금일 때만(판정은 sceneRegistry.js의 sceneAllowed 하나).
+function sceneOfNewConversation(value, chatLevel, canAdult) {
+    const id = sceneIdOrDefault(value);
+    if (!SceneRegistry.sceneAllowed(id, { canAdult: !!canAdult, chatLevel })) {
+        throw fail('INVALID', `이 대화에서 쓸 수 없는 장면입니다: ${id}`);
     }
+    return id;
 }
 
-function applyMetaPatch(meta, patch) {
-    if (!patch || typeof patch !== 'object') return false;
-    let changed = false;
-    for (const key of META_PATCH_KEYS) {
-        if (Object.prototype.hasOwnProperty.call(patch, key)) {
-            meta[key] = key === 'sceneId' ? sceneIdOrDefault(patch[key]) : patch[key];
-            changed = true;
-        }
+// 대화에 올린 배경 사진 기록 {sceneId: {url}}. 주인은 대화다 — 인물 JSON에 넣지 않는다.
+// 모르는 장면·서버가 지은 이름이 아닌 주소는 받지 않는다. 19금 장면 사진은 canAdult만.
+function normalizeScenes(value, canAdult) {
+    if (value === undefined || value === null) return {};
+    if (typeof value !== 'object' || Array.isArray(value)) throw fail('INVALID', 'scenes는 객체여야 합니다.');
+    const out = {};
+    for (const [id, entry] of Object.entries(value)) {
+        if (!SceneRegistry.isKnownScene(id)) throw fail('INVALID', `알 수 없는 장면입니다: ${id}`);
+        if (SceneRegistry.isAdultScene(id) && !canAdult) throw fail('INVALID', `이 계정은 쓸 수 없는 장면입니다: ${id}`);
+        const url = entry && typeof entry === 'object' ? entry.url : undefined;
+        if (!SceneRegistry.isSceneUploadUrl(id, url)) throw fail('INVALID', `배경 사진 주소가 올바르지 않습니다: ${id}`);
+        out[id] = { url };
     }
-    return changed;
+    return out;
 }
 
-function updateConversation(username, convId, patch) {
+// 덧씌울 값을 쓰기 **전에** 검사하고 다듬는다 — 턴 덧붙이기는 줄을 먼저 쓰므로, 쓰고 나서
+// 거절하면 같은 번호로 다시 보내도 매번 거절되는 줄이 남는다.
+// 수위를 내려 지금 장면(19금 전용)을 더는 쓸 수 없게 되면 장면을 기본으로 되돌린다
+// (2026-09-23 사용자 결정). 올린 사진 기록(scenes)은 남긴다.
+function settleMetaPatch(meta, patch, canAdult) {
+    if (!patch || typeof patch !== 'object') return null;
+    const has = key => Object.prototype.hasOwnProperty.call(patch, key);
+    const out = {};
+    META_PATCH_KEYS.forEach(key => { if (has(key)) out[key] = patch[key]; });
+    const chatLevel = has('chatLevel') ? patch.chatLevel : meta.chatLevel;
+    if (has('sceneId')) {
+        out.sceneId = sceneOfNewConversation(patch.sceneId, chatLevel, canAdult);
+    } else if (!SceneRegistry.sceneAllowed(meta.sceneId || SceneRegistry.DEFAULT_SCENE, { canAdult: !!canAdult, chatLevel })) {
+        out.sceneId = SceneRegistry.DEFAULT_SCENE;
+    }
+    if (has('scenes')) out.scenes = normalizeScenes(patch.scenes, canAdult);
+    return out;
+}
+
+function applyMetaPatch(meta, settled) {
+    if (!settled) return false;
+    Object.assign(meta, settled);
+    return Object.keys(settled).length > 0;
+}
+
+// opts.canAdult: 이 계정이 19금을 볼 수 있는가(서버가 넘긴다, 없으면 거짓).
+function updateConversation(username, convId, patch, opts) {
     ensureUser(username);
     const meta = requireMeta(username, convId);
-    assertMetaPatch(patch);
-    applyMetaPatch(meta, patch);
+    applyMetaPatch(meta, settleMetaPatch(meta, patch, opts && opts.canAdult));
     meta.updatedAt = new Date().toISOString();
     writeJsonAtomic(metaFilePath(username, convId), meta);
     return meta;
@@ -806,7 +838,7 @@ function updateConversation(username, convId, patch) {
 //   n > visibleTurns : 사이에 구멍이 생긴다. 거부한다.
 // 되돌린 뒤 다시 쓰는 경우도 이 규칙 하나로 처리된다 — 되돌리기가 visibleTurns를 k로
 // 줄여놓았으므로, 새 턴의 번호 k가 곧 "이어 붙일 자리"가 되어 옛 줄을 덮는다.
-function appendTurn(username, convId, n, turn, patch) {
+function appendTurn(username, convId, n, turn, patch, opts) {
     ensureUser(username);
     const meta = requireMeta(username, convId);
 
@@ -824,7 +856,7 @@ function appendTurn(username, convId, n, turn, patch) {
     if (n > expected) {
         throw fail('INVALID', `턴 번호에 구멍이 있습니다: ${expected}번이 와야 하는데 ${n}번이 왔습니다.`);
     }
-    assertMetaPatch(patch);
+    const settled = settleMetaPatch(meta, patch, opts && opts.canAdult);
 
     appendLogLine(turnsFilePath(username, convId), { n, t: turn });
 
@@ -832,7 +864,7 @@ function appendTurn(username, convId, n, turn, patch) {
     // 그 줄은 없는 셈이 되고, 다음에 같은 번호로 다시 오면 그 줄을 덮는다 — 손상이 아니라
     // 저절로 제자리로 돌아온다. 반대 순서였다면 있지도 않은 턴을 있다고 우기게 된다.
     meta.visibleTurns = n + 1;
-    applyMetaPatch(meta, patch);
+    applyMetaPatch(meta, settled);
     meta.updatedAt = new Date().toISOString();
     writeJsonAtomic(metaFilePath(username, convId), meta);
 

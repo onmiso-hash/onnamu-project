@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const store = require('./store.js');
 const EmotionRegistry = require('./emotionRegistry.js');
+const SceneRegistry = require('./sceneRegistry.js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -35,7 +36,16 @@ const { authMiddleware } = require('./authHelper');
 // 올린 그림은 로그인한 사람에게만 준다. 빗장(authMiddleware)은 확장자가 있는 파일을
 // 그냥 통과시키므로 여기서는 protectFiles로 따로 건다. 주소 짝짓기와 파일 내주기가 같은
 // 자리('/data/uploads')라 인코딩한 주소로 검사만 비껴가는 틈이 없다.
-app.use('/data/uploads', authMiddleware({ protectFiles: true }), express.static(UPLOAD_DIR));
+// 19금 장면 배경 사진(uploaded_<시각>_<19금 장면 id>.*)은 canAdult에게만 준다. 없는 파일과
+// 구별되지 않게 404. express.static이 주소를 한 번 풀어 파일을 찾으므로 여기서도 한 번 풀어 본다.
+function blocksAdultSceneFile(req, res, next) {
+    let name;
+    try { name = decodeURIComponent(req.path).replace(/^\/+/, ''); } catch (e) { return res.status(400).end(); }
+    const canAdult = !!(req.user && (req.user.adult_ok || req.user.is_admin));
+    if (!canAdult && SceneRegistry.isAdultSceneFileName(name)) return res.status(404).end();
+    next();
+}
+app.use('/data/uploads', authMiddleware({ protectFiles: true }), blocksAdultSceneFile, express.static(UPLOAD_DIR));
 
 // Authentication Middleware
 // 빗장을 푼다 — 이제 로그인한 사람은 누구나 자기 자료로 들어온다.
@@ -371,14 +381,29 @@ function imageExtOf(buf) {
 }
 
 // POST API to upload image (converts Base64 data to physical file)
+// body: {emotion, imageBytes} — 감정 그림 / {kind:'scene', sceneId, imageBytes} — 장면 배경 사진.
+// 이 통로는 파일만 만든다. 장면 사진을 어느 대화에 붙일지는 PATCH의 scenes 칸이 정한다.
 app.post('/api/upload-image', (req, res) => {
-    const { emotion, imageBytes } = req.body;
+    const { emotion, imageBytes, kind, sceneId } = req.body;
     if (!imageBytes || typeof imageBytes !== 'string') {
         return res.status(400).json({ error: '이미지 데이터가 없습니다.' });
     }
-    // 감정 id는 파일 이름에 들어간다 — 목록에 있는 것만 받는다('../' 같은 값이 경로를 벗어나지 않게).
-    if (!EmotionRegistry.isKnownEmotion(emotion)) {
-        return res.status(400).json({ error: '알 수 없는 감정입니다.' });
+    // 감정·장면 id는 파일 이름에 들어간다 — 목록에 있는 것만 받는다('../' 같은 값이 경로를 벗어나지 않게).
+    // 원본 파일 이름은 받지도 쓰지도 않는다.
+    let nameTag;
+    if (kind === 'scene') {
+        if (!SceneRegistry.isKnownScene(sceneId)) {
+            return res.status(400).json({ error: '알 수 없는 장면입니다.' });
+        }
+        if (SceneRegistry.isAdultScene(sceneId) && !(req.user && (req.user.adult_ok || req.user.is_admin))) {
+            return res.status(403).json({ error: '이 계정은 이 장면에 사진을 올릴 수 없습니다.' });
+        }
+        nameTag = sceneId;
+    } else {
+        if (!EmotionRegistry.isKnownEmotion(emotion)) {
+            return res.status(400).json({ error: '알 수 없는 감정입니다.' });
+        }
+        nameTag = emotion;
     }
 
     try {
@@ -393,7 +418,7 @@ app.post('/api/upload-image', (req, res) => {
         }
 
         // Generate filename
-        const filename = `uploaded_${Date.now()}_${emotion}.${ext}`;
+        const filename = `uploaded_${Date.now()}_${nameTag}.${ext}`;
         const filePath = path.join(UPLOAD_DIR, filename);
 
         // Write file to disk
@@ -578,7 +603,9 @@ app.post('/api/conversations', (req, res) => {
             title: body.title,
             chatLevel: body.chatLevel,
             userName: body.userName,
-            sceneId: body.sceneId
+            sceneId: body.sceneId,
+            scenes: body.scenes,
+            canAdult: u.canAdult
         }));
     } catch (error) {
         sendStoreError(res, error, 'Create Conversation Error');
@@ -607,7 +634,9 @@ app.post('/api/conversations/import', (req, res) => {
             memoryList: body.memoryList,
             chatLevel: body.chatLevel,
             userName: body.userName,
-            sceneId: body.sceneId
+            sceneId: body.sceneId,
+            scenes: body.scenes,
+            canAdult: u.canAdult
         }));
     } catch (error) {
         sendStoreError(res, error, 'Import Conversation Error');
@@ -652,7 +681,7 @@ app.post('/api/conversations/:id/turns', (req, res) => {
             return res.status(400).json({ error: 'vector는 비어 있지 않은 숫자 배열이어야 합니다.' });
         }
 
-        const result = store.appendTurn(u.username, req.params.id, body.n, body.turn, body.meta);
+        const result = store.appendTurn(u.username, req.params.id, body.n, body.turn, body.meta, { canAdult: u.canAdult });
         if (result.applied && hasVector) {
             store.appendVector(u.username, req.params.id, body.n, body.vector);
         }
@@ -680,7 +709,7 @@ app.post('/api/conversations/:id/vectors', (req, res) => {
 });
 
 // PATCH: 제목·호감도 등 바꾸기, 그리고 되돌리기/되돌리기 취소(visibleTurns).
-// body: {title?, visibleTurns?, affinityValue?, memoryList?, chatLevel?, userName?}
+// body: {title?, visibleTurns?, affinityValue?, memoryList?, chatLevel?, userName?, sceneId?, scenes?}
 app.patch('/api/conversations/:id', (req, res) => {
     const u = requireUser(req, res);
     if (!u) return;
@@ -699,7 +728,7 @@ app.patch('/api/conversations/:id', (req, res) => {
             if (Object.prototype.hasOwnProperty.call(body, key)) fields[key] = body[key];
         });
         if (Object.keys(fields).length > 0) {
-            updated = store.updateConversation(u.username, req.params.id, fields);
+            updated = store.updateConversation(u.username, req.params.id, fields, { canAdult: u.canAdult });
         }
         res.json(updated);
     } catch (error) {
