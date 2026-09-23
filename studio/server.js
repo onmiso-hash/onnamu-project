@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 // 모든 계정의 인물·대화 파일이 로그인 없이 나갔다(빗장이 확장자 있는 파일을 통과시킨다).
 // '/data'로 시작하는지 막는 방식은 '/%64ata/...'처럼 인코딩한 주소로 비껴간다(실측) —
 // 그래서 막을 것을 고르지 않고 내줄 것을 고른다. 화면 파일을 새로 만들면 여기에 적는다.
-const PUBLIC_FILES = new Set(['index.html', 'app.js', 'style.css', 'emotionRegistry.js']);
+const PUBLIC_FILES = new Set(['index.html', 'app.js', 'style.css', 'emotionRegistry.js', 'sceneRegistry.js']);
 app.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD') return next();
     const name = req.path === '/' ? 'index.html' : req.path.slice(1);
@@ -577,7 +577,8 @@ app.post('/api/conversations', (req, res) => {
             charName: body.charName,
             title: body.title,
             chatLevel: body.chatLevel,
-            userName: body.userName
+            userName: body.userName,
+            sceneId: body.sceneId
         }));
     } catch (error) {
         sendStoreError(res, error, 'Create Conversation Error');
@@ -605,7 +606,8 @@ app.post('/api/conversations/import', (req, res) => {
             affinityValue: body.affinityValue,
             memoryList: body.memoryList,
             chatLevel: body.chatLevel,
-            userName: body.userName
+            userName: body.userName,
+            sceneId: body.sceneId
         }));
     } catch (error) {
         sendStoreError(res, error, 'Import Conversation Error');
@@ -693,7 +695,7 @@ app.patch('/api/conversations/:id', (req, res) => {
             updated = store.setVisibleTurns(u.username, req.params.id, body.visibleTurns);
         }
         const fields = {};
-        ['title', 'affinityValue', 'memoryList', 'chatLevel', 'userName'].forEach(key => {
+        store.META_PATCH_KEYS.forEach(key => { // 허용 칸은 store.js 한 표에만 있다
             if (Object.prototype.hasOwnProperty.call(body, key)) fields[key] = body[key];
         });
         if (Object.keys(fields).length > 0) {
@@ -778,8 +780,12 @@ app.delete('/api/admin/user-data/:username', (req, res) => {
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // Fallback to index.html (HTML 요청 또는 확장자가 없는 페이지 경로에만 매칭)
+// /data/ 아래는 자료 자리라 첫 화면으로 돌려보내지 않는다 — 스타일 없는 첫 화면이 떠서
+// 자료가 보이는 것처럼 헷갈린다(2026-09-23 신고).
 app.get('*', (req, res) => {
-    if (req.accepts('html') && !path.extname(req.path)) {
+    if (req.path === '/data' || req.path.startsWith('/data/')) {
+        res.status(404).end();
+    } else if (req.accepts('html') && !path.extname(req.path)) {
         res.sendFile(path.join(__dirname, 'index.html'));
     } else {
         res.status(404).end();
