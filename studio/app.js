@@ -25,6 +25,8 @@ class ChronicleApp {
         this.characterImages = {}; // Stores generated image bytes for each emotion
         // 지금 대화의 장면(배경). 주인은 대화다(meta.sceneId) — 수위와 같은 규칙.
         this.sceneId = SceneRegistry.DEFAULT_SCENE;
+        // 이 대화에 올린 장면 배경 사진 {sceneId: {url}}. 주인은 대화다(meta.scenes) — 인물 JSON에 넣지 않는다.
+        this.sceneImages = {};
         // 휴대폰에서 무대를 접어 둘지(이 기기만의 편의값)
         this.stageCollapsed = false;
         try { this.stageCollapsed = localStorage.getItem('studio_stage_collapsed') === '1'; } catch (e) { /* 기억창고를 못 쓰면 펼친 채로 */ }
@@ -181,13 +183,21 @@ class ChronicleApp {
         if (this.btnToggleChatLevel) {
             this.btnToggleChatLevel.addEventListener('click', () => this.toggleConversationChatLevel());
         }
-        // 이 대화 장면 — 목록은 sceneRegistry.js에서 채운다
+        // 이 대화 장면 — 목록은 updateSceneMenu가 sceneRegistry.js에서 채운다(19금 전용 장면은 조건부)
         this.sceneMenuRow = document.getElementById('conversation-scene-row');
         this.selectConversationScene = document.getElementById('select-conversation-scene');
         if (this.selectConversationScene) {
-            this.selectConversationScene.innerHTML = SceneRegistry.SCENES
-                .map(sc => `<option value="${sc.id}">${sc.icon} ${sc.label}</option>`).join('');
             this.selectConversationScene.addEventListener('change', () => this.changeConversationScene(this.selectConversationScene.value));
+        }
+        this.btnUploadSceneImage = document.getElementById('btn-upload-scene-image');
+        this.inputSceneImage = document.getElementById('input-scene-image');
+        if (this.btnUploadSceneImage && this.inputSceneImage) {
+            this.btnUploadSceneImage.addEventListener('click', () => this.inputSceneImage.click());
+            this.inputSceneImage.addEventListener('change', () => {
+                const file = this.inputSceneImage.files && this.inputSceneImage.files[0];
+                this.inputSceneImage.value = ''; // 같은 파일을 다시 골라도 change가 오게
+                if (file) this.uploadSceneImage(file);
+            });
         }
         this.btnSubmitAction.addEventListener('click', () => this.submitCustomAction());
 
@@ -976,6 +986,7 @@ class ChronicleApp {
             this.hudCharacter.textContent = `${this.chatCharName} & 주인공`;
             this.hudModel.textContent = this.selectModel.options[this.selectModel.selectedIndex].text;
             this.updateChatLevelMenu();
+            this.updateSceneMenu(); // 장면 목록은 수위에 따라 달라진다(19금 전용 장면)
 
             // Update left panel title
             const leftTitle = this.appContainer.querySelector('.story-ledger-container .section-title h2');
@@ -1144,6 +1155,7 @@ class ChronicleApp {
             }
             // 소설 모드에서는 '이 대화 수위' 항목이 없어야 한다 — 모드에 맞게 다시 맞춘다.
             this.updateChatLevelMenu();
+            this.updateSceneMenu();
             
             // 대화방에 진입 시 기존 대화가 있다면 스크롤을 맨 아래로 이동시킵니다.
             if (this.storyHistory.length > 0) {
@@ -2637,7 +2649,7 @@ JSON Schema:
         // 무대 = 장면 배경 + 감정 초상. 말풍선을 눌러 초상만 바꿀 때도 이 감정을 기억해 둔다.
         this.currentProfileEmotion = emotion;
         const scene = SceneRegistry.resolveScene(this.sceneId);
-        const stageBg = SceneRegistry.sceneBackground(scene.id);
+        const stageBg = SceneRegistry.sceneBackground(scene.id, this.sceneUploadUrl(scene.id));
 
         let imgUrl = EmotionRegistry.resolveEmotionImage(this.characterImages, emotion);
         if (imgUrl && imgUrl.startsWith('/data/uploads/')) imgUrl = '.' + imgUrl;
@@ -3799,7 +3811,10 @@ JSON Schema:
     setCurrentConversation(convId) {
         // 대화를 비우면 장면도 기본으로 — 앞 대화의 배경이 새 대화에 남지 않게.
         // (첫 마디 전에 고른 장면은 ensureConversation이 새 대화에 실어 보낸다.)
-        if (!convId && this.convId) this.sceneId = SceneRegistry.DEFAULT_SCENE;
+        if (!convId && this.convId) {
+            this.sceneId = SceneRegistry.DEFAULT_SCENE;
+            this.sceneImages = {};
+        }
         this.convId = convId || null;
         if (convId) localStorage.setItem(this.conversationIdKey(), convId);
         else localStorage.removeItem(this.conversationIdKey());
@@ -3831,6 +3846,8 @@ JSON Schema:
         if (conv.chatLevel && (this.canAdult || conv.chatLevel !== 'adult-19')) this.chatLevel = conv.chatLevel;
         // 장면도 대화의 것이다. 옛 대화(키 없음)·모르는 값은 기본 장면.
         this.sceneId = SceneRegistry.resolveScene(conv.sceneId).id;
+        // 올린 배경 사진도 이 대화 것으로 갈아끼운다 — 앞 대화의 사진이 남지 않게.
+        this.sceneImages = (conv.scenes && typeof conv.scenes === 'object') ? { ...conv.scenes } : {};
         this.syncChatSettingsInputs();
     }
 
@@ -3910,16 +3927,99 @@ JSON Schema:
         if (textEl) textEl.textContent = `이 대화 수위: ${label}`;
     }
 
+    // 장면을 고를 수 있는지 판정할 때 넘기는 값(19금 전용 장면: canAdult이고 이 대화가 19금).
+    sceneOptions() {
+        return { canAdult: this.canAdult, chatLevel: this.chatLevel };
+    }
+
+    // 이 대화에 그 장면 사진이 올라가 있으면 그 주소(화면용 상대 경로), 없으면 ''.
+    sceneUploadUrl(sceneId) {
+        const entry = this.sceneImages && this.sceneImages[sceneId];
+        const url = entry && entry.url;
+        if (!SceneRegistry.isSceneUploadUrl(sceneId, url)) return '';
+        return '.' + url;
+    }
+
     // 대화창 메뉴의 '이 대화 장면' 칸을 지금 대화의 장면으로 맞춘다(대화 모드에서만 보인다).
+    // 목록은 지금 고를 수 있는 장면만 — 19금 전용 장면은 canAdult이고 이 대화가 19금일 때만 나온다.
+    // 수위를 내려 지금 장면을 더는 쓸 수 없으면 기본 장면으로 돌아간다(서버도 같은 규칙으로 되돌린다).
     updateSceneMenu() {
         const usable = this.modeType === 'chat';
         if (this.sceneMenuRow) this.sceneMenuRow.style.display = usable ? '' : 'none';
-        if (this.selectConversationScene) this.selectConversationScene.value = SceneRegistry.resolveScene(this.sceneId).id;
+        if (this.btnUploadSceneImage) this.btnUploadSceneImage.style.display = usable ? '' : 'none';
+        const opts = this.sceneOptions();
+        if (!SceneRegistry.sceneAllowed(this.sceneId, opts)) {
+            this.sceneId = SceneRegistry.DEFAULT_SCENE;
+            if (this.charProfileContainer && this.charProfileContainer.querySelector('.character-profile-card')) {
+                this.renderChatProfile(this.currentProfileEmotion || 'normal');
+            }
+        }
+        if (this.selectConversationScene) {
+            const html = SceneRegistry.listScenes(opts)
+                .map(sc => `<option value="${sc.id}">${sc.icon} ${sc.label}</option>`).join('');
+            if (this.selectConversationScene.innerHTML !== html) this.selectConversationScene.innerHTML = html;
+            this.selectConversationScene.value = SceneRegistry.resolveScene(this.sceneId).id;
+        }
+    }
+
+    // 지금 고른 장면에 배경 사진을 올린다. 파일은 서버가 지은 이름으로 저장되고(원본 이름은 안 쓴다)
+    // 주소는 이 대화의 meta.scenes[sceneId]에만 적힌다. 사진이 있으면 무대 배경으로 쓴다.
+    async uploadSceneImage(file) {
+        if (this.modeType !== 'chat') return;
+        const sceneId = this.sceneId;
+        if (!SceneRegistry.sceneAllowed(sceneId, this.sceneOptions())) return;
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+            alert('png·jpg·webp 이미지만 올릴 수 있습니다.');
+            return;
+        }
+        const convAtStart = this.convId;
+        let fileUrl;
+        try {
+            const dataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = () => reject(new Error('파일을 읽지 못했습니다.'));
+                reader.readAsDataURL(file);
+            });
+            const response = await fetch('/api/upload-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ kind: 'scene', sceneId, imageBytes: dataUrl })
+            });
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({ error: '서버 통신 실패' }));
+                throw new Error(errData.error || '이미지 저장 서버 오류');
+            }
+            fileUrl = (await response.json()).fileUrl;
+        } catch (error) {
+            alert(`배경 사진을 올리지 못했습니다: ${error.message}`);
+            return;
+        }
+        // 올리는 사이 다른 대화로 옮겨 갔으면 붙이지 않는다 — 남의 대화에 새지 않게.
+        if (this.convId !== convAtStart || this.modeType !== 'chat') return;
+
+        const before = this.sceneImages;
+        this.sceneImages = { ...before, [sceneId]: { url: fileUrl } };
+        this.renderChatProfile(this.currentProfileEmotion || 'normal');
+
+        // 아직 서버에 대화가 없으면(첫 마디 전) 화면 값만 — 대화를 만들 때 함께 저장된다.
+        if (!this.convId) return;
+
+        const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, { scenes: this.sceneImages });
+        if (!r.ok) {
+            if (this.convId === convAtStart) {
+                this.sceneImages = before;
+                this.renderChatProfile(this.currentProfileEmotion || 'normal');
+            }
+            this.showStorageWarning('배경 사진이 서버에 반영되지 않았습니다.');
+            return;
+        }
+        this.clearStorageWarning();
     }
 
     // 지금 보고 있는 대화의 장면만 바꾼다. 장면은 손으로만 바꾼다(sticky) — AI 응답이 바꾸지 않는다.
     async changeConversationScene(sceneId) {
-        if (this.modeType !== 'chat' || !SceneRegistry.isKnownScene(sceneId)) return;
+        if (this.modeType !== 'chat' || !SceneRegistry.sceneAllowed(sceneId, this.sceneOptions())) return;
         const before = this.sceneId;
         if (sceneId === before) return;
         this.sceneId = sceneId;
@@ -3943,6 +4043,7 @@ JSON Schema:
     async toggleConversationChatLevel() {
         if (!this.canAdult || this.modeType !== 'chat') return;
         const before = this.chatLevel || 'normal';
+        const sceneBefore = this.sceneId;
         const after = before === 'adult-19' ? 'normal' : 'adult-19';
         const name = after === 'adult-19' ? '19금 성인용' : '전체 이용가';
 
@@ -3959,7 +4060,9 @@ JSON Schema:
         const r = await this.callApi('PATCH', `/api/conversations/${this.convId}`, { chatLevel: after });
         if (!r.ok) {
             this.chatLevel = before;
+            this.sceneId = sceneBefore; // 수위를 내리며 기본으로 돌렸던 장면도 되돌린다
             this.syncChatSettingsInputs();
+            this.renderChatProfile(this.currentProfileEmotion || 'normal');
             this.showStorageWarning('수위 변경이 서버에 반영되지 않았습니다.');
             return;
         }
@@ -4088,7 +4191,8 @@ JSON Schema:
             title: this.conversationTitle(),
             chatLevel: this.chatLevel,
             userName: this.characterName,
-            sceneId: this.sceneId
+            sceneId: this.sceneId,
+            scenes: this.sceneImages
         });
         if (!r.ok || !r.data || !r.data.id) {
             this.showStorageWarning('서버에 대화를 만들지 못했습니다.');
@@ -4530,7 +4634,8 @@ JSON Schema:
             memoryList: this.memoryList,
             chatLevel: this.chatLevel,
             userName: this.characterName,
-            sceneId: this.sceneId
+            sceneId: this.sceneId,
+            scenes: this.sceneImages
         });
         if (!r.ok || !r.data || !r.data.id) return false;
         this.setCurrentConversation(r.data.id);
