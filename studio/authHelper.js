@@ -85,13 +85,15 @@ async function fetchPermissions(username, secretKey) {
 }
 
 function authMiddleware(options = {}) {
-    const { adminOnly = false } = options;
+    // protectFiles: 확장자가 있어도 우회시키지 않는다(올린 그림처럼 자료인 파일용).
+    // 이때 로그인이 없으면 로그인 창으로 넘기지 않고 401로 답한다 — <img>가 받는 자리라서다.
+    const { adminOnly = false, protectFiles = false } = options;
     return async (req, res, next) => {
         const ext = path.extname(req.path);
         
         // 정적 리소스(CSS, JS, 이미지 등)는 인증 우회 (단, HTML이나 API는 보호)
         const isHtmlPage = req.path === '/' || req.path === '/index.html' || ext === '.html' || ext === '';
-        const isApi = req.path.startsWith('/api/');
+        const isApi = protectFiles || req.path.startsWith('/api/');
         
         if (!isHtmlPage && !isApi) {
             return next();

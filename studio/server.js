@@ -29,10 +29,12 @@ if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Serve uploaded images statically
-app.use('/data/uploads', express.static(UPLOAD_DIR));
-
 const { authMiddleware } = require('./authHelper');
+
+// 올린 그림은 로그인한 사람에게만 준다. 빗장(authMiddleware)은 확장자가 있는 파일을
+// 그냥 통과시키므로 여기서는 protectFiles로 따로 건다. 주소 짝짓기와 파일 내주기가 같은
+// 자리('/data/uploads')라 인코딩한 주소로 검사만 비껴가는 틈이 없다.
+app.use('/data/uploads', authMiddleware({ protectFiles: true }), express.static(UPLOAD_DIR));
 
 // Authentication Middleware
 // 빗장을 푼다 — 이제 로그인한 사람은 누구나 자기 자료로 들어온다.
@@ -51,8 +53,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static frontend files from the current folder
-app.use(express.static(path.join(__dirname)));
+// 화면 파일은 이 목록에 있는 것만 내준다. 예전에는 폴더를 통째로 열어서 data/ 아래
+// 모든 계정의 인물·대화 파일이 로그인 없이 나갔다(빗장이 확장자 있는 파일을 통과시킨다).
+// '/data'로 시작하는지 막는 방식은 '/%64ata/...'처럼 인코딩한 주소로 비껴간다(실측) —
+// 그래서 막을 것을 고르지 않고 내줄 것을 고른다. 화면 파일을 새로 만들면 여기에 적는다.
+const PUBLIC_FILES = new Set(['index.html', 'app.js', 'style.css']);
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const name = req.path === '/' ? 'index.html' : req.path.slice(1);
+    if (!PUBLIC_FILES.has(name)) return next();
+    res.sendFile(path.join(__dirname, name));
+});
 
 // Logout Route
 app.get('/logout', (req, res) => {
