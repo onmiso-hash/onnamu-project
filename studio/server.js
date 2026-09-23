@@ -3,6 +3,7 @@ const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
 const store = require('./store.js');
+const EmotionRegistry = require('./emotionRegistry.js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -29,10 +30,12 @@ if (!fs.existsSync(UPLOAD_DIR)) {
     fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Serve uploaded images statically
-app.use('/data/uploads', express.static(UPLOAD_DIR));
-
 const { authMiddleware } = require('./authHelper');
+
+// 올린 그림은 로그인한 사람에게만 준다. 빗장(authMiddleware)은 확장자가 있는 파일을
+// 그냥 통과시키므로 여기서는 protectFiles로 따로 건다. 주소 짝짓기와 파일 내주기가 같은
+// 자리('/data/uploads')라 인코딩한 주소로 검사만 비껴가는 틈이 없다.
+app.use('/data/uploads', authMiddleware({ protectFiles: true }), express.static(UPLOAD_DIR));
 
 // Authentication Middleware
 // 빗장을 푼다 — 이제 로그인한 사람은 누구나 자기 자료로 들어온다.
@@ -51,8 +54,17 @@ app.use((req, res, next) => {
     next();
 });
 
-// Serve static frontend files from the current folder
-app.use(express.static(path.join(__dirname)));
+// 화면 파일은 이 목록에 있는 것만 내준다. 예전에는 폴더를 통째로 열어서 data/ 아래
+// 모든 계정의 인물·대화 파일이 로그인 없이 나갔다(빗장이 확장자 있는 파일을 통과시킨다).
+// '/data'로 시작하는지 막는 방식은 '/%64ata/...'처럼 인코딩한 주소로 비껴간다(실측) —
+// 그래서 막을 것을 고르지 않고 내줄 것을 고른다. 화면 파일을 새로 만들면 여기에 적는다.
+const PUBLIC_FILES = new Set(['index.html', 'app.js', 'style.css', 'emotionRegistry.js']);
+app.use((req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    const name = req.path === '/' ? 'index.html' : req.path.slice(1);
+    if (!PUBLIC_FILES.has(name)) return next();
+    res.sendFile(path.join(__dirname, name));
+});
 
 // Logout Route
 app.get('/logout', (req, res) => {
@@ -350,20 +362,38 @@ app.post('/api/generate-image', async (req, res) => {
     res.status(500).json({ error: lastError.message });
 });
 
+// 파일 앞머리로 그림 형식을 가린다. 모르는 형식이면 ''.
+function imageExtOf(buf) {
+    if (buf.length >= 8 && buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png';
+    if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpg';
+    if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+    return '';
+}
+
 // POST API to upload image (converts Base64 data to physical file)
 app.post('/api/upload-image', (req, res) => {
     const { emotion, imageBytes } = req.body;
-    if (!imageBytes) {
+    if (!imageBytes || typeof imageBytes !== 'string') {
         return res.status(400).json({ error: '이미지 데이터가 없습니다.' });
+    }
+    // 감정 id는 파일 이름에 들어간다 — 목록에 있는 것만 받는다('../' 같은 값이 경로를 벗어나지 않게).
+    if (!EmotionRegistry.isKnownEmotion(emotion)) {
+        return res.status(400).json({ error: '알 수 없는 감정입니다.' });
     }
 
     try {
         // Remove base64 data URL prefix
-        const base64Data = imageBytes.replace(/^data:image\/\w+;base64,/, "");
+        const base64Data = imageBytes.replace(/^data:image\/[\w.+-]+;base64,/, "");
         const buffer = Buffer.from(base64Data, 'base64');
 
+        // 확장자는 알려준 이름이 아니라 실제 내용으로 정한다. png·jpeg·webp만 받는다.
+        const ext = imageExtOf(buffer);
+        if (!ext) {
+            return res.status(400).json({ error: 'png·jpg·webp 이미지만 올릴 수 있습니다.' });
+        }
+
         // Generate filename
-        const filename = `uploaded_${Date.now()}_${emotion}.png`;
+        const filename = `uploaded_${Date.now()}_${emotion}.${ext}`;
         const filePath = path.join(UPLOAD_DIR, filename);
 
         // Write file to disk
