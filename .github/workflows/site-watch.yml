@@ -1,0 +1,47 @@
+name: Site watch
+
+# 서비스가 멈추면 사용자가 알게 한다.
+#
+# 2026-09-13 도커 중단은 34시간 이어졌는데, 그중 대부분은 아무도 몰랐던 시간이다.
+# 미니PC 안의 감시(scripts/docker_watchdog.ps1)는 도커만 다시 띄울 뿐이고, 미니PC가
+# 통째로 꺼지거나 인터넷이 끊기면 알릴 수단이 없다. 그래서 바깥(깃허브)에서 본다.
+#
+# 알리는 방법: 이 작업이 실패하면 깃허브가 저장소 주인에게 실패 메일을 보낸다
+# (깃허브 알림 설정의 Actions 항목). 따로 계정이나 열쇠가 필요 없다.
+#
+# 한 번 실패로 알리지 않는다 — 배포 중에는 나무 원격이 잠깐 502를 내는 것이 정상이다
+# (배포 기록 2026-09-24). 1분 간격으로 세 번 봐서 세 번 모두 실패한 주소만 친다.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: site-watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check sites
+        run: |
+          sites="https://onnamu.kr https://gallery.onnamu.kr https://rdap.kr https://namu-cloud.onnamu.kr"
+          down=""
+          for url in $sites; do
+            ok=0
+            for try in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 20 "$url" || echo 000)
+              echo "$url 시도 $try: $code"
+              if [ "$code" -ge 200 ] && [ "$code" -lt 400 ]; then ok=1; break; fi
+              [ "$try" -lt 3 ] && sleep 60
+            done
+            [ "$ok" -eq 0 ] && down="$down $url"
+          done
+          if [ -n "$down" ]; then
+            echo "::error::응답 없는 주소:$down"
+            exit 1
+          fi
+          echo "네 주소 모두 정상"
