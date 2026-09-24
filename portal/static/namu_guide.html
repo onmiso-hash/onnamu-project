@@ -470,7 +470,7 @@
           <span class="lab">A</span>
           <div class="body">
             <h4>실행 엔진</h4>
-            <p>AI를 호출하고, 파일을 고치고, 명령어를 돌리는 부분. (예: Claude Code, agy=안티그래비티)</p>
+            <p>AI를 호출하고, 파일을 고치고, 명령어를 돌리는 부분. (예: Claude Code, agy=안티그래비티, Grok)</p>
           </div>
           <span class="pill">빌려쓴다</span>
         </div>
@@ -498,7 +498,7 @@
       <p>기억 코어를 <strong>MCP 서버</strong>라는 형태로 만들었어요. MCP는 쉽게 말해 <em>"AI에 갖다 붙이는 표준 콘센트"</em>예요. 이 콘센트 규격으로 만들어두면 클로드든, 다른 AI 도구든 똑같이 꽂아서 같은 기억을 쓸 수 있어요. 바로 이 점이 "AI에 안 묶인다"는 목표를 진짜로 실현해줘요.</p>
       <div class="flow">
         <div class="row">
-          <div class="chip">🤖 여러 AI<br><span style="font-weight:400;font-size:12px;">Claude Code · agy · 웹 claude.ai</span></div>
+          <div class="chip">🤖 여러 AI<br><span style="font-weight:400;font-size:12px;">Claude Code · agy · Grok · 웹 claude.ai</span></div>
           <span class="arrow">→</span>
           <div class="chip core">🔌 표준 콘센트<br><span style="font-weight:400;font-size:12px;">MCP</span></div>
           <span class="arrow">→</span>
@@ -736,7 +736,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr><th>어떤 AI에 되나</th><td>터미널 AI만<br><span style="font-size:12.5px;color:var(--ink-soft);">Claude Code · agy</span></td><td>아무 AI나<br><span style="font-size:12.5px;color:var(--ink-soft);">웹 AI · 터미널 AI 둘 다</span></td></tr>
+            <tr><th>어떤 AI에 되나</th><td>터미널 AI만<br><span style="font-size:12.5px;color:var(--ink-soft);">Claude Code · agy · Grok</span></td><td>아무 AI나<br><span style="font-size:12.5px;color:var(--ink-soft);">웹 AI · 터미널 AI 둘 다</span></td></tr>
             <tr><th>① 기억 담고 꺼내기</th><td class="ok">다섯 그릇 전부</td><td class="ok">다섯 그릇 전부</td></tr>
             <tr><td class="sub">└ 기억 다루는 도구</td><td><b>8가지</b></td><td><b>4가지</b> <span style="font-size:12.5px;">꺼내기·찾기·남기기·작업 옮기기</span></td></tr>
             <tr><td class="sub">└ 쪽지 떼기</td><td class="ok">됩니다</td><td class="no">안 됩니다</td></tr>
@@ -756,7 +756,7 @@
           </tbody>
         </table>
       </div>
-      <p class="cap">표의 "됩니다 / 안 됩니다"는 짐작이 아니라, 같은 폴더에서 두 상태를 실제로 띄워놓고 비교한 결과예요.</p>
+      <p class="cap">표의 "됩니다 / 안 됩니다"는 짐작이 아니라, 같은 폴더에서 두 상태를 실제로 띄워놓고 비교한 결과예요. 한 자리만 달라요 — Grok에서는 브리핑이 대화를 열 때 저절로 뜨지 않고, 대화창에 <code class="inline">/namu</code>라고 쳐서 불러요.</p>
 
       <h3>지금 어떤 AI에서 쓸 수 있나</h3>
       <div class="tablewrap">
@@ -765,13 +765,14 @@
           <tbody>
             <tr><th>Claude Code <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">터미널</span></th><td>플러그인</td><td class="ok">전부</td><td class="ok">전부</td></tr>
             <tr><th>agy <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">터미널 · 안티그래비티</span></th><td>플러그인</td><td class="ok">전부</td><td class="ok">거의 전부 <span style="font-size:12.5px;color:var(--ink-soft);">실수 막기 2가지만 빠짐</span></td></tr>
+            <tr><th>Grok <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">터미널</span></th><td>플러그인</td><td class="ok">전부</td><td class="ok">거의 전부 <span style="font-size:12.5px;color:var(--ink-soft);">브리핑은 <code class="inline">/namu</code>로 부름</span></td></tr>
             <tr><th>claude.ai <span style="font-weight:400;font-size:12.5px;color:var(--ink-soft);">웹 브라우저</span></th><td>MCP 주소</td><td class="ok">전부 <span style="font-size:12.5px;color:var(--ink-soft);">다섯 그릇 + 작업일지 + 파일</span></td><td class="no">아직</td></tr>
             <tr><th>ChatGPT · 제미나이(웹) · Copilot · Cursor 등</th><td>—</td><td class="no">아직</td><td class="no">아직</td></tr>
           </tbody>
         </table>
       </div>
       <div class="note">
-        <b>"아직"은 그 AI가 못 한다는 뜻이 아니에요.</b> <strong>나무 쪽이 아직 그 AI를 지원하지 않았다</strong>는 뜻이에요. 기억은 주소만 받아주면 어디에든 붙고, 절차는 그 AI에 맞는 꾸러미를 따로 만들어야 하는데 지금 만들어져 있는 게 Claude Code와 agy 둘뿐이에요. 앞으로 늘어날 수 있어요.
+        <b>"아직"은 그 AI가 못 한다는 뜻이 아니에요.</b> <strong>나무 쪽이 아직 그 AI를 지원하지 않았다</strong>는 뜻이에요. 기억은 주소만 받아주면 어디에든 붙고, 절차는 그 AI에 맞는 꾸러미를 따로 만들어야 하는데 지금 만들어져 있는 게 Claude Code·agy·Grok 셋이에요. 앞으로 늘어날 수 있어요.
       </div>
     </div>
   </section>
@@ -843,6 +844,11 @@
           <p>"마무리해"인데 다음 할 일이 안 적혔으면 한 번 붙잡고, 개인 사실 중 <strong>상시</strong> 표시된 것은 매 입력마다 다시 알려줘요. 그리고 클라우드 컨테이너가 뜰 때 <strong>받아오기가 실패해도 기억 서버는 뜨게</strong> 고쳤어요 — 예전엔 커밋 안 된 파일 두 개가 pull을 막아 14회 무한 재시작·반나절 장애가 났었거든요.</p>
         </div>
         <div class="step">
+          <span class="dot done">✓</span>
+          <h4>Grok을 세 번째 호스트로 <span class="st done">완료 · 2026-09-24</span></h4>
+          <p>Grok도 같은 플러그인 폴더를 읽어요. 기억 코어는 그대로 두고 <strong>훅 입력 칸 이름과 설정 파일 형식만</strong> 맞췄어요. 대화를 열 때 브리핑이 저절로 뜨는 것과 상시 메모 재알림은 Grok이 그 출력문을 모델에게 넘기지 않아 빠지고, 브리핑은 <code class="inline">/namu</code>로 불러요. 마무리 때 붙잡아 주는 검사와 화면 아래 한 줄은 그대로 동작해요.</p>
+        </div>
+        <div class="step">
           <span class="dot now">☁</span>
           <h4>나무 클라우드 — 설치 없이 주소만 <span class="st now">운영 중</span></h4>
           <p><a href="https://namu-cloud.onnamu.kr/" target="_blank" rel="noopener" style="color:var(--leaf-deep);font-weight:700;">namu-cloud.onnamu.kr</a> — 서버를 직접 운영하지 않고 <strong>GitHub 계정만으로</strong> 접속 주소를 받는 길이에요. 기억 원본은 <strong>내 GitHub 비공개 저장소</strong>에 남고 서버가 갖는 건 사본뿐이에요. 사람마다 다른 <strong>개인 열쇠</strong>로 서랍이 갈리고, 새면 재발급하면 옛 주소는 즉시 막혀요. 사이트에는 문서를 읽고 답하는 <strong>AI 안내원</strong>도 있어요.</p>
@@ -865,7 +871,7 @@
         <div class="step">
           <span class="dot todo">2</span>
           <h4>지원하는 AI 늘리기 <span class="st todo">예정</span></h4>
-          <p>기억은 주소만 받아주면 어디에든 붙어요. 남은 건 <strong>작업 절차 꾸러미</strong>인데, 지금 만들어져 있는 게 Claude Code와 agy 둘뿐이에요. ChatGPT·Cursor 같은 자리도 넓혀갈 수 있어요.</p>
+          <p>기억은 주소만 받아주면 어디에든 붙어요. 남은 건 <strong>작업 절차 꾸러미</strong>인데, 지금 만들어져 있는 게 Claude Code·agy·Grok 셋이에요. ChatGPT·Cursor 같은 자리도 넓혀갈 수 있어요.</p>
         </div>
         <div class="step">
           <span class="dot todo">3</span>
@@ -924,7 +930,7 @@ claude plugin install namu@namu-marketplace</pre>
       <p style="font-size:14px;color:var(--ink-soft);">기기 이름(<code class="inline">NAMU_MACHINE</code>)은 <strong>설정 안 해도 컴퓨터 호스트명으로 자동 인식</strong>돼요. 여러 PC를 쓸 때 라벨을 예쁘게 고정하고 싶을 때만 정해주면 돼요.</p>
       <div class="note" style="background:var(--blue-soft);border-color:#cfdef0;border-left-color:var(--blue);">
         <b style="color:var(--blue);">📘 자세한 설치·문제해결은 설치 가이드에서</b><br>
-        로컬 경로 설치, agy(안티그래비티) 설치, 업데이트·삭제 절차, 트러블슈팅까지는 이 안내서 범위를 넘어요. <a href="install_guide.html" style="color:var(--blue);font-weight:700;">→ 설치 가이드 보러 가기</a> · 복붙만으로 끝내려면 <a href="namu_quickstart.html" style="color:var(--blue);font-weight:700;">→ 빠른 시작</a>
+        로컬 경로 설치, agy(안티그래비티)·Grok 설치, 업데이트·삭제 절차, 트러블슈팅까지는 이 안내서 범위를 넘어요. <a href="install_guide.html" style="color:var(--blue);font-weight:700;">→ 설치 가이드 보러 가기</a> · 복붙만으로 끝내려면 <a href="namu_quickstart.html" style="color:var(--blue);font-weight:700;">→ 빠른 시작</a>
       </div>
 
       <h3>🔄 ② 여러 PC에서 같은 기억 쓰기 — 동기화 켜기</h3>

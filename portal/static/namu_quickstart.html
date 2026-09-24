@@ -238,11 +238,11 @@
 <div class="wrap">
 
   <header class="hero">
-    <span class="eyebrow">🌳 초보자용 · Claude Code &amp; agy</span>
+    <span class="eyebrow">🌳 초보자용 · Claude Code · agy · Grok</span>
     <h1>NAMU 설치 &amp; 업데이트 가이드</h1>
     <p class="lead">따라만 하면 됩니다. 명령을 복사해 붙여넣고, 각 단계의 <b>“성공하면 이렇게 보여요”</b>만 확인하세요.</p>
-    <p class="lead" style="margin-top:14px">NAMU는 어느 엔진에서든 <b>항상 플러그인으로 설치</b>됩니다. <b>Claude Code</b>와 <b>agy</b> 모두 GitHub 저장소 주소 하나만 넘기면 바로 설치가 끝납니다 — 미리 내려받을(clone) 필요가 없습니다.</p>
-    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서가 아닙니다. 서버를 직접 안 띄우고 <b>주소만</b> 받으려면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a>(GitHub 계정이면 됩니다), <b>내 서버로 직접</b> 운영하려면 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
+    <p class="lead" style="margin-top:14px">NAMU는 어느 엔진에서든 <b>항상 플러그인으로 설치</b>됩니다. <b>Claude Code</b>·<b>agy</b>·<b>Grok</b> 모두 GitHub 저장소 주소나 이름 하나만 넘기면 바로 설치가 끝납니다 — 미리 내려받을(clone) 필요가 없습니다.</p>
+    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy·Grok 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서가 아닙니다. 서버를 직접 안 띄우고 <b>주소만</b> 받으려면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a>(GitHub 계정이면 됩니다), <b>내 서버로 직접</b> 운영하려면 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
   </header>
 
   <!-- 준비물 -->
@@ -266,7 +266,7 @@
   <!-- 갈림길 -->
   <section id="choose">
     <h2><span class="kicker">→</span> 어떤 걸 쓰세요?</h2>
-    <p class="sec-note">쓰는 도구에 맞는 쪽만 따라 하면 됩니다. 둘 다 쓴다면 둘 다 하세요.</p>
+    <p class="sec-note">쓰는 도구에 맞는 쪽만 따라 하면 됩니다. 여럿을 쓴다면 그만큼 하세요.</p>
     <div class="chooser">
       <a class="choice" href="#cc">
         <span class="tool">Claude Code</span>
@@ -278,6 +278,11 @@
         <span class="go">B로 이동 →</span>
         <small>GitHub 주소로 바로 플러그인 설치.</small>
       </a>
+      <a class="choice" href="#grok">
+        <span class="tool">Grok</span>
+        <span class="go">C로 이동 →</span>
+        <small>마켓플레이스를 등록하고 이름으로 설치.</small>
+      </a>
     </div>
   </section>
 
@@ -287,7 +292,7 @@
     <p class="sec-note">아래 두 표시가 “이걸 어디에 치는지”를 알려줍니다. 헷갈리면 여기로 돌아오세요.</p>
     <div class="legend">
       <span class="row"><span class="tag term">🖥 터미널</span> 명령 프롬프트 · PowerShell 같은 검은 창</span>
-      <span class="row"><span class="tag chat">💬 대화창</span> Claude Code(또는 agy) 입력줄. <code>/</code>로 시작하는 건 전부 여기</span>
+      <span class="row"><span class="tag chat">💬 대화창</span> Claude Code(또는 agy·Grok) 입력줄. <code>/</code>로 시작하는 건 전부 여기</span>
     </div>
   </section>
 
@@ -365,6 +370,39 @@ claude plugin install namu@namu-marketplace</pre>
     </div>
   </section>
 
+  <!-- PART C: Grok -->
+  <section id="grok">
+    <h2><span class="kicker">C</span> Grok에 설치</h2>
+    <p class="sec-note">마켓플레이스를 한 번 등록하고, 이름으로 설치합니다.</p>
+    <div class="card">
+
+      <div class="step">
+        <span class="num">1</span>
+        <div class="body">
+          <p class="lbl">마켓플레이스를 등록하고 플러그인을 설치합니다.</p>
+          <div class="cmd">
+            <div class="bar"><span class="where term">🖥 터미널에서</span><button class="copy" type="button">복사</button></div>
+            <pre>grok plugin marketplace add onmiso-hash/namu-agent
+grok plugin install namu --trust</pre>
+          </div>
+          <p><code>--trust</code>는 이 플러그인의 훅과 기억 서버를 켜겠다는 확인입니다. 나무 저장소를 믿을 때만 붙이세요.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <span class="num">2</span>
+        <div class="body">
+          <p class="lbl">Grok을 껐다 켜고 확인합니다.</p>
+          <p>터미널에 <code>grok plugin list</code>를 쳐서 <code>namu</code>가 보이고, 새 대화창에 <code>/namu</code>를 쳐서 브리핑이 나오면 성공입니다.</p>
+          <div class="warn"><span class="ic">⚠</span><span><b>Grok에서는 브리핑이 저절로 뜨지 않습니다.</b> 대화를 열 때 나오던 브리핑과 매 입력마다 다시 넣어 주던 상시 메모는 Grok이 그 출력문을 모델에게 넘기지 않기 때문입니다. 브리핑은 대화창에 <code>/namu</code>라고 쳐서 부르세요. 기억을 읽고 쓰는 도구와 마무리 때 붙잡아 주는 검사는 그대로 동작합니다.</span></div>
+        </div>
+      </div>
+
+      <p class="tip"><span class="ic">💡</span><span>이미 이 repo를 clone해 둔 개발자라면 <code>grok plugin install &lt;namu-plugin 경로&gt; --trust</code>도 동작합니다. 다만 Grok은 그 폴더를 그대로 읽지 않고 복사해 가므로, 폴더를 고친 뒤에는 <code>grok plugin update namu</code>를 한 번 돌려야 설치본이 따라옵니다.</span></p>
+
+    </div>
+  </section>
+
   <!-- statusLine -->
   <section id="statusline">
     <h2><span class="kicker">+</span> 화면 하단 상태줄 (선택)</h2>
@@ -394,11 +432,11 @@ claude plugin install namu@namu-marketplace</pre>
         <div class="bar"><span class="where chat">💬 대화창에서</span><button class="copy" type="button">복사</button></div>
         <pre>/namu:update</pre>
       </div>
-      <p>설치된 엔진(Claude Code·agy)을 자동으로 찾아 각각 최신 버전으로 갱신하고, 끝나면 상태줄(statusLine) 경로까지 자동으로 다시 연결합니다. 둘 다 설치돼 있으면 둘 다, 하나만 있으면 그것만 처리합니다.</p>
+      <p>설치된 엔진(Claude Code·agy·Grok)을 자동으로 찾아 각각 최신 버전으로 갱신하고, 끝나면 상태줄(statusLine) 경로까지 자동으로 다시 연결합니다. 여럿이 설치돼 있으면 그만큼, 하나만 있으면 그것만 처리합니다.</p>
       <div class="ok"><span class="ic">✓</span><span>완료 메시지가 뜨면 갱신된 엔진을 재시작하세요. <code>/namu:statusline-setup</code>을 따로 다시 부를 필요가 없습니다.</span></div>
     </div>
 
-    <div class="tip" style="margin-top:16px"><span class="ic">💡</span><span><b>스킬을 못 쓰는 환경이라면</b> — Claude Code는 터미널에서 <code>claude plugin update namu@namu-marketplace</code>(반드시 <code>이름@마켓플레이스</code> 전체 이름으로), agy는 <code>agy plugin uninstall namu</code> 후 <code>agy plugin install https://github.com/onmiso-hash/namu-agent.git</code>을 수동으로 실행한 뒤, 상태줄이 안 보이면 <code>/namu:statusline-setup</code>을 따로 불러 주세요.</span></div>
+    <div class="tip" style="margin-top:16px"><span class="ic">💡</span><span><b>스킬을 못 쓰는 환경이라면</b> — Claude Code는 터미널에서 <code>claude plugin update namu@namu-marketplace</code>(반드시 <code>이름@마켓플레이스</code> 전체 이름으로), agy는 <code>agy plugin uninstall namu</code> 후 <code>agy plugin install https://github.com/onmiso-hash/namu-agent.git</code>을, Grok은 <code>grok plugin update namu</code>를 수동으로 실행한 뒤, 상태줄이 안 보이면 <code>/namu:statusline-setup</code>을 따로 불러 주세요.</span></div>
   </section>
 
   <!-- 안 될 때 -->
