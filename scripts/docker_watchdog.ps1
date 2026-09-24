@@ -72,6 +72,10 @@ function Test-Engine {
         $p = Start-Process -FilePath $docker -ArgumentList 'info', '--format', '{{.ServerVersion}}' `
                 -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $root 'info.out') `
                 -RedirectStandardError (Join-Path $root 'info.err')
+        # 핸들을 먼저 잡아 둔다 — 안 잡으면 Start-Process -PassThru 개체의 ExitCode가
+        # 끝난 뒤에도 비어 있어, 멀쩡한 엔진을 '응답 없음'으로 본다(2026-09-25 설치
+        # 첫 실행에서 실측: 버전 29.2.1을 받고도 연속 실패 1회로 적혔다).
+        $null = $p.Handle
         if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return $false }
         return ($p.ExitCode -eq 0)
     } catch { return $false }
