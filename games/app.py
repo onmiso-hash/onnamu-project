@@ -40,5 +40,9 @@ def shooter():
 def cloud_crush():
     return render_template('cloud_crush.html')
 
+@app.route('/night_grove')
+def night_grove():
+    return render_template('night_grove.html')
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
