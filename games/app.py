@@ -1,4 +1,5 @@
-from flask import Flask, render_template
+import os
+from flask import Flask, render_template, redirect, send_from_directory
 
 app = Flask(__name__)
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
@@ -43,6 +44,18 @@ def cloud_crush():
 @app.route('/night_grove')
 def night_grove():
     return render_template('night_grove.html')
+
+# 성벽의 노래 — 디펜스 게임 빌드 결과(dist)를 wallsong/ 폴더째로 둔다
+WALLSONG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'wallsong')
+
+@app.route('/wallsong')
+def wallsong_root():
+    return redirect('/wallsong/')
+
+@app.route('/wallsong/')
+@app.route('/wallsong/<path:filename>')
+def wallsong(filename='index.html'):
+    return send_from_directory(WALLSONG_DIR, filename)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
