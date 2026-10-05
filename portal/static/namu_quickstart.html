@@ -238,11 +238,11 @@
 <div class="wrap">
 
   <header class="hero">
-    <span class="eyebrow">🌳 초보자용 · Claude Code · agy · Grok</span>
+    <span class="eyebrow">🌳 초보자용 · Claude Code · agy · Grok · OpenCode</span>
     <h1>NAMU 설치 &amp; 업데이트 가이드</h1>
     <p class="lead">따라만 하면 됩니다. 명령을 복사해 붙여넣고, 각 단계의 <b>“성공하면 이렇게 보여요”</b>만 확인하세요.</p>
-    <p class="lead" style="margin-top:14px">NAMU는 어느 엔진에서든 <b>항상 플러그인으로 설치</b>됩니다. <b>Claude Code</b>·<b>agy</b>·<b>Grok</b> 모두 GitHub 저장소 주소나 이름 하나만 넘기면 바로 설치가 끝납니다 — 미리 내려받을(clone) 필요가 없습니다.</p>
-    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy·Grok 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서가 아닙니다. 서버를 직접 안 띄우고 <b>주소만</b> 받으려면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a>(GitHub 계정이면 됩니다), <b>내 서버로 직접</b> 운영하려면 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
+    <p class="lead" style="margin-top:14px">NAMU는 어느 엔진에서든 <b>항상 플러그인으로 설치</b>됩니다. <b>Claude Code</b>·<b>agy</b>·<b>Grok</b> 모두 GitHub 저장소 주소나 이름 하나만 넘기면 바로 설치가 끝납니다 — 미리 내려받을(clone) 필요가 없습니다. <b>OpenCode</b>는 등록 방식만 다릅니다(설정 파일에 경로 한 줄).</p>
+    <p class="tip" style="margin-top:14px"><span class="ic">💡</span><span>Claude Code·agy·Grok·OpenCode 프로그램 설치 없이 <b>웹 브라우저의 claude.ai</b>에서만 NAMU 기억을 쓰고 싶다면 이 문서가 아닙니다. 서버를 직접 안 띄우고 <b>주소만</b> 받으려면 <a href="namu_cloud_guide.html"><b>공용 클라우드</b></a>(GitHub 계정이면 됩니다), <b>내 서버로 직접</b> 운영하려면 <a href="remote_mcp_guide.html"><b>웹에서 쓰기 가이드</b></a>를 보세요.</span></p>
   </header>
 
   <!-- 준비물 -->
@@ -283,6 +283,11 @@
         <span class="go">C로 이동 →</span>
         <small>마켓플레이스를 등록하고 이름으로 설치.</small>
       </a>
+      <a class="choice" href="#opencode">
+        <span class="tool">OpenCode</span>
+        <span class="go">D로 이동 →</span>
+        <small>설정 파일에 경로 한 줄.</small>
+      </a>
     </div>
   </section>
 
@@ -292,7 +297,7 @@
     <p class="sec-note">아래 두 표시가 “이걸 어디에 치는지”를 알려줍니다. 헷갈리면 여기로 돌아오세요.</p>
     <div class="legend">
       <span class="row"><span class="tag term">🖥 터미널</span> 명령 프롬프트 · PowerShell 같은 검은 창</span>
-      <span class="row"><span class="tag chat">💬 대화창</span> Claude Code(또는 agy·Grok) 입력줄. <code>/</code>로 시작하는 건 전부 여기</span>
+      <span class="row"><span class="tag chat">💬 대화창</span> Claude Code(또는 agy·Grok·OpenCode) 입력줄. <code>/</code>로 시작하는 건 전부 여기</span>
     </div>
   </section>
 
@@ -403,6 +408,15 @@ grok plugin install namu --trust</pre>
     </div>
   </section>
 
+  <!-- PART D: OpenCode -->
+  <section id="opencode">
+    <h2><span class="kicker">D</span> OpenCode에 설치</h2>
+    <p class="sec-note">설치 명령이 아니라 <b>설정 파일에 경로 한 줄</b>을 넣는 방식입니다. 등록 형식만 다를 뿐, 기억 서버·작업 절차·마무리 검사는 위 셋과 같은 내용을 그대로 씁니다.</p>
+    <div class="card">
+      <div class="tip"><span class="ic">💡</span><span>설치 1단계부터 문제 해결까지는 분량이 달라 이 문서에 합치지 않았습니다 → <a href="https://github.com/onmiso-hash/namu-agent/blob/main/docs/opencode_guide.md"><b>OpenCode 전용 안내서</b></a>로 바로 가세요. 상태줄의 5시간·7일 사용량, <code>/namu:statusline-setup</code> 스킬처럼 OpenCode에서 <b>아직 없는 기능</b>도 그 문서 "지원 범위" 절에 정리돼 있습니다.</span></div>
+    </div>
+  </section>
+
   <!-- statusLine -->
   <section id="statusline">
     <h2><span class="kicker">+</span> 화면 하단 상태줄 (선택)</h2>
@@ -416,7 +430,7 @@ grok plugin install namu --trust</pre>
             <div class="bar"><span class="where chat">💬 대화창에서</span><button class="copy" type="button">복사</button></div>
             <pre>/namu:statusline-setup</pre>
           </div>
-          <p>NAMU가 설치된 호스트(<b>Claude Code</b>·<b>agy</b>)를 자동으로 감지해 한 번에 연결합니다. 성공 메시지가 뜨면 <b>해당 엔진을 재시작</b>해야 화면에 반영됩니다. 안 보이면 이 명령을 다시 부르면 됩니다.</p>
+          <p>NAMU가 설치된 호스트(<b>Claude Code</b>·<b>agy</b>·<b>Grok</b>)를 자동으로 감지해 한 번에 연결합니다. 성공 메시지가 뜨면 <b>해당 엔진을 재시작</b>해야 화면에 반영됩니다. 안 보이면 이 명령을 다시 부르면 됩니다.</p>
         </div>
       </div>
     </div>
@@ -437,6 +451,8 @@ grok plugin install namu --trust</pre>
     </div>
 
     <div class="tip" style="margin-top:16px"><span class="ic">💡</span><span><b>스킬을 못 쓰는 환경이라면</b> — Claude Code는 터미널에서 <code>claude plugin update namu@namu-marketplace</code>(반드시 <code>이름@마켓플레이스</code> 전체 이름으로), agy는 <code>agy plugin uninstall namu</code> 후 <code>agy plugin install https://github.com/onmiso-hash/namu-agent.git</code>을, Grok은 <code>grok plugin update namu</code>를 수동으로 실행한 뒤, 상태줄이 안 보이면 <code>/namu:statusline-setup</code>을 따로 불러 주세요.</span></div>
+
+    <div class="tip" style="margin-top:16px"><span class="ic">💡</span><span><b>OpenCode는 위 <code>/namu:update</code> 대상이 아닙니다.</b> 설정 파일에 경로를 직접 넣는 방식이라, 갱신도 그 경로가 가리키는 저장소에서 <code>git pull</code>을 하거나, OpenCode 자체 명령인 <code>/namu-update</code>로 합니다.</span></div>
   </section>
 
   <!-- 안 될 때 -->

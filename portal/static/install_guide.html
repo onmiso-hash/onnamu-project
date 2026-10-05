@@ -318,6 +318,7 @@
       <li><a href="#install-cc">설치하기 — Claude Code (권장)</a></li>
       <li><a href="#install-agy">설치하기 — agy</a></li>
       <li><a href="#install-grok">설치하기 — Grok</a></li>
+      <li><a href="#install-opencode">설치하기 — OpenCode</a></li>
       <li><a href="#verify">잘 설치됐는지 확인하기</a></li>
       <li><a href="#sync">선택: 기억 원격 백업·멀티 PC 동기화</a></li>
       <li><a href="#uninstall">삭제할 때</a></li>
@@ -331,7 +332,7 @@
   <section id="intro">
     <h2>1. 이게 뭔가요?</h2>
     <p>
-      NAMU는 <strong>AI 비서(Claude Code, agy, Grok 같은 프로그램)에 끼워 넣는 "기억 장치"</strong>라고 생각하시면 쉽습니다.
+      NAMU는 <strong>AI 비서(Claude Code, agy, Grok, OpenCode 같은 프로그램)에 끼워 넣는 "기억 장치"</strong>라고 생각하시면 쉽습니다.
       원래 AI 비서는 대화가 끝나면 그 내용을 대부분 잊어버립니다. NAMU를 설치하면, AI가 작업하면서 얻은 것을
       옆에 붙은 기억 장치에 계속 쌓아 두고, 다음에 다시 켰을 때도 그 기억을 불러와 씁니다.
       쌓이는 자리는 성격에 따라 <strong>다섯 그릇</strong>으로 나뉩니다 — 교훈·개인 사실·작업일지·쪽지·첨부 기록.
@@ -339,7 +340,7 @@
     </p>
     <p>
       <strong>플러그인(plugin)</strong>이란, 프로그램 본체를 건드리지 않고 나중에 끼워 넣을 수 있는 부품을 말합니다.
-      NAMU도 Claude Code나 agy, Grok에 "설치"하는 방식으로 끼워 넣습니다.
+      NAMU도 Claude Code나 agy, Grok, OpenCode에 "설치"하는 방식으로 끼워 넣습니다.
     </p>
 
     <h3>설치형 vs clone 개발형 vs 셀프호스팅형</h3>
@@ -388,7 +389,7 @@
         이 문서가 안내하는 방식입니다.</li>
       <li><strong>clone 개발형</strong> — NAMU repo 자체를 내려받아(clone) 그 안에서 직접 개발하며 씁니다. NAMU를 직접 고치고 싶은
         개발자용이며, 이 문서의 대상이 아닙니다.</li>
-      <li><strong>주소형</strong> — Claude Code·agy·Grok 프로그램 설치 없이 <strong>웹 브라우저의 claude.ai</strong>에서
+      <li><strong>주소형</strong> — Claude Code·agy·Grok·OpenCode 프로그램 설치 없이 <strong>웹 브라우저의 claude.ai</strong>에서
         NAMU 기억을 쓰고 싶을 때 씁니다. 플러그인을 설치하는 대신 <strong>MCP 주소 하나를 커스텀 커넥터에 붙입니다</strong>.
         주소를 얻는 길은 둘입니다 — 서버를 직접 안 띄우고 GitHub 계정만으로 받는
         <a href="namu_cloud_guide.html"><strong>공용 클라우드</strong></a>, 그리고 <code>namu-plugin/http_server.py</code>를
@@ -438,10 +439,10 @@
       <li>
         <input type="checkbox" id="chk5">
         <label for="chk5">
-          <div class="label">Claude Code · agy · Grok 가운데 하나</div>
-          <div class="how">NAMU는 이 셋 중 하나(또는 여럿)의 플러그인으로 설치합니다. 하나도 없다면 먼저 하나를 설치해 두세요.
+          <div class="label">Claude Code · agy · Grok · OpenCode 가운데 하나</div>
+          <div class="how">NAMU는 이 넷 중 하나(또는 여럿)의 플러그인(OpenCode는 설정)으로 설치합니다. 하나도 없다면 먼저 하나를 설치해 두세요.
             확인법: 터미널에 <code>claude --version</code>(Claude Code), <code>agy --version</code>(agy),
-            <code>grok --version</code>(Grok)을 입력해 버전이 나오는지 봅니다.</div>
+            <code>grok --version</code>(Grok), <code>opencode --version</code>(OpenCode)을 입력해 버전이 나오는지 봅니다.</div>
         </label>
       </li>
     </ul>
@@ -591,6 +592,23 @@ grok plugin install namu --trust</code></pre>
     </div>
   </section>
 
+  <!-- 5-1. OpenCode 설치 -->
+  <section id="install-opencode">
+    <h2>5-1. 설치하기 — OpenCode</h2>
+    <p>
+      OpenCode는 플러그인 설치 명령이 아니라 <strong>설정 파일에 경로 한 줄</strong>을 넣는 방식입니다.
+      등록 형식만 다를 뿐, 기억 서버·작업 절차·마무리 검사는 위 셋과 같은 내용을 그대로 씁니다.
+    </p>
+    <div class="box tip">
+      <strong>설치 1단계부터 문제 해결까지는 분량이 달라 이 문서에 합치지 않았습니다</strong>
+      <p style="margin-bottom:0">
+        → <a href="https://github.com/onmiso-hash/namu-agent/blob/main/docs/opencode_guide.md" target="_blank" rel="noopener">OpenCode 전용 안내서</a>로
+        바로 가세요. 화면 아래 한 줄의 5시간·7일 사용량, <code>/namu:statusline-setup</code> 스킬처럼
+        OpenCode에서 <strong>아직 없는 기능</strong>도 그 문서 "지원 범위" 절에 정리돼 있습니다.
+      </p>
+    </div>
+  </section>
+
   <!-- 6. 확인 -->
   <section id="verify">
     <h2>6. 잘 설치됐는지 확인하기</h2>
@@ -663,7 +681,7 @@ grok plugin install namu --trust</code></pre>
       <div class="num">2</div>
       <div class="body">
         <h4>AI에게 연결을 한 번만 부탁하기</h4>
-        <p class="muted">Claude Code나 agy 대화창에서 그냥 이렇게 말하면 됩니다.</p>
+        <p class="muted">Claude Code나 agy, Grok, OpenCode 대화창에서 그냥 이렇게 말하면 됩니다.</p>
         <pre><code>namu_sync_setup을 &lt;위에서 준비한 원격 저장소 주소&gt;로 실행해줘</code></pre>
         <p class="muted">
           AI가 <code>namu_sync_setup</code> MCP 도구를 호출해 로컬 <code>~/.namu</code>에 git 연결을 자동으로
@@ -675,7 +693,7 @@ grok plugin install namu --trust</code></pre>
     <div class="box tip">
       <strong>켠 뒤에는 무슨 일이 일어나나요?</strong>
       <p style="margin-bottom:0">
-        기억을 남길 때마다(<code>namu_record</code>) 자동으로 백업(push)되고, Claude Code나 agy로 새 세션을
+        기억을 남길 때마다(<code>namu_record</code>) 자동으로 백업(push)되고, Claude Code나 agy, Grok, OpenCode로 새 세션을
         열 때마다 자동으로 다른 컴퓨터의 최신 기억을 받아옵니다(pull). 두 번째 컴퓨터에서도 <strong>위 1·2번
         절차를 그대로 반복</strong>하면, 그 컴퓨터가 완전히 새 것이라도(클론이 아니어도) 원격에 있는 기존
         기억과 자동으로 합쳐집니다 — 따로 병합 작업을 할 필요가 없습니다.
@@ -750,6 +768,10 @@ grok plugin install namu --trust</code></pre>
       설치된 호스트(Claude Code·agy·Grok)를 자동으로 감지해 각각 알맞은 방식으로 갱신하고, 끝나면
       <code>/namu:statusline-setup</code>까지 자동으로 호출해 statusLine 경로를 새 버전으로 다시 연결합니다.
       미설치된 호스트는 조용히 건너뜁니다. 완료 후 갱신된 호스트를 재시작하면 반영됩니다.
+    </p>
+    <p class="muted">
+      <strong>OpenCode는 이 명령의 대상이 아닙니다.</strong> 설정 파일에 경로를 직접 넣는 방식이라, 갱신도
+      그 경로가 가리키는 저장소에서 <code>git pull</code>을 하거나 OpenCode 자체 명령인 <code>/namu-update</code>로 합니다.
     </p>
 
     <details>
