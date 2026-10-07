@@ -1,0 +1,97 @@
+name: Mini PC diagnosis (read-only)
+
+# 2026-10-07 미니PC CPU 100%·파워셸 창 누적 원인 조사용 일회성 점검.
+# 작업 브랜치에 푸시할 때만 돈다 — main 배포(deploy.yml)는 건드리지 않는다.
+# 미니PC에서는 조회 명령만 실행한다. 이 저장소는 공개라 로그도 공개다:
+# 프로세스 명령줄은 찍지 않는다(배포 중이면 -AskApiKey 값이 들어 있을 수 있다).
+# 조사가 끝나면 이 파일은 브랜치에서 지운다.
+
+on:
+  push:
+    branches:
+      - claude/keen-gates-kynovp
+    paths:
+      - .github/workflows/minipc-diag.yml
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Write diagnosis scripts
+        run: |
+          mkdir -p diag
+          cat > diag/1_system.ps1 <<'EOF'
+          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          '== 1. 부팅 시각 / CPU 사용률 / CPU 누적 상위 15'
+          'boot: ' + (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+          1..3 | % { 'cpu load%: ' + (Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average).Average; Start-Sleep 2 }
+          Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name,Id,@{n='CPUsec';e={[int]$_.CPU}},@{n='MB';e={[int]($_.WS/1MB)}},StartTime,SessionId | Format-Table -AutoSize | Out-String -Width 220
+          '== 2. 파워셸/콘솔 프로세스 (명령줄은 감시 작업 여부만)'
+          $all = Get-CimInstance Win32_Process
+          $all | ? { $_.Name -in 'powershell.exe','pwsh.exe','conhost.exe','cmd.exe' } | % {
+            $pid0 = $_.ParentProcessId; $par = $all | ? { $_.ProcessId -eq $pid0 }
+            [pscustomobject]@{ Name=$_.Name; Id=$_.ProcessId; Start=$_.CreationDate; Session=$_.SessionId; Parent=$(if ($par) { $par.Name } else { '(gone)' }); Watchdog=[bool]($_.CommandLine -match 'docker_watchdog') }
+          } | Sort-Object Start | Format-Table -AutoSize | Out-String -Width 220
+          '== 8. opencode / bun / node 프로세스'
+          Get-Process opencode,bun,node -EA 0 | Select-Object Name,Id,StartTime,SessionId,@{n='CPUsec';e={[int]$_.CPU}} | Format-Table -AutoSize | Out-String -Width 220
+          '== 6. 프로세서 유휴 끄기(IDLEDISABLE)'
+          powercfg /qh SCHEME_CURRENT SUB_PROCESSOR IDLEDISABLE | Select-String 'Index|인덱스'
+          EOF
+          cat > diag/2_events.ps1 <<'EOF'
+          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          '== 3. 시스템 이벤트 41/6008/1001/1074/6005/6006 (10-03 이후)'
+          Get-WinEvent -FilterHashtable @{LogName='System';Id=41,6008,1001,1074,6005,6006;StartTime=[datetime]'2026-10-03'} | Sort-Object TimeCreated | % {
+            $m = ([string]$_.Message) -replace '\s+',' '
+            if ($m.Length -gt 200) { $m = $m.Substring(0,200) }
+            $extra = ''
+            if ($_.Id -eq 41) { $extra = ' BugcheckCode=0x{0:X}' -f [int64]$_.Properties[0].Value }
+            '{0:MM-dd HH:mm:ss} id={1}{2} | {3}' -f $_.TimeCreated,$_.Id,$extra,$m
+          }
+          EOF
+          cat > diag/3_tasks.ps1 <<'EOF'
+          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          '== 4. Namu 예약 작업'
+          Get-ScheduledTask | ? { $_.TaskName -like 'Namu*' } | % {
+            $i = $_ | Get-ScheduledTaskInfo
+            '{0} state={1} last={2} result=0x{3:X} missed={4}' -f $_.TaskName,$_.State,$i.LastRunTime,$i.LastTaskResult,$i.NumberOfMissedRuns
+          }
+          $ln = 'Microsoft-Windows-TaskScheduler/Operational'
+          $log = Get-WinEvent -ListLog $ln
+          'task scheduler operational log enabled: ' + $log.IsEnabled
+          if ($log.IsEnabled) {
+            Get-WinEvent -FilterHashtable @{LogName=$ln;StartTime=[datetime]'2026-10-05'} | ? { $_.Message -match 'NamuDockerWatchdog' } | Group-Object Id | % {
+              $g = $_.Group | Sort-Object TimeCreated
+              'id {0}: {1}건, first {2:MM-dd HH:mm} last {3:MM-dd HH:mm}' -f $_.Name,$_.Count,$g[0].TimeCreated,$g[-1].TimeCreated
+            }
+          }
+          '== 5. watchdog.log (10-04 이후) / state.json'
+          $d = 'C:\Users\onmis\docker_watchdog'
+          Get-Content (Join-Path $d 'watchdog.log') -Encoding UTF8 | ? { $_ -ge '2026-10-04' }
+          Get-Content (Join-Path $d 'state.json') -Encoding UTF8
+          '== 7. docker'
+          docker ps --format '{{.Names}}  {{.Status}}'
+          docker stats --no-stream --format '{{.Name}}  {{.CPUPerc}}  {{.MemUsage}}'
+          EOF
+
+      - name: Run on Mini PC
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/k
+          chmod 600 ~/.ssh/k
+          for f in diag/*.ps1; do
+            echo "########## $f"
+            b64=$(iconv -f UTF-8 -t UTF-16LE "$f" | base64 -w0)
+            ssh -i ~/.ssh/k -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -o ConnectTimeout=20 -o LogLevel=ERROR "$USERNAME@$HOST" \
+                "powershell -NoProfile -NonInteractive -EncodedCommand $b64" || echo "(exit $?)"
+          done
+          rm -f ~/.ssh/k
