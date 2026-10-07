@@ -1,0 +1,61 @@
+name: Mini PC diagnosis (read-only)
+
+# 2026-10-07 미니PC BIOS 공식 판 확인용 일회성 점검.
+# 작업 브랜치에 푸시할 때만 돈다 — main 배포(deploy.yml)는 건드리지 않는다.
+# 미니PC에서는 모델·BIOS 정보만 읽는다. 조사가 끝나면 이 파일은 지운다.
+
+on:
+  push:
+    branches:
+      - claude/keen-gates-kynovp
+    paths:
+      - .github/workflows/minipc-diag.yml
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Mini PC model
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          cat > m.ps1 <<'EOF'
+          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          Get-CimInstance Win32_ComputerSystem | % { 'system: ' + $_.Manufacturer + ' / ' + $_.Model + ' / family=' + $_.SystemFamily + ' / sku=' + $_.SystemSKUNumber }
+          Get-CimInstance Win32_BaseBoard | % { 'board: ' + $_.Manufacturer + ' / ' + $_.Product + ' / ver=' + $_.Version }
+          Get-CimInstance Win32_BIOS | % { 'bios: ' + $_.Manufacturer + ' / ' + $_.SMBIOSBIOSVersion + ' / ' + ($_.BIOSVersion -join ',') + ' / ' + $_.ReleaseDate }
+          Get-CimInstance Win32_Processor | % { 'cpu: ' + $_.Name }
+          (Get-ItemProperty 'HKLM:\HARDWARE\DESCRIPTION\System\BIOS') | % { 'reg: ' + $_.SystemProductName + ' / ' + $_.BaseBoardProduct + ' / ' + $_.BIOSVersion + ' / ' + $_.BIOSReleaseDate }
+          EOF
+          mkdir -p ~/.ssh; printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/k; chmod 600 ~/.ssh/k
+          b64=$(iconv -f UTF-8 -t UTF-16LE m.ps1 | base64 -w0)
+          ssh -i ~/.ssh/k -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -o ConnectTimeout=20 -o LogLevel=ERROR "$USERNAME@$HOST" \
+              "powershell -NoProfile -NonInteractive -EncodedCommand $b64" || echo "(exit $?)"
+          rm -f ~/.ssh/k
+
+      - name: MSI official BIOS listings
+        run: |
+          UA='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0 Safari/537.36'
+          for p in Cubi-2 Cubi-2-7th Cubi-3-Silent-7m Cubi-3-Silent-S-7m Cubi-3-Silent; do
+            echo "########## $p"
+            curl -s -A "$UA" -o out.json -w 'http %{http_code}\n' "https://www.msi.com/api/v1/product/support/panel?product=$p&type=bios"
+            python3 - <<'PY' || head -c 600 out.json
+          import json
+          d = json.load(open('out.json'))
+          def walk(o):
+              if isinstance(o, dict):
+                  if any(k in o for k in ('download_version', 'download_release', 'download_title')):
+                      print(' -', o.get('download_title'), '|', o.get('download_version'), '|', o.get('download_release'), '|', (o.get('download_description') or '').replace('\n', ' ')[:300], '|', o.get('download_url'))
+                  for v in o.values(): walk(v)
+              elif isinstance(o, list):
+                  for v in o: walk(v)
+          walk(d)
+          PY
+            echo
+          done
