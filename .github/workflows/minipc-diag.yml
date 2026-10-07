@@ -21,60 +21,28 @@ jobs:
       - name: Write diagnosis scripts
         run: |
           mkdir -p diag
-          cat > diag/1_system.ps1 <<'EOF'
+          cat > diag/1_power.ps1 <<'EOF'
           $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          '== 1. 부팅 시각 / CPU 사용률 / CPU 누적 상위 15'
-          'boot: ' + (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
-          1..3 | % { 'cpu load%: ' + (Get-CimInstance Win32_Processor | Measure-Object LoadPercentage -Average).Average; Start-Sleep 2 }
-          Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name,Id,@{n='CPUsec';e={[int]$_.CPU}},@{n='MB';e={[int]($_.WS/1MB)}},StartTime,SessionId | Format-Table -AutoSize | Out-String -Width 220
-          '== 2. 파워셸/콘솔 프로세스 (명령줄은 감시 작업 여부만)'
-          $all = Get-CimInstance Win32_Process
-          $all | ? { $_.Name -in 'powershell.exe','pwsh.exe','conhost.exe','cmd.exe' } | % {
-            $pid0 = $_.ParentProcessId; $par = $all | ? { $_.ProcessId -eq $pid0 }
-            [pscustomobject]@{ Name=$_.Name; Id=$_.ProcessId; Start=$_.CreationDate; Session=$_.SessionId; Parent=$(if ($par) { $par.Name } else { '(gone)' }); Watchdog=[bool]($_.CommandLine -match 'docker_watchdog') }
-          } | Sort-Object Start | Format-Table -AutoSize | Out-String -Width 220
-          '== 8. opencode / bun / node 프로세스'
-          Get-Process opencode,bun,node -EA 0 | Select-Object Name,Id,StartTime,SessionId,@{n='CPUsec';e={[int]$_.CPU}} | Format-Table -AutoSize | Out-String -Width 220
-          '== 6. 프로세서 유휴 끄기(IDLEDISABLE)'
-          powercfg /qh SCHEME_CURRENT SUB_PROCESSOR IDLEDISABLE | Select-String 'Index|인덱스'
+          '== A. 프로세서 유휴 끄기(IDLEDISABLE) — 0x00000001 이면 켜져 있음'
+          powercfg /getactivescheme
+          (powercfg /qh SCHEME_CURRENT SUB_PROCESSOR 5d76a2ca-e8c0-402f-a133-2158492d58ad) -match '0x0000000'
+          '== B. BIOS'
+          Get-CimInstance Win32_BIOS | % { 'BIOS ' + $_.SMBIOSBIOSVersion + ' / ' + $_.ReleaseDate }
+          '== C. 덤프 파일'
+          Get-ChildItem C:\Windows\Minidump | Sort-Object LastWriteTime | % { '{0:yyyy-MM-dd HH:mm} {1} {2}KB' -f $_.LastWriteTime,$_.Name,[int]($_.Length/1KB) }
+          Get-Item C:\Windows\MEMORY.DMP | % { 'MEMORY.DMP {0:yyyy-MM-dd HH:mm} {1}MB' -f $_.LastWriteTime,[int]($_.Length/1MB) }
+          '== D. 감시 작업 설정'
+          $t = Get-ScheduledTask -TaskName NamuDockerWatchdog
+          'limit=' + $t.Settings.ExecutionTimeLimit + ' multi=' + $t.Settings.MultipleInstances + ' logon=' + $t.Principal.LogonType
           EOF
-          cat > diag/2_events.ps1 <<'EOF'
+          cat > diag/2_crashes.ps1 <<'EOF'
           $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          '== 3. 시스템 이벤트 41/6008/1001/1074/6005/6006 (10-03 이후)'
-          Get-WinEvent -FilterHashtable @{LogName='System';Id=41,6008,1001,1074,6005,6006;StartTime=[datetime]'2026-10-03'} | Sort-Object TimeCreated | % {
-            $m = ([string]$_.Message) -replace '\s+',' '
-            if ($m.Length -gt 200) { $m = $m.Substring(0,200) }
-            $extra = ''
-            if ($_.Id -eq 41) { $extra = ' BugcheckCode=0x{0:X}' -f [int64]$_.Properties[0].Value }
-            '{0:MM-dd HH:mm:ss} id={1}{2} | {3}' -f $_.TimeCreated,$_.Id,$extra,$m
+          '== E. 비정상 종료(41) 08-01 이후 — 8월 절전 끄기 조치(08-28) 전후 비교'
+          Get-WinEvent -FilterHashtable @{LogName='System';Id=41;StartTime=[datetime]'2026-08-01'} | Sort-Object TimeCreated | % {
+            '{0:yyyy-MM-dd HH:mm:ss} BugcheckCode=0x{1:X}' -f $_.TimeCreated,[int64]$_.Properties[0].Value
           }
-          EOF
-          cat > diag/3_tasks.ps1 <<'EOF'
-          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
-          [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          '== 4. Namu 예약 작업'
-          Get-ScheduledTask | ? { $_.TaskName -like 'Namu*' } | % {
-            $i = $_ | Get-ScheduledTaskInfo
-            '{0} state={1} last={2} result=0x{3:X} missed={4}' -f $_.TaskName,$_.State,$i.LastRunTime,$i.LastTaskResult,$i.NumberOfMissedRuns
-          }
-          $ln = 'Microsoft-Windows-TaskScheduler/Operational'
-          $log = Get-WinEvent -ListLog $ln
-          'task scheduler operational log enabled: ' + $log.IsEnabled
-          if ($log.IsEnabled) {
-            Get-WinEvent -FilterHashtable @{LogName=$ln;StartTime=[datetime]'2026-10-05'} | ? { $_.Message -match 'NamuDockerWatchdog' } | Group-Object Id | % {
-              $g = $_.Group | Sort-Object TimeCreated
-              'id {0}: {1}건, first {2:MM-dd HH:mm} last {3:MM-dd HH:mm}' -f $_.Name,$_.Count,$g[0].TimeCreated,$g[-1].TimeCreated
-            }
-          }
-          '== 5. watchdog.log (10-04 이후) / state.json'
-          $d = 'C:\Users\onmis\docker_watchdog'
-          Get-Content (Join-Path $d 'watchdog.log') -Encoding UTF8 | ? { $_ -ge '2026-10-04' }
-          Get-Content (Join-Path $d 'state.json') -Encoding UTF8
-          '== 7. docker'
-          docker ps --format '{{.Names}}  {{.Status}}'
-          docker stats --no-stream --format '{{.Name}}  {{.CPUPerc}}  {{.MemUsage}}'
           EOF
 
       - name: Run on Mini PC
