@@ -43,11 +43,11 @@ jobs:
           if (-not $cache) { $cache = 'C:\ProgramData\dbg\sym' }
           $sym = 'srv*' + $cache + '*https://msdl.microsoft.com/download/symbols'
           'cdb=' + $cdb + '  cache=' + $cache
-          foreach ($f in 'C:\Windows\Minidump\100526-11203-01.dmp','C:\Windows\Minidump\082626-7140-01.dmp') {
+          foreach ($f in 'C:\Windows\Minidump\100526-11203-01.dmp') {
             '########## ' + $f
-            & $cdb -z $f -y $sym -c '.bugcheck; vertarget; kn 20; !analyze -v; q' 2>&1 |
+            & $cdb -z $f -y $sym -c '!process -1 0; !thread -1 0; !cpuinfo; r; !analyze -v; q' 2>&1 |
               ? { $_ -notmatch '^\s*$' -and $_ -notmatch 'DBGHELP|SYMSRV|Loading|\*\*\*\*\*\*' } |
-              Select-Object -First 140
+              ? { $_ -match 'PROCESS|Image|THREAD|PROCESS_NAME|IMAGE_NAME|MODULE_NAME|CPU|Cid|rip=|cs=|MHz|GenuineIntel|Owning|Win32Thread|STACK_TEXT|SYMBOL_NAME|BUCKET' } | Select-Object -First 80
           }
           EOF
 
