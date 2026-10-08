@@ -16,6 +16,8 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
 
 ## 원칙
 - **각 push(태그 push, onnamu-project push) 직전에 사용자 확인**을 받는다 — 되돌리기 번거로운 외부 반영이다.
+  본체 꼬리표는 이제 **namu-agent PR을 main에 합치는 순간 자동으로 붙으므로**(4단계), 본체 PR을
+  합치는 것 자체가 꼬리표 push와 같다 — 합치기 직전에 사용자 확인을 받는다.
 - 어느 단계든 예상과 다르면(동기화 어긋남·테스트 실패·이미 태그 존재 등) **중단하고 보고**한다.
 - 커밋 메시지는 반드시 **한글**. 커밋 후 `git push origin main`.
 
@@ -55,11 +57,19 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
 - `cd ~/project/namu-agent && NAMU_HOME="$HOME/.namu" uv run --with python-dotenv python3 -m pytest namu-plugin/ -q`
 - 실패 시 중단·보고. (사용자가 명시적으로 생략 요청 시에만 건너뜀.)
 
-### 4. 태그 생성·push
-- `git tag -l v<version>`로 이미 있는지 확인.
-  - 있으면: 이미 태그됨을 알리고, 그 태그가 HEAD를 가리키는지 확인(`git rev-list -n1 v<version>` vs HEAD). 다르면 경고.
-  - 없으면: **사용자 확인 후** `git tag -a v<version> -m "release: <요약>" HEAD` → `git push origin v<version>`.
-    (pre-push 훅이 두 manifest 버전 일치를 검증한다. `OK: manifest versions match`가 정상.)
+### 4. 태그 확인 (자동으로 붙는다)
+- **2026-10-08부터 본체 꼬리표는 손으로 만들지 않는다.** namu-agent의
+  `.github/workflows/tag-release.yml`이 main에 커밋이 들어올 때마다 `namu-plugin/plugin.json`의
+  판 번호를 읽어, **그 번호를 마지막으로 바꾼 커밋**에 `v<version>`을 붙인다(가벼운 꼬리표,
+  v0.1.91~94와 같은 모양). 이미 있으면 아무것도 안 하고, 두 manifest 번호가 다르면 멈춘다.
+  - 왜: 클라우드 세션은 꼬리표 push가 403으로 막히고, 사용자 PC는 방화벽으로 GitHub 화면이
+    막혀 v0.1.95를 아무도 붙이지 못했다.
+- 할 일은 확인뿐이다: `git fetch --tags && git rev-list -n1 v<version>`.
+  - 없으면 Actions의 `tag-release` 실행 기록을 본다(손으로 다시 돌릴 수 있다 — workflow_dispatch).
+  - 꼬리표가 HEAD가 아니라 **번호를 올린 커밋**을 가리키는 것은 정상이다(그 뒤 문서만 고친 커밋은 판에 안 든다).
+- **주의 — 합친 순간 개인용 핀 검사가 걸린다.** 새 꼬리표가 생기면 이 저장소의
+  `check_core_pin.sh`가 다음 push부터 "핀이 낡았다"고 막는다(포털만 고친 push도). 그러니 본체 PR을
+  합쳤으면 5단계 핀 올리기까지 이어서 끝낸다.
 
 ### 5. onnamu-project 참조 상향
 
@@ -207,6 +217,9 @@ namu-agent에 새 태그를 만들고, onnamu-project의 고정 참조를 그 �
    git push origin v<클라우드버전>
    ```
    실제 예(v0.1.37) — `fix: 홈페이지가 되는 일을 안 된다고 말하던 것을 고친다 + 코어 핀 v0.1.63`
+   - **꼬리표를 직접 올릴 수 없는 곳(클라우드 세션 등)에서는** Actions의 `tag-release`를 손으로
+     돌린다(workflow_dispatch, 입력 `tag`=`v<클라우드버전>`). main의 지금 커밋에 가벼운 꼬리표를
+     붙이며, 이미 있는 번호·지금 가장 큰 번호보다 작은 번호는 거절한다(2026-10-08).
 5. **이 저장소에는 push 훅이 없다**(2026-08-08 확인 — `.githooks` 없음, `core.hooksPath`
    미설정). 낡은 핀을 막아 주는 자동 검사는 **배포 저장소 쪽에서만** 돈다. 그러니
    C1의 `check_cloud_core_pin.sh`를 **손으로 먼저 돌리고** 넘어올 것.
