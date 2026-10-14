@@ -67,18 +67,62 @@ if (Test-Path $stateFile) {
 
 # 엔진이 응답하는가 — docker 명령은 엔진이 반쯤 죽었을 때 한없이 멈출 수 있어
 # 30초 넘게 걸리면 응답하지 않은 것으로 본다.
+#
+# 판정 근거를 'docker info' 의 종료코드에서 'docker version' 의 서버 버전 값으로
+# 바꿨다(2026-10-15). 2026-10-14 01:20~06:25 KST 사이 엔진이 "Docker Desktop is
+# unable to start" 로 죽어 컨테이너 12개가 전부 내려갔는데(네 도메인 530), 이 감시는
+# 약 20시간 동안 재시작을 한 번도 시도하지 않았다 — watchdog.log 에 그 20시간 기록이
+# 한 줄도 없다. 즉 엔진을 '정상'으로 보고 있었다.
+#
+# 종료코드만 보는 것이 그 침묵이 가능한 유일한 경로였다. 출력을 info.out 으로 받아
+# 두고도 읽는 곳이 한 곳도 없었다. 그래서 두 겹으로 막는다 — ① '{{.Server.Version}}'
+# 은 서버가 실제로 답해야 채워진다(클라이언트만 살아 있으면 비거나 템플릿 오류가 난다)
+# ② 종료코드가 0 이어도 받은 값이 버전 꼴이 아니면 응답으로 보지 않는다. 지난 회차
+# 출력이 남아 오판하는 것을 막기 위해 돌리기 전에 지운다.
+#
+# 실패 사유도 로그에 함께 남긴다. 이번 사고를 뒤쫓을 때 '엔진 응답 없음' 한 줄만으로는
+# 무엇이 왜 막혔는지 알 수 없어 미니PC를 직접 들여다봐야 했다.
+$engineReason = ''
+
 function Test-Engine {
+    $outPath = Join-Path $root 'info.out'
+    $errPath = Join-Path $root 'info.err'
+    Remove-Item $outPath, $errPath -Force -EA 0
     try {
-        $p = Start-Process -FilePath $docker -ArgumentList 'info', '--format', '{{.ServerVersion}}' `
-                -NoNewWindow -PassThru -RedirectStandardOutput (Join-Path $root 'info.out') `
-                -RedirectStandardError (Join-Path $root 'info.err')
+        $p = Start-Process -FilePath $docker -ArgumentList 'version', '--format', '{{.Server.Version}}' `
+                -NoNewWindow -PassThru -RedirectStandardOutput $outPath `
+                -RedirectStandardError $errPath
         # 핸들을 먼저 잡아 둔다 — 안 잡으면 Start-Process -PassThru 개체의 ExitCode가
         # 끝난 뒤에도 비어 있어, 멀쩡한 엔진을 '응답 없음'으로 본다(2026-09-25 설치
         # 첫 실행에서 실측: 버전 29.2.1을 받고도 연속 실패 1회로 적혔다).
         $null = $p.Handle
-        if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return $false }
-        return ($p.ExitCode -eq 0)
-    } catch { return $false }
+        if (-not $p.WaitForExit(30000)) {
+            try { $p.Kill() } catch {}
+            $script:engineReason = '30초 안에 끝나지 않음'
+            return $false
+        }
+        $ver = ''
+        if (Test-Path $outPath) { $ver = ((Get-Content $outPath -Raw -EA 0) -replace '\s', '') }
+        if ($p.ExitCode -ne 0) {
+            $detail = ''
+            if (Test-Path $errPath) {
+                $first = (Get-Content $errPath -EA 0 | Where-Object { $_ -match '\S' } | Select-Object -First 1)
+                if ($first) { $detail = ([string]$first).Trim() }
+            }
+            $script:engineReason = ('종료코드 ' + $p.ExitCode)
+            if ($detail) { $script:engineReason += (' · ' + $detail) }
+            return $false
+        }
+        if ($ver -notmatch '^\d+\.\d+') {
+            $script:engineReason = ('종료코드 0 이지만 서버 버전이 비정상: "' + $ver + '"')
+            return $false
+        }
+        $script:engineReason = ''
+        return $true
+    } catch {
+        $script:engineReason = ('실행 실패: ' + $_.Exception.Message)
+        return $false
+    }
 }
 
 $ok = Test-Engine
@@ -88,7 +132,9 @@ if ($ok) {
     $state.fails = 0
 } else {
     $state.fails += 1
-    Write-Log ('엔진 응답 없음 — 연속 ' + $state.fails + '회')
+    $line = '엔진 응답 없음 — 연속 ' + $state.fails + '회'
+    if ($engineReason) { $line += (' · ' + $engineReason) }
+    Write-Log $line
 
     $cooling = $false
     if ($state.lastRestart) {

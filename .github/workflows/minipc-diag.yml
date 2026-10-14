@@ -6,11 +6,15 @@ name: Mini PC diagnosis (read-only)
 # 전부 내려갔고(네 도메인 530 = 터널에 오리진 0개) 18시간 넘게 복구되지 않았다. 웹 세션에는
 # ssh 바이너리도 키도 없고 프록시가 onnamu.kr 을 막으므로, 미니PC 상태를 보는 길은 이 경로뿐이다.
 #
-# 미니PC에서는 읽기만 한다 — 프로세스·컨테이너·WSL·디스크·예약작업·watchdog 로그.
-# 고치는 동작(도커 재시작 등)은 넣지 않는다: SSH 세션에서 띄운 Docker Desktop 은 접속이
-# 끊길 때 함께 정리되므로(2026-09-10·09-14 실측, scripts/docker_watchdog.ps1 주석) 효과가 없다.
+# 미니PC에서는 읽기만 한다. 고치는 동작(도커 재시작 등)은 넣지 않는다: SSH 세션에서 띄운
+# Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
+# scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 1
+# 점검 회차: 2 — docker_watchdog.ps1 의 새 엔진 판정을 실물에서 검증한다.
+#   끊긴 끝점은 '아무도 응답하지 않는 파이프'라서 실제 사고("Error response from daemon:
+#   Docker Desktop is unable to start" — 파이프는 응답했고 백엔드가 오류를 돌려준 상태)와
+#   같지 않다. 그래서 이 검증은 '새 판정이 끊긴 엔진을 실패로 본다'까지만 증명하고,
+#   옛 판정이 그날 실제로 오판했는지는 증명하지 않는다. 엔진이 복구돼 재현이 불가능하다.
 
 on:
   push:
@@ -24,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Mini PC state
+      - name: Verify engine liveness judgement on Mini PC
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -32,52 +36,76 @@ jobs:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         run: |
           cat > d.ps1 <<'EOF'
-          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
           $docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+          $root = Join-Path $env:TEMP 'namu_engine_check'
+          New-Item -ItemType Directory -Force -Path $root | Out-Null
 
-          '########## 부팅 시각 / 가동 시간'
-          $os = Get-CimInstance Win32_OperatingSystem
-          '마지막 부팅: ' + $os.LastBootUpTime
-          '가동 시간  : ' + ((Get-Date) - $os.LastBootUpTime).ToString()
-
-          '########## 로그인 세션 (watchdog 이 돌 수 있는 조건)'
-          quser 2>&1
-
-          '########## Docker Desktop 프로세스'
-          (Get-Process 'Docker Desktop','com.docker.backend','com.docker.build' |
-             Select-Object Name,Id,StartTime | Format-Table -AutoSize | Out-String).Trim()
-
-          '########## 도커 엔진 응답 대기 (최대 3분)'
-          $up = $false
-          foreach ($i in 1..18) {
-            $v = & $docker version --format '{{.Server.Version}}' 2>&1
-            if ($LASTEXITCODE -eq 0) { '엔진 응답 OK (' + $i + '번째 시도): ' + $v; $up = $true; break }
-            '대기 ' + $i + '/18: ' + (($v | Out-String).Trim())
-            Start-Sleep -Seconds 10
+          # 고친 docker_watchdog.ps1 의 Test-Engine 과 같은 판정.
+          function Judge-New($dh) {
+            $o = Join-Path $root 'n.out'; $e = Join-Path $root 'n.err'
+            Remove-Item $o, $e -Force -EA 0
+            $prev = $env:DOCKER_HOST
+            if ($dh) { $env:DOCKER_HOST = $dh }
+            try {
+              $p = Start-Process -FilePath $docker -ArgumentList 'version','--format','{{.Server.Version}}' `
+                     -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
+              $null = $p.Handle
+              if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return '응답없음 · 30초 초과' }
+              $ver = ''
+              if (Test-Path $o) { $ver = ((Get-Content $o -Raw -EA 0) -replace '\s','') }
+              if ($p.ExitCode -ne 0) {
+                $d = ''
+                if (Test-Path $e) {
+                  $f = (Get-Content $e -EA 0 | Where-Object { $_ -match '\S' } | Select-Object -First 1)
+                  if ($f) { $d = ([string]$f).Trim() }
+                }
+                $r = '응답없음 · 종료코드 ' + $p.ExitCode
+                if ($d) { $r += (' · ' + $d) }
+                return $r
+              }
+              if ($ver -notmatch '^\d+\.\d+') { return ('응답없음 · 종료코드 0 이지만 버전 비정상: "' + $ver + '"') }
+              return ('응답OK · 서버 버전 ' + $ver)
+            } finally { $env:DOCKER_HOST = $prev }
           }
 
-          '########## 컨테이너 목록'
-          if ($up) { & $docker ps -a --format '{{.Names}} | {{.Status}}' 2>&1 }
-          else { '엔진이 응답하지 않아 조회 불가' }
+          # 옛 판정 — docker info 의 종료코드만 본다.
+          function Judge-Old($dh) {
+            $o = Join-Path $root 'o.out'; $e = Join-Path $root 'o.err'
+            Remove-Item $o, $e -Force -EA 0
+            $prev = $env:DOCKER_HOST
+            if ($dh) { $env:DOCKER_HOST = $dh }
+            try {
+              $p = Start-Process -FilePath $docker -ArgumentList 'info','--format','{{.ServerVersion}}' `
+                     -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
+              $null = $p.Handle
+              if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return '응답없음 · 30초 초과' }
+              $out = ''
+              if (Test-Path $o) { $out = ((Get-Content $o -Raw -EA 0) -replace '\s','') }
+              $verdict = $(if ($p.ExitCode -eq 0) { '응답OK' } else { '응답없음' })
+              return ($verdict + ' · 종료코드 ' + $p.ExitCode + ' · 받은출력 "' + $out + '"')
+            } finally { $env:DOCKER_HOST = $prev }
+          }
 
-          '########## WSL'
-          (wsl --status 2>&1 | Out-String).Trim()
-          (wsl -l -v 2>&1 | Out-String).Trim()
+          $dead = 'npipe:////./pipe/namu_no_such_engine'
 
-          '########## C 드라이브'
-          (Get-PSDrive C | Select-Object @{n='Used_GB';e={[math]::Round($_.Used/1GB,1)}},
-             @{n='Free_GB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize | Out-String).Trim()
+          '########## 1. 살아 있는 엔진 (기본 끝점) — 둘 다 OK 여야 한다'
+          '  새 판정: ' + (Judge-New $null)
+          '  옛 판정: ' + (Judge-Old $null)
 
-          '########## watchdog 예약 작업'
-          (Get-ScheduledTask -TaskName NamuDockerWatchdog |
-             Select-Object TaskName,State | Format-Table -AutoSize | Out-String).Trim()
-          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog |
-             Select-Object LastRunTime,LastTaskResult,NextRunTime | Format-Table -AutoSize | Out-String).Trim()
+          '########## 2. 끊긴 끝점 — 새 판정은 반드시 응답없음 이어야 한다'
+          '  새 판정: ' + (Judge-New $dead)
+          '  옛 판정: ' + (Judge-Old $dead)
 
-          '########## watchdog 로그 최근 40줄 — 18시간 못 살린 이유'
+          '########## 3. 현재 서비스 상태'
+          (& $docker ps --format '{{.Names}} | {{.Status}}' 2>&1 | Out-String).Trim()
+
+          '########## 4. watchdog 로그 최근 8줄'
           $wl = Join-Path $env:USERPROFILE 'docker_watchdog\watchdog.log'
-          if (Test-Path $wl) { Get-Content $wl -Tail 40 } else { '로그 파일 없음: ' + $wl }
+          if (Test-Path $wl) { Get-Content $wl -Tail 8 } else { '로그 파일 없음' }
+
+          Remove-Item $root -Recurse -Force -EA 0
           EOF
 
           mkdir -p ~/.ssh
@@ -85,7 +113,6 @@ jobs:
           chmod 600 ~/.ssh/k
           b64=$(iconv -f UTF-8 -t UTF-16LE d.ps1 | base64 -w0)
 
-          # 재부팅 중이면 SSH 가 거절되므로 최대 6분(24회 x 15초) 재시도한다.
           ok=0
           for i in $(seq 1 24); do
             if ssh -i ~/.ssh/k -p "$PORT" \
@@ -94,12 +121,12 @@ jobs:
                    "powershell -NoProfile -NonInteractive -EncodedCommand $b64"; then
               ok=1; break
             fi
-            echo "--- SSH 시도 $i 실패 (재부팅 중일 수 있음) — 15초 후 재시도"
+            echo "--- SSH 시도 $i 실패 — 15초 후 재시도"
             sleep 15
           done
           rm -f ~/.ssh/k
 
           if [ "$ok" -ne 1 ]; then
-            echo "::error::6분 동안 SSH 접속 실패 — 미니PC가 아직 안 올라왔거나 네트워크 미복구"
+            echo "::error::6분 동안 SSH 접속 실패 — 미니PC 응답 없음"
             exit 1
           fi
