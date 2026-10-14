@@ -10,11 +10,12 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 2 — docker_watchdog.ps1 의 새 엔진 판정을 실물에서 검증한다.
-#   끊긴 끝점은 '아무도 응답하지 않는 파이프'라서 실제 사고("Error response from daemon:
-#   Docker Desktop is unable to start" — 파이프는 응답했고 백엔드가 오류를 돌려준 상태)와
-#   같지 않다. 그래서 이 검증은 '새 판정이 끊긴 엔진을 실패로 본다'까지만 증명하고,
-#   옛 판정이 그날 실제로 오판했는지는 증명하지 않는다. 엔진이 복구돼 재현이 불가능하다.
+# 점검 회차: 3 — 감시가 그 20시간 동안 실제로 돌았는지 예약작업 이력에서 확인한다.
+#   회차 2에서 끊긴 끝점에는 옛 판정도 종료코드 1 로 제대로 실패했다. 즉 '종료코드만
+#   보아 오판했다'는 가설은 지지되지 않았다. 남은 설명은 둘이다 — ① 파이프가 응답하고
+#   백엔드만 오류를 돌려주는 'unable to start' 상태에서는 docker info 가 0 으로 끝났다
+#   (재현 불가, 미검증) ② 감시가 그 20시간 동안 아예 돌지 않았다. ②는 예약작업 이력으로
+#   가를 수 있으므로 그것을 본다.
 
 on:
   push:
@@ -28,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Verify engine liveness judgement on Mini PC
+      - name: Was the watchdog running during the outage window
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -38,74 +39,50 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          $docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
-          $root = Join-Path $env:TEMP 'namu_engine_check'
-          New-Item -ItemType Directory -Force -Path $root | Out-Null
 
-          # 고친 docker_watchdog.ps1 의 Test-Engine 과 같은 판정.
-          function Judge-New($dh) {
-            $o = Join-Path $root 'n.out'; $e = Join-Path $root 'n.err'
-            Remove-Item $o, $e -Force -EA 0
-            $prev = $env:DOCKER_HOST
-            if ($dh) { $env:DOCKER_HOST = $dh }
-            try {
-              $p = Start-Process -FilePath $docker -ArgumentList 'version','--format','{{.Server.Version}}' `
-                     -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
-              $null = $p.Handle
-              if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return '응답없음 · 30초 초과' }
-              $ver = ''
-              if (Test-Path $o) { $ver = ((Get-Content $o -Raw -EA 0) -replace '\s','') }
-              if ($p.ExitCode -ne 0) {
-                $d = ''
-                if (Test-Path $e) {
-                  $f = (Get-Content $e -EA 0 | Where-Object { $_ -match '\S' } | Select-Object -First 1)
-                  if ($f) { $d = ([string]$f).Trim() }
-                }
-                $r = '응답없음 · 종료코드 ' + $p.ExitCode
-                if ($d) { $r += (' · ' + $d) }
-                return $r
+          $from = [datetime]'2026-10-14 00:00:00'
+          $to   = [datetime]'2026-10-15 01:00:00'
+
+          '########## 1. 예약작업 이력 — 감시가 돌았는가'
+          $log = 'Microsoft-Windows-TaskScheduler/Operational'
+          try {
+            $cfg = Get-WinEvent -ListLog $log -EA Stop
+            ('로그 사용: ' + $cfg.IsEnabled + ' · 보관 ' + [math]::Round($cfg.FileSize/1MB,1) + 'MB · 최대 ' + [math]::Round($cfg.MaximumSizeInBytes/1MB,1) + 'MB')
+            if (-not $cfg.IsEnabled) { '→ 이 로그가 꺼져 있어 이력을 알 수 없다 (판정 불가)' }
+            else {
+              $ev = Get-WinEvent -FilterHashtable @{ LogName=$log; StartTime=$from; EndTime=$to } -EA Stop |
+                      Where-Object { $_.Message -match 'NamuDockerWatchdog' }
+              ('창 안의 NamuDockerWatchdog 사건 수: ' + @($ev).Count)
+              if (@($ev).Count -gt 0) {
+                '--- 시간대별 건수 (감시는 3분마다라 정상이면 시간당 약 20건) ---'
+                ($ev | Group-Object { $_.TimeCreated.ToString('MM-dd HH시') } |
+                   Sort-Object Name | ForEach-Object { '  ' + $_.Name + ' : ' + $_.Count + '건' })
+                '--- 가장 이른/늦은 사건 ---'
+                ('  처음: ' + (($ev | Sort-Object TimeCreated | Select-Object -First 1).TimeCreated))
+                ('  마지막: ' + (($ev | Sort-Object TimeCreated | Select-Object -Last 1).TimeCreated))
               }
-              if ($ver -notmatch '^\d+\.\d+') { return ('응답없음 · 종료코드 0 이지만 버전 비정상: "' + $ver + '"') }
-              return ('응답OK · 서버 버전 ' + $ver)
-            } finally { $env:DOCKER_HOST = $prev }
-          }
+            }
+          } catch { '예약작업 이력 조회 실패: ' + $_.Exception.Message }
 
-          # 옛 판정 — docker info 의 종료코드만 본다.
-          function Judge-Old($dh) {
-            $o = Join-Path $root 'o.out'; $e = Join-Path $root 'o.err'
-            Remove-Item $o, $e -Force -EA 0
-            $prev = $env:DOCKER_HOST
-            if ($dh) { $env:DOCKER_HOST = $dh }
-            try {
-              $p = Start-Process -FilePath $docker -ArgumentList 'info','--format','{{.ServerVersion}}' `
-                     -NoNewWindow -PassThru -RedirectStandardOutput $o -RedirectStandardError $e
-              $null = $p.Handle
-              if (-not $p.WaitForExit(30000)) { try { $p.Kill() } catch {}; return '응답없음 · 30초 초과' }
-              $out = ''
-              if (Test-Path $o) { $out = ((Get-Content $o -Raw -EA 0) -replace '\s','') }
-              $verdict = $(if ($p.ExitCode -eq 0) { '응답OK' } else { '응답없음' })
-              return ($verdict + ' · 종료코드 ' + $p.ExitCode + ' · 받은출력 "' + $out + '"')
-            } finally { $env:DOCKER_HOST = $prev }
-          }
+          '########## 2. 그 시간대에 윈도우가 재시작/업데이트를 했는가'
+          try {
+            Get-WinEvent -FilterHashtable @{ LogName='System'; StartTime=$from; EndTime=$to;
+                                             Id=@(1074,1076,6005,6006,6008,41,43,44,19) } -EA Stop |
+              Sort-Object TimeCreated |
+              ForEach-Object { '  ' + $_.TimeCreated.ToString('MM-dd HH:mm:ss') + ' [' + $_.Id + '] ' +
+                               (($_.Message -split "`n")[0]).Trim() } |
+              Select-Object -First 40
+          } catch { 'System 로그 조회 실패 또는 해당 사건 없음: ' + $_.Exception.Message }
 
-          $dead = 'npipe:////./pipe/namu_no_such_engine'
+          '########## 3. 로그인 세션 (예약작업이 Interactive 로 등록돼 있다)'
+          (query user 2>&1 | Out-String).Trim()
+          ('현재 콘솔 세션 사용자: "' + ((Get-CimInstance Win32_ComputerSystem).UserName) + '"')
 
-          '########## 1. 살아 있는 엔진 (기본 끝점) — 둘 다 OK 여야 한다'
-          '  새 판정: ' + (Judge-New $null)
-          '  옛 판정: ' + (Judge-Old $null)
-
-          '########## 2. 끊긴 끝점 — 새 판정은 반드시 응답없음 이어야 한다'
-          '  새 판정: ' + (Judge-New $dead)
-          '  옛 판정: ' + (Judge-Old $dead)
-
-          '########## 3. 현재 서비스 상태'
-          (& $docker ps --format '{{.Names}} | {{.Status}}' 2>&1 | Out-String).Trim()
-
-          '########## 4. watchdog 로그 최근 8줄'
-          $wl = Join-Path $env:USERPROFILE 'docker_watchdog\watchdog.log'
-          if (Test-Path $wl) { Get-Content $wl -Tail 8 } else { '로그 파일 없음' }
-
-          Remove-Item $root -Recurse -Force -EA 0
+          '########## 4. 예약작업 등록 상태'
+          (Get-ScheduledTask -TaskName NamuDockerWatchdog |
+             Select-Object State, @{n='LogonType';e={$_.Principal.LogonType}},
+                                 @{n='UserId';e={$_.Principal.UserId}} |
+             Format-List | Out-String).Trim()
           EOF
 
           mkdir -p ~/.ssh
