@@ -1,0 +1,104 @@
+name: Mini PC diagnosis (read-only)
+
+# 2026-10-15 다운 조치용 점검. 작업 브랜치에 푸시할 때만 돈다 — main 배포(deploy.yml)는 건드리지 않는다.
+#
+# 왜 필요한가: 2026-10-14 01:20~06:25 KST 사이 Docker Desktop 엔진이 죽어 컨테이너 12개가
+# 전부 내려갔고(네 도메인 530 = 터널에 오리진 0개) 18시간 넘게 복구되지 않았다. 웹 세션에는
+# ssh 바이너리도 키도 없고 프록시가 onnamu.kr 을 막으므로, 미니PC 상태를 보는 길은 이 경로뿐이다.
+#
+# 미니PC에서는 읽기만 한다. 고치는 동작(도커 재시작 등)은 넣지 않는다: SSH 세션에서 띄운
+# Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
+# scripts/docker_watchdog.ps1 주석) 효과가 없다.
+#
+# 점검 회차: 4 — 머지 전 구문 검사. 고친 docker_watchdog.ps1 은 이 컨테이너에
+#   PowerShell 이 없어 실행 검증을 못 했다. 구문 오류가 있으면 예약작업이 3분마다
+#   조용히 실패해 감시가 죽는데, 그것이 바로 이번에 고치려던 실패 모드다. 그래서
+#   미니PC 가 공개 저장소에서 파일을 직접 받아 메모리에서 파싱만 한다 — 디스크에
+#   쓰지 않고 실행하지도 않는다(스크립트 본문은 상태 파일을 쓰고 도커를 재시작한다).
+
+on:
+  push:
+    branches:
+      - claude/nifty-brahmagupta-z0jsdk
+    paths:
+      - .github/workflows/minipc-diag.yml
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Syntax check the new watchdog before merge
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          cat > d.ps1 <<'EOF'
+          $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+          $url = 'https://raw.githubusercontent.com/onmiso-hash/onnamu-project/refs/heads/claude/nifty-brahmagupta-z0jsdk/scripts/docker_watchdog.ps1'
+
+          '########## 1. 고친 파일 받기 (메모리에만)'
+          try {
+            $code = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
+            ('받음: ' + $code.Length + '자')
+          } catch { '받기 실패: ' + $_.Exception.Message; exit 1 }
+
+          '########## 2. PowerShell 구문 검사'
+          $tokens = $null; $errs = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$errs)
+          if (@($errs).Count -eq 0) { '구문 OK — 오류 0건' }
+          else {
+            ('구문 오류 ' + @($errs).Count + '건 — 머지하면 감시가 죽는다')
+            $errs | ForEach-Object { '  ' + $_.Extent.StartLineNumber + '행: ' + $_.Message }
+          }
+
+          '########## 3. Test-Engine 이 새 판정을 쓰는가'
+          $fns = $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+          ('찾은 함수: ' + (($fns | ForEach-Object { $_.Name }) -join ', '))
+          $te = $fns | Where-Object { $_.Name -eq 'Test-Engine' }
+          if (-not $te) { '  Test-Engine 이 없다 (이상)' }
+          else {
+            $body = $te.Extent.Text
+            ('  version 판정 사용: ' + ($body -match "'version'"))
+            ('  Server.Version 사용: ' + ($body -match 'Server\.Version'))
+            ('  옛 info 판정 잔존: ' + ($body -match "'info'"))
+            ('  출력 읽음(outPath): ' + ($body -match 'outPath'))
+          }
+
+          '########## 4. 지금 미니PC 에 깔려 있는 판 (머지 전이라 옛 판이어야 한다)'
+          $live = 'C:\Users\onmis\project\scripts\docker_watchdog.ps1'
+          if (Test-Path $live) {
+            $l = Get-Content $live -Raw
+            ('  파일 크기: ' + $l.Length + '자')
+            ('  version 판정 있음: ' + ($l -match "ArgumentList 'version'"))
+            ('  info 판정 있음: ' + ($l -match "ArgumentList 'info'"))
+          } else { '  파일 없음: ' + $live }
+          EOF
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/k
+          chmod 600 ~/.ssh/k
+          b64=$(iconv -f UTF-8 -t UTF-16LE d.ps1 | base64 -w0)
+
+          ok=0
+          for i in $(seq 1 12); do
+            if ssh -i ~/.ssh/k -p "$PORT" \
+                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                   -o ConnectTimeout=15 -o LogLevel=ERROR "$USERNAME@$HOST" \
+                   "powershell -NoProfile -NonInteractive -EncodedCommand $b64"; then
+              ok=1; break
+            fi
+            echo "--- SSH 시도 $i 실패 — 15초 후 재시도"
+            sleep 15
+          done
+          rm -f ~/.ssh/k
+
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::SSH 접속 실패 — 미니PC 응답 없음"
+            exit 1
+          fi
