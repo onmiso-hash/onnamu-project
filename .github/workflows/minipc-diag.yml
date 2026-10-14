@@ -10,12 +10,11 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 3 — 감시가 그 20시간 동안 실제로 돌았는지 예약작업 이력에서 확인한다.
-#   회차 2에서 끊긴 끝점에는 옛 판정도 종료코드 1 로 제대로 실패했다. 즉 '종료코드만
-#   보아 오판했다'는 가설은 지지되지 않았다. 남은 설명은 둘이다 — ① 파이프가 응답하고
-#   백엔드만 오류를 돌려주는 'unable to start' 상태에서는 docker info 가 0 으로 끝났다
-#   (재현 불가, 미검증) ② 감시가 그 20시간 동안 아예 돌지 않았다. ②는 예약작업 이력으로
-#   가를 수 있으므로 그것을 본다.
+# 점검 회차: 4 — 머지 전 구문 검사. 고친 docker_watchdog.ps1 은 이 컨테이너에
+#   PowerShell 이 없어 실행 검증을 못 했다. 구문 오류가 있으면 예약작업이 3분마다
+#   조용히 실패해 감시가 죽는데, 그것이 바로 이번에 고치려던 실패 모드다. 그래서
+#   미니PC 가 공개 저장소에서 파일을 직접 받아 메모리에서 파싱만 한다 — 디스크에
+#   쓰지 않고 실행하지도 않는다(스크립트 본문은 상태 파일을 쓰고 도커를 재시작한다).
 
 on:
   push:
@@ -29,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Was the watchdog running during the outage window
+      - name: Syntax check the new watchdog before merge
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -39,50 +38,46 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
-          $from = [datetime]'2026-10-14 00:00:00'
-          $to   = [datetime]'2026-10-15 01:00:00'
+          $url = 'https://raw.githubusercontent.com/onmiso-hash/onnamu-project/refs/heads/claude/nifty-brahmagupta-z0jsdk/scripts/docker_watchdog.ps1'
 
-          '########## 1. 예약작업 이력 — 감시가 돌았는가'
-          $log = 'Microsoft-Windows-TaskScheduler/Operational'
+          '########## 1. 고친 파일 받기 (메모리에만)'
           try {
-            $cfg = Get-WinEvent -ListLog $log -EA Stop
-            ('로그 사용: ' + $cfg.IsEnabled + ' · 보관 ' + [math]::Round($cfg.FileSize/1MB,1) + 'MB · 최대 ' + [math]::Round($cfg.MaximumSizeInBytes/1MB,1) + 'MB')
-            if (-not $cfg.IsEnabled) { '→ 이 로그가 꺼져 있어 이력을 알 수 없다 (판정 불가)' }
-            else {
-              $ev = Get-WinEvent -FilterHashtable @{ LogName=$log; StartTime=$from; EndTime=$to } -EA Stop |
-                      Where-Object { $_.Message -match 'NamuDockerWatchdog' }
-              ('창 안의 NamuDockerWatchdog 사건 수: ' + @($ev).Count)
-              if (@($ev).Count -gt 0) {
-                '--- 시간대별 건수 (감시는 3분마다라 정상이면 시간당 약 20건) ---'
-                ($ev | Group-Object { $_.TimeCreated.ToString('MM-dd HH시') } |
-                   Sort-Object Name | ForEach-Object { '  ' + $_.Name + ' : ' + $_.Count + '건' })
-                '--- 가장 이른/늦은 사건 ---'
-                ('  처음: ' + (($ev | Sort-Object TimeCreated | Select-Object -First 1).TimeCreated))
-                ('  마지막: ' + (($ev | Sort-Object TimeCreated | Select-Object -Last 1).TimeCreated))
-              }
-            }
-          } catch { '예약작업 이력 조회 실패: ' + $_.Exception.Message }
+            $code = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
+            ('받음: ' + $code.Length + '자')
+          } catch { '받기 실패: ' + $_.Exception.Message; exit 1 }
 
-          '########## 2. 그 시간대에 윈도우가 재시작/업데이트를 했는가'
-          try {
-            Get-WinEvent -FilterHashtable @{ LogName='System'; StartTime=$from; EndTime=$to;
-                                             Id=@(1074,1076,6005,6006,6008,41,43,44,19) } -EA Stop |
-              Sort-Object TimeCreated |
-              ForEach-Object { '  ' + $_.TimeCreated.ToString('MM-dd HH:mm:ss') + ' [' + $_.Id + '] ' +
-                               (($_.Message -split "`n")[0]).Trim() } |
-              Select-Object -First 40
-          } catch { 'System 로그 조회 실패 또는 해당 사건 없음: ' + $_.Exception.Message }
+          '########## 2. PowerShell 구문 검사'
+          $tokens = $null; $errs = $null
+          $ast = [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$errs)
+          if (@($errs).Count -eq 0) { '구문 OK — 오류 0건' }
+          else {
+            ('구문 오류 ' + @($errs).Count + '건 — 머지하면 감시가 죽는다')
+            $errs | ForEach-Object { '  ' + $_.Extent.StartLineNumber + '행: ' + $_.Message }
+          }
 
-          '########## 3. 로그인 세션 (예약작업이 Interactive 로 등록돼 있다)'
-          (query user 2>&1 | Out-String).Trim()
-          ('현재 콘솔 세션 사용자: "' + ((Get-CimInstance Win32_ComputerSystem).UserName) + '"')
+          '########## 3. Test-Engine 이 새 판정을 쓰는가'
+          $fns = $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
+          ('찾은 함수: ' + (($fns | ForEach-Object { $_.Name }) -join ', '))
+          $te = $fns | Where-Object { $_.Name -eq 'Test-Engine' }
+          if (-not $te) { '  Test-Engine 이 없다 (이상)' }
+          else {
+            $body = $te.Extent.Text
+            ('  version 판정 사용: ' + ($body -match "'version'"))
+            ('  Server.Version 사용: ' + ($body -match 'Server\.Version'))
+            ('  옛 info 판정 잔존: ' + ($body -match "'info'"))
+            ('  출력 읽음(outPath): ' + ($body -match 'outPath'))
+          }
 
-          '########## 4. 예약작업 등록 상태'
-          (Get-ScheduledTask -TaskName NamuDockerWatchdog |
-             Select-Object State, @{n='LogonType';e={$_.Principal.LogonType}},
-                                 @{n='UserId';e={$_.Principal.UserId}} |
-             Format-List | Out-String).Trim()
+          '########## 4. 지금 미니PC 에 깔려 있는 판 (머지 전이라 옛 판이어야 한다)'
+          $live = 'C:\Users\onmis\project\scripts\docker_watchdog.ps1'
+          if (Test-Path $live) {
+            $l = Get-Content $live -Raw
+            ('  파일 크기: ' + $l.Length + '자')
+            ('  version 판정 있음: ' + ($l -match "ArgumentList 'version'"))
+            ('  info 판정 있음: ' + ($l -match "ArgumentList 'info'"))
+          } else { '  파일 없음: ' + $live }
           EOF
 
           mkdir -p ~/.ssh
@@ -91,7 +86,7 @@ jobs:
           b64=$(iconv -f UTF-8 -t UTF-16LE d.ps1 | base64 -w0)
 
           ok=0
-          for i in $(seq 1 24); do
+          for i in $(seq 1 12); do
             if ssh -i ~/.ssh/k -p "$PORT" \
                    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                    -o ConnectTimeout=15 -o LogLevel=ERROR "$USERNAME@$HOST" \
@@ -104,6 +99,6 @@ jobs:
           rm -f ~/.ssh/k
 
           if [ "$ok" -ne 1 ]; then
-            echo "::error::6분 동안 SSH 접속 실패 — 미니PC 응답 없음"
+            echo "::error::SSH 접속 실패 — 미니PC 응답 없음"
             exit 1
           fi
