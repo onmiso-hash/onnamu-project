@@ -1,0 +1,105 @@
+name: Mini PC diagnosis (read-only)
+
+# 2026-10-15 다운 조치용 점검. 작업 브랜치에 푸시할 때만 돈다 — main 배포(deploy.yml)는 건드리지 않는다.
+#
+# 왜 필요한가: 2026-10-14 01:20~06:25 KST 사이 Docker Desktop 엔진이 죽어 컨테이너 12개가
+# 전부 내려갔고(네 도메인 530 = 터널에 오리진 0개) 18시간 넘게 복구되지 않았다. 웹 세션에는
+# ssh 바이너리도 키도 없고 프록시가 onnamu.kr 을 막으므로, 미니PC 상태를 보는 길은 이 경로뿐이다.
+#
+# 미니PC에서는 읽기만 한다 — 프로세스·컨테이너·WSL·디스크·예약작업·watchdog 로그.
+# 고치는 동작(도커 재시작 등)은 넣지 않는다: SSH 세션에서 띄운 Docker Desktop 은 접속이
+# 끊길 때 함께 정리되므로(2026-09-10·09-14 실측, scripts/docker_watchdog.ps1 주석) 효과가 없다.
+#
+# 점검 회차: 1
+
+on:
+  push:
+    branches:
+      - claude/nifty-brahmagupta-z0jsdk
+    paths:
+      - .github/workflows/minipc-diag.yml
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Mini PC state
+        env:
+          HOST: ${{ secrets.HOST }}
+          USERNAME: ${{ secrets.USERNAME }}
+          PORT: ${{ secrets.PORT }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          cat > d.ps1 <<'EOF'
+          $ErrorActionPreference='SilentlyContinue'; $ProgressPreference='SilentlyContinue'
+          [Console]::OutputEncoding=[Text.Encoding]::UTF8
+          $docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+
+          '########## 부팅 시각 / 가동 시간'
+          $os = Get-CimInstance Win32_OperatingSystem
+          '마지막 부팅: ' + $os.LastBootUpTime
+          '가동 시간  : ' + ((Get-Date) - $os.LastBootUpTime).ToString()
+
+          '########## 로그인 세션 (watchdog 이 돌 수 있는 조건)'
+          quser 2>&1
+
+          '########## Docker Desktop 프로세스'
+          (Get-Process 'Docker Desktop','com.docker.backend','com.docker.build' |
+             Select-Object Name,Id,StartTime | Format-Table -AutoSize | Out-String).Trim()
+
+          '########## 도커 엔진 응답 대기 (최대 3분)'
+          $up = $false
+          foreach ($i in 1..18) {
+            $v = & $docker version --format '{{.Server.Version}}' 2>&1
+            if ($LASTEXITCODE -eq 0) { '엔진 응답 OK (' + $i + '번째 시도): ' + $v; $up = $true; break }
+            '대기 ' + $i + '/18: ' + (($v | Out-String).Trim())
+            Start-Sleep -Seconds 10
+          }
+
+          '########## 컨테이너 목록'
+          if ($up) { & $docker ps -a --format '{{.Names}} | {{.Status}}' 2>&1 }
+          else { '엔진이 응답하지 않아 조회 불가' }
+
+          '########## WSL'
+          (wsl --status 2>&1 | Out-String).Trim()
+          (wsl -l -v 2>&1 | Out-String).Trim()
+
+          '########## C 드라이브'
+          (Get-PSDrive C | Select-Object @{n='Used_GB';e={[math]::Round($_.Used/1GB,1)}},
+             @{n='Free_GB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize | Out-String).Trim()
+
+          '########## watchdog 예약 작업'
+          (Get-ScheduledTask -TaskName NamuDockerWatchdog |
+             Select-Object TaskName,State | Format-Table -AutoSize | Out-String).Trim()
+          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog |
+             Select-Object LastRunTime,LastTaskResult,NextRunTime | Format-Table -AutoSize | Out-String).Trim()
+
+          '########## watchdog 로그 최근 40줄 — 18시간 못 살린 이유'
+          $wl = Join-Path $env:USERPROFILE 'docker_watchdog\watchdog.log'
+          if (Test-Path $wl) { Get-Content $wl -Tail 40 } else { '로그 파일 없음: ' + $wl }
+          EOF
+
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/k
+          chmod 600 ~/.ssh/k
+          b64=$(iconv -f UTF-8 -t UTF-16LE d.ps1 | base64 -w0)
+
+          # 재부팅 중이면 SSH 가 거절되므로 최대 6분(24회 x 15초) 재시도한다.
+          ok=0
+          for i in $(seq 1 24); do
+            if ssh -i ~/.ssh/k -p "$PORT" \
+                   -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                   -o ConnectTimeout=15 -o LogLevel=ERROR "$USERNAME@$HOST" \
+                   "powershell -NoProfile -NonInteractive -EncodedCommand $b64"; then
+              ok=1; break
+            fi
+            echo "--- SSH 시도 $i 실패 (재부팅 중일 수 있음) — 15초 후 재시도"
+            sleep 15
+          done
+          rm -f ~/.ssh/k
+
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::6분 동안 SSH 접속 실패 — 미니PC가 아직 안 올라왔거나 네트워크 미복구"
+            exit 1
+          fi
