@@ -10,7 +10,7 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 9 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+# 점검 회차: 11 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
 #   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
 #   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
@@ -49,26 +49,36 @@ jobs:
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
           $d='C:\Program Files\Docker\Docker\resources\bin\docker.exe'
-          '## 1 갤러리 로그 전문 (최근 90분 — 몇 줄 안 된다)'
-          (& $d logs --since 90m --timestamps my-gallery 2>&1|ForEach-Object{'  '+[string]$_})
-          '## 2 포털 로그 전문 (최근 90분)'
-          (& $d logs --since 90m --timestamps my-portal 2>&1|ForEach-Object{'  '+[string]$_})
-          '## 3 요청된 영상 파일의 크기'
-          foreach($r in 'C:\Users\onmis\media','C:\Users\onmis\project\gallery'){
-            if(Test-Path $r){
-              ('--- '+$r)
-              (Get-ChildItem $r -Recurse -Include *.mp4,*.mkv,*.mov,*.webm -EA 0|
-                Sort-Object Length -Descending|Select-Object -First 8|
-                ForEach-Object{'  '+[math]::Round($_.Length/1MB)+' MB  '+$_.Name})
-            }
-          }
-          '## 4 디펜더 검사 전체 (최근 24시간) — 몇 번 돌았나'
-          try{
-            $e=Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Windows Defender/Operational';
-              StartTime=(Get-Date).AddHours(-24)} -EA Stop|Where-Object{$_.Id -in 1000,1001}
-            ('  검사 사건 '+@($e).Count+'건')
-            $e|Sort-Object TimeCreated|ForEach-Object{'  '+$_.TimeCreated.ToString('MM-dd HH:mm:ss')+' ['+$_.Id+']'}|Select-Object -First 20
-          }catch{'  조회 실패'}
+          '## 1 깔린 portal/app.py 에 기록 장치가 있나'
+          $f='C:\Users\onmis\project\portal\app.py'
+          if(Test-Path $f){
+            $t=Get-Content $f -Raw
+            ('  system_stats 표      : '+($t -match 'CREATE TABLE IF NOT EXISTS system_stats'))
+            ('  일꾼 _stats_sampler  : '+($t -match '_stats_sampler'))
+            ('  기동에서 띄우나      : '+($t -match 'start_stats_sampler\(\)'))
+            ('  history 길           : '+($t -match '/api/stats/history'))
+            ('  옛 interval=None 잔존: '+($t -match 'cpu_percent\(interval=None\)'))
+          }else{'  파일 없음'}
+          '## 2 컨테이너 안에도 반영됐나'
+          (& $d exec my-portal sh -c "grep -c _stats_sampler /app/app.py" 2>&1|ForEach-Object{'  _stats_sampler 줄수: '+[string]$_})
+          '## 3 표에 줄이 쌓이나 (1분에 한 줄)'
+          $q='python -c "import sqlite3;c=sqlite3.connect(''data/news.db'');print(c.execute(''select count(*) from system_stats'').fetchone()[0])"'
+          $n1=(& $d exec my-portal sh -c $q 2>&1|Out-String).Trim()
+          ('  1차 줄수: '+$n1)
+          '  70초 기다린다 — 1분에 한 줄이므로 늘어나야 한다'
+          Start-Sleep -Seconds 70
+          $n2=(& $d exec my-portal sh -c $q 2>&1|Out-String).Trim()
+          ('  2차 줄수: '+$n2)
+          ('  → 늘었나: '+($(try{[int]$n2 -gt [int]$n1}catch{'판정불가'})))
+          '## 4 마지막 줄 내용'
+          $q2='python -c "import sqlite3;c=sqlite3.connect(''data/news.db'');r=c.execute(''select at,cpu_avg,cpu_max,ram_avg,ram_max,samples from system_stats order by at desc limit 3'').fetchall();[print(x) for x in r]"'
+          (& $d exec my-portal sh -c $q2 2>&1|ForEach-Object{'  '+[string]$_})
+          '  (at, cpu_avg, cpu_max, ram_avg, ram_max, samples)'
+          '## 5 포털 로그에 오류가 없나'
+          (& $d logs --since 5m my-portal 2>&1|Where-Object{[string]$_ -match 'Error|Traceback|Exception'}|ForEach-Object{'  '+[string]$_}|Select-Object -First 10)
+          '  (위가 비어 있으면 오류 없음)'
+          '## 6 컨테이너'
+          (& $d ps --format '{{.Names}} | {{.Status}}' 2>&1|Out-String).Trim()
           EOF
 
           mkdir -p ~/.ssh
