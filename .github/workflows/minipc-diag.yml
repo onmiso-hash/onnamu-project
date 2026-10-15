@@ -10,7 +10,7 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 8 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+# 점검 회차: 9 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
 #   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
 #   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
@@ -49,43 +49,26 @@ jobs:
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
           $d='C:\Program Files\Docker\Docker\resources\bin\docker.exe'
-          '## 1 컨테이너별 분당 로그 폭주 (최근 60분, 바쁜 5분만)'
-          foreach($c in 'my-gallery','my-portal','chronicle-studio','stream-nginx','my-rdap','rdap-bootstrap','n8n'){
-            $l=& $d logs --since 60m --timestamps $c 2>&1
-            $n=@($l).Count
-            if($n -gt 0){
-              ('--- '+$c+' 총 '+$n+'줄')
-              $l|Where-Object{$_ -match '^\d{4}-'}|Group-Object{$_.Substring(0,16)}|
-                Sort-Object Count -Descending|Select-Object -First 5|
-                ForEach-Object{'    '+$_.Name+' : '+$_.Count+'줄'}
-            } else {('--- '+$c+' 0줄')}
+          '## 1 갤러리 로그 전문 (최근 90분 — 몇 줄 안 된다)'
+          (& $d logs --since 90m --timestamps my-gallery 2>&1|ForEach-Object{'  '+[string]$_})
+          '## 2 포털 로그 전문 (최근 90분)'
+          (& $d logs --since 90m --timestamps my-portal 2>&1|ForEach-Object{'  '+[string]$_})
+          '## 3 요청된 영상 파일의 크기'
+          foreach($r in 'C:\Users\onmis\media','C:\Users\onmis\project\gallery'){
+            if(Test-Path $r){
+              ('--- '+$r)
+              (Get-ChildItem $r -Recurse -Include *.mp4,*.mkv,*.mov,*.webm -EA 0|
+                Sort-Object Length -Descending|Select-Object -First 8|
+                ForEach-Object{'  '+[math]::Round($_.Length/1MB)+' MB  '+$_.Name})
+            }
           }
-          '## 2 갤러리/영화관에 영상 원본 요청이 있었나 (08-20 미해결 고장)'
-          $g=& $d logs --since 60m --timestamps my-gallery 2>&1
-          ($g|Where-Object{$_ -match '\.(mp4|mkv|mov|avi|webm)'}|Select-Object -First 15)
-          ('  영상 요청 줄수: '+@($g|Where-Object{$_ -match '\.(mp4|mkv|mov|avi|webm)'}).Count)
-          ('  200 전체전송: '+@($g|Where-Object{$_ -match '\.(mp4|mkv|mov|avi|webm)' -and $_ -match ' 200 '}).Count)
-          ('  206 부분전송: '+@($g|Where-Object{$_ -match '\.(mp4|mkv|mov|avi|webm)' -and $_ -match ' 206 '}).Count)
-          '## 3 윈도우 디펜더 검사 기록 (최근 12시간)'
+          '## 4 디펜더 검사 전체 (최근 24시간) — 몇 번 돌았나'
           try{
-            Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Windows Defender/Operational';
-              StartTime=(Get-Date).AddHours(-12)} -EA Stop|
-              Where-Object{$_.Id -in 1000,1001,1002,2000,2001}|Sort-Object TimeCreated|
-              ForEach-Object{'  '+$_.TimeCreated.ToString('HH:mm:ss')+' ['+$_.Id+'] '+(($_.Message -split "`n")[0]).Trim()}|
-              Select-Object -First 15
-          }catch{'  디펜더 로그 조회 실패/없음'}
-          ('  MsMpEng 누적CPU초: '+[math]::Round((Get-Process MsMpEng -EA 0).CPU))
-          '## 4 시스템+응용 로그 전체 (최근 3시간, 경고/오류만)'
-          try{
-            Get-WinEvent -FilterHashtable @{LogName='System','Application';
-              StartTime=(Get-Date).AddHours(-3); Level=2,3} -EA Stop|Sort-Object TimeCreated|
-              ForEach-Object{'  '+$_.TimeCreated.ToString('HH:mm:ss')+' '+$_.ProviderName+' ['+$_.Id+'] '+(($_.Message -split "`n")[0]).Trim()}|
-              Select-Object -First 25
-          }catch{'  해당 없음'}
-          '## 5 프로세스 누적CPU초 상위 12 (부팅 이후 총량 — 지나간 폭주가 남는다)'
-          (Get-Process|Where-Object{$_.CPU -gt 0}|Sort-Object CPU -Descending|Select-Object -First 12 |
-            Select-Object Name,Id,@{n='CPU초';e={[math]::Round($_.CPU)}},@{n='MB';e={[math]::Round($_.WorkingSet64/1MB)}}|
-            Format-Table -AutoSize|Out-String).Trim()
+            $e=Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Windows Defender/Operational';
+              StartTime=(Get-Date).AddHours(-24)} -EA Stop|Where-Object{$_.Id -in 1000,1001}
+            ('  검사 사건 '+@($e).Count+'건')
+            $e|Sort-Object TimeCreated|ForEach-Object{'  '+$_.TimeCreated.ToString('MM-dd HH:mm:ss')+' ['+$_.Id+']'}|Select-Object -First 20
+          }catch{'  조회 실패'}
           EOF
 
           mkdir -p ~/.ssh
