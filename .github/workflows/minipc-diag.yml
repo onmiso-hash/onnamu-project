@@ -10,11 +10,20 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 4 — 머지 전 구문 검사. 고친 docker_watchdog.ps1 은 이 컨테이너에
-#   PowerShell 이 없어 실행 검증을 못 했다. 구문 오류가 있으면 예약작업이 3분마다
-#   조용히 실패해 감시가 죽는데, 그것이 바로 이번에 고치려던 실패 모드다. 그래서
-#   미니PC 가 공개 저장소에서 파일을 직접 받아 메모리에서 파싱만 한다 — 디스크에
-#   쓰지 않고 실행하지도 않는다(스크립트 본문은 상태 파일을 쓰고 도커를 재시작한다).
+# 점검 회차: 9 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+#
+#   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
+#   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
+#   이것을 반복한다 — 약 13분 주기로 도커가 재시작되면 CPU 를 계속 먹는다. 그래서
+#   watchdog.log 와 state.json, Docker Desktop 프로세스의 시작 시각을 먼저 본다.
+#
+#   그 다음 일반 용의자 — 프로세스별 현재 CPU%, 컨테이너별 CPU(docker stats).
+#
+#   회차 6은 보낼 명령이 12,586자가 되어 윈도우가 "명령줄이 너무 깁니다"로 거부했다
+#   (SSH 는 붙었고 윈도우가 답한 것이다 — 미니PC 장애가 아니다). 실측 한계는 약
+#   8,190자이며 scripts/check_deploy_cmd_len.sh 에 그 근거가 적혀 있다. 그 검사는
+#   워크플로 YAML 의 '줄 길이'만 보므로, 히어독+base64 로 실행 시점에 조립되는 이
+#   명령은 걸러내지 못한다 — 사각지대다. 그래서 회차 7은 꼭 필요한 것만 남겼다.
 
 on:
   push:
@@ -22,13 +31,14 @@ on:
       - claude/nifty-brahmagupta-z0jsdk
     paths:
       - .github/workflows/minipc-diag.yml
+  workflow_dispatch:
 
 jobs:
   diag:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Syntax check the new watchdog before merge
+      - name: What is eating the CPU
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -38,46 +48,27 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-          $url = 'https://raw.githubusercontent.com/onmiso-hash/onnamu-project/refs/heads/claude/nifty-brahmagupta-z0jsdk/scripts/docker_watchdog.ps1'
-
-          '########## 1. 고친 파일 받기 (메모리에만)'
-          try {
-            $code = (Invoke-WebRequest -UseBasicParsing -Uri $url -TimeoutSec 30).Content
-            ('받음: ' + $code.Length + '자')
-          } catch { '받기 실패: ' + $_.Exception.Message; exit 1 }
-
-          '########## 2. PowerShell 구문 검사'
-          $tokens = $null; $errs = $null
-          $ast = [System.Management.Automation.Language.Parser]::ParseInput($code, [ref]$tokens, [ref]$errs)
-          if (@($errs).Count -eq 0) { '구문 OK — 오류 0건' }
-          else {
-            ('구문 오류 ' + @($errs).Count + '건 — 머지하면 감시가 죽는다')
-            $errs | ForEach-Object { '  ' + $_.Extent.StartLineNumber + '행: ' + $_.Message }
+          $d='C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+          '## 1 갤러리 로그 전문 (최근 90분 — 몇 줄 안 된다)'
+          (& $d logs --since 90m --timestamps my-gallery 2>&1|ForEach-Object{'  '+[string]$_})
+          '## 2 포털 로그 전문 (최근 90분)'
+          (& $d logs --since 90m --timestamps my-portal 2>&1|ForEach-Object{'  '+[string]$_})
+          '## 3 요청된 영상 파일의 크기'
+          foreach($r in 'C:\Users\onmis\media','C:\Users\onmis\project\gallery'){
+            if(Test-Path $r){
+              ('--- '+$r)
+              (Get-ChildItem $r -Recurse -Include *.mp4,*.mkv,*.mov,*.webm -EA 0|
+                Sort-Object Length -Descending|Select-Object -First 8|
+                ForEach-Object{'  '+[math]::Round($_.Length/1MB)+' MB  '+$_.Name})
+            }
           }
-
-          '########## 3. Test-Engine 이 새 판정을 쓰는가'
-          $fns = $ast.FindAll({ $args[0] -is [System.Management.Automation.Language.FunctionDefinitionAst] }, $true)
-          ('찾은 함수: ' + (($fns | ForEach-Object { $_.Name }) -join ', '))
-          $te = $fns | Where-Object { $_.Name -eq 'Test-Engine' }
-          if (-not $te) { '  Test-Engine 이 없다 (이상)' }
-          else {
-            $body = $te.Extent.Text
-            ('  version 판정 사용: ' + ($body -match "'version'"))
-            ('  Server.Version 사용: ' + ($body -match 'Server\.Version'))
-            ('  옛 info 판정 잔존: ' + ($body -match "'info'"))
-            ('  출력 읽음(outPath): ' + ($body -match 'outPath'))
-          }
-
-          '########## 4. 지금 미니PC 에 깔려 있는 판 (머지 전이라 옛 판이어야 한다)'
-          $live = 'C:\Users\onmis\project\scripts\docker_watchdog.ps1'
-          if (Test-Path $live) {
-            $l = Get-Content $live -Raw
-            ('  파일 크기: ' + $l.Length + '자')
-            ('  version 판정 있음: ' + ($l -match "ArgumentList 'version'"))
-            ('  info 판정 있음: ' + ($l -match "ArgumentList 'info'"))
-          } else { '  파일 없음: ' + $live }
+          '## 4 디펜더 검사 전체 (최근 24시간) — 몇 번 돌았나'
+          try{
+            $e=Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Windows Defender/Operational';
+              StartTime=(Get-Date).AddHours(-24)} -EA Stop|Where-Object{$_.Id -in 1000,1001}
+            ('  검사 사건 '+@($e).Count+'건')
+            $e|Sort-Object TimeCreated|ForEach-Object{'  '+$_.TimeCreated.ToString('MM-dd HH:mm:ss')+' ['+$_.Id+']'}|Select-Object -First 20
+          }catch{'  조회 실패'}
           EOF
 
           mkdir -p ~/.ssh

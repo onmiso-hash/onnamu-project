@@ -213,10 +213,16 @@
         <div class="tile" data-path="{{ f.path }}" data-type="{{ media_type }}">
             <span class="folder-tag">{{ f.folder }}</span>
             {% if media_type == 'video' %}
-                <video
-                    data-src="/media/{{ f.path }}#t=0.5"
-                    muted playsinline preload="none"
-                ></video>
+                {# 타일은 썸네일만 받는다. 전에는 원본 mp4 를 data-src 로 걸고 아래
+                   관찰자가 load() 로 즉시 받아왔다 — preload="none" 이 무력화되고
+                   #t=0.5 프레임을 그리려 파일을 통째로 내려받아, 2026-08-20 과
+                   2026-10-15 두 번 미니PC CPU 가 90~100% 를 쳤다(영상 4개 동시
+                   200 전체전송). 영화관(movies.html)은 처음부터 이 방식이었다. #}
+                <img
+                    src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
+                    data-src="/thumbnail/{{ f.path }}?v={{ thumb_v }}"
+                    alt="{{ f.name }}"
+                >
                 <div class="play-icon">
                     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <circle cx="24" cy="24" r="24" fill="rgba(255,255,255,0.2)"/>
@@ -396,16 +402,14 @@
     document.addEventListener("DOMContentLoaded", function() {
         initMediaItems();
 
-        const lazyMedias = document.querySelectorAll("video[data-src], img[data-src]");
+        // 타일은 전부 img 다 — 비디오를 걸면 load() 가 원본을 통째로 받아온다(위 주석 참고).
+        const lazyMedias = document.querySelectorAll("img[data-src]");
         if ("IntersectionObserver" in window) {
             const loadObserver = new IntersectionObserver(function(entries, observer) {
                 entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
                         const media = entry.target;
                         media.src = media.dataset.src;
-                        if (media.tagName === 'VIDEO') {
-                            media.load();
-                        }
                         media.removeAttribute("data-src");
                         observer.unobserve(media);
                     }
@@ -417,15 +421,6 @@
             });
         }
 
-        document.querySelectorAll('.tile video').forEach(video => {
-            video.addEventListener('mouseenter', () => {
-                video.play().catch(e => { }); 
-            });
-            video.addEventListener('mouseleave', () => {
-                video.pause();
-                video.currentTime = 0.5;
-            });
-        });
     });
 </script>
 
