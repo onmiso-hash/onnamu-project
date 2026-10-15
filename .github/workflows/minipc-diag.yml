@@ -10,13 +10,15 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 5 — 배포 뒤 적용 확인. 깔린 파일이 새 판인지, 감시가 그 파일로 돌고
-#   있는지, 서비스가 멀쩡한지를 미니PC 실물에서 본다. 배포 워크플로의 'success' 는
-#   증거가 아니다 — deploy.ps1 이 종료코드를 보지 않고 무조건 exit 0 으로 끝나므로
-#   docker 단계가 전부 실패해도 초록불이 뜬다(2026-10-14 실측).
+# 점검 회차: 6 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
-# 손으로도 돌릴 수 있게 workflow_dispatch 를 더했다. 그 전에는 확인할 때마다 이
-#   파일을 고쳐 커밋해야 했다.
+#   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
+#   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
+#   이것을 반복한다 — 약 13분 주기로 도커가 재시작되면 CPU 를 계속 먹는다. 그래서
+#   watchdog.log 와 state.json, Docker Desktop 프로세스의 시작 시각을 먼저 본다.
+#
+#   그 다음 일반 용의자 — 프로세스별 현재 CPU%, 컨테이너별 CPU(docker stats),
+#   컨테이너 재시작 횟수, Windows 쪽 사건(업데이트·백신 검사).
 
 on:
   push:
@@ -31,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Verify the fix is live on Mini PC
+      - name: What is eating the CPU
         env:
           HOST: ${{ secrets.HOST }}
           USERNAME: ${{ secrets.USERNAME }}
@@ -41,60 +43,81 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          $proj = 'C:\Users\onmis\project'
           $docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+          $wdRoot = Join-Path $env:USERPROFILE 'docker_watchdog'
 
-          '########## 1. 깔린 감시 파일이 새 판인가'
-          $live = Join-Path $proj 'scripts\docker_watchdog.ps1'
-          if (-not (Test-Path $live)) { '  파일 없음: ' + $live }
-          else {
-            $l = Get-Content $live -Raw
-            ('  크기: ' + $l.Length + '자  (옛 판 4618 / 새 판 6237)')
-            ('  새 판정 version 있음 : ' + ($l -match "ArgumentList 'version'"))
-            ('  새 판정 Server.Version: ' + ($l -match 'Server\.Version'))
-            ('  옛 판정 info 잔존     : ' + ($l -match "ArgumentList 'info'"))
-            ('  출력 읽음 outPath     : ' + ($l -match 'outPath'))
-            ('  실패 사유 로깅        : ' + ($l -match 'engineReason'))
-            $t=$null;$e=$null
-            $null = [System.Management.Automation.Language.Parser]::ParseInput($l,[ref]$t,[ref]$e)
-            ('  깔린 파일 구문 오류   : ' + @($e).Count + '건')
+          '########## 0. 기본'
+          $cs = Get-CimInstance Win32_ComputerSystem
+          $os = Get-CimInstance Win32_OperatingSystem
+          ('  논리 코어 수: ' + $cs.NumberOfLogicalProcessors + '  (프로세스 CPU% 는 코어 합산이라 100 을 넘을 수 있다)')
+          ('  마지막 부팅  : ' + $os.LastBootUpTime + '  가동 ' + ((Get-Date) - $os.LastBootUpTime).ToString('d\.hh\:mm\:ss'))
+          ('  메모리 여유  : ' + [math]::Round($os.FreePhysicalMemory/1MB,1) + 'GB / ' +
+                                 [math]::Round($cs.TotalPhysicalMemory/1GB,1) + 'GB')
+
+          '########## 1. 감시가 도커를 반복 재시작하고 있는가  ← 어제 바꾼 판정이 첫 용의자'
+          $wl = Join-Path $wdRoot 'watchdog.log'
+          if (Test-Path $wl) {
+            '--- watchdog.log 최근 30줄 ---'
+            Get-Content $wl -Tail 30
+            $recent = Get-Content $wl | Where-Object { $_ -match '^2026-10-15' }
+            ('--- 오늘(10-15) 줄 수: ' + @($recent).Count)
+            ('--- 오늘 "다시 띄운다" 횟수: ' + @($recent | Where-Object { $_ -match '다시 띄운다' }).Count)
+            '    → 0 이면 감시는 무죄다. 여러 번이면 판정 오판으로 재시작을 반복하는 것이다'
+          } else { '  watchdog.log 없음' }
+          $sf = Join-Path $wdRoot 'state.json'
+          if (Test-Path $sf) { ('  state.json: ' + ((Get-Content $sf -Raw) -replace '\s','')) }
+          $io = Join-Path $wdRoot 'info.out'
+          $ie = Join-Path $wdRoot 'info.err'
+          if (Test-Path $io) { ('  info.out ' + (Get-Item $io).LastWriteTime + ' = "' + ((Get-Content $io -Raw -EA 0) -replace '\s','') + '"') }
+          if (Test-Path $ie) { ('  info.err ' + (Get-Item $ie).LastWriteTime + ' = "' + ((Get-Content $ie -Raw -EA 0) -replace '\s','') + '"') }
+          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog |
+             Select-Object LastRunTime, LastTaskResult, NextRunTime | Format-List | Out-String).Trim()
+
+          '########## 2. Docker Desktop 프로세스 시작 시각 (최근이면 방금 재시작된 것)'
+          (Get-Process 'Docker Desktop','com.docker.backend','com.docker.build','vmmem','vmmemWSL','wslservice' -EA 0 |
+             Select-Object Name, Id, StartTime,
+               @{n='CPU초';e={[math]::Round($_.CPU)}},
+               @{n='WS_MB';e={[math]::Round($_.WorkingSet64/1MB)}} |
+             Sort-Object Name | Format-Table -AutoSize | Out-String).Trim()
+
+          '########## 3. 전체 CPU (2초 간격 3회)'
+          try {
+            (Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval 2 -MaxSamples 3 -EA Stop).CounterSamples |
+              ForEach-Object { '  ' + [math]::Round($_.CookedValue,1) + '%' }
+          } catch { '  Get-Counter 실패: ' + $_.Exception.Message
+                    ('  Win32_Processor LoadPercentage: ' +
+                      ((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average) + '%') }
+
+          '########## 4. 프로세스별 현재 CPU% 상위 15'
+          (Get-CimInstance Win32_PerfFormattedData_PerfProc_Process |
+             Where-Object { $_.Name -ne '_Total' -and $_.Name -ne 'Idle' } |
+             Sort-Object PercentProcessorTime -Descending | Select-Object -First 15 |
+             Select-Object @{n='이름';e={$_.Name}}, @{n='PID';e={$_.IDProcess}},
+                           @{n='CPU%';e={$_.PercentProcessorTime}},
+                           @{n='WS_MB';e={[math]::Round($_.WorkingSetPrivate/1MB)}} |
+             Format-Table -AutoSize | Out-String).Trim()
+
+          '########## 5. 컨테이너별 CPU·메모리'
+          (& $docker stats --no-stream --format '{{.Name}} | CPU {{.CPUPerc}} | MEM {{.MemUsage}} ({{.MemPerc}})' 2>&1 | Out-String).Trim()
+
+          '########## 6. 컨테이너 재시작 횟수 (재시작 루프 찾기)'
+          $names = & $docker ps -a --format '{{.Names}}' 2>&1
+          foreach ($n in $names) {
+            if ($n -and $n -notmatch 'Error|error') {
+              $rc = & $docker inspect -f '{{.RestartCount}}|{{.State.Status}}|{{.State.StartedAt}}' $n 2>&1
+              ('  ' + $n + ' → 재시작 ' + $rc)
+            }
           }
 
-          '########## 2. 저장소 커밋'
-          Push-Location $proj; (git log -1 --format='  %h %s' 2>&1); Pop-Location
-
-          '########## 3. 감시가 그 파일로 돌고 있는가'
-          (Get-ScheduledTask -TaskName NamuDockerWatchdog | Select-Object State |
-             Format-List | Out-String).Trim()
-          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog |
-             Select-Object LastRunTime, LastTaskResult, NextRunTime |
-             Format-List | Out-String).Trim()
-          $io = Join-Path $env:USERPROFILE 'docker_watchdog\info.out'
-          if (Test-Path $io) {
-            ('  info.out 마지막 기록: ' + (Get-Item $io).LastWriteTime +
-             '  내용 "' + ((Get-Content $io -Raw -EA 0) -replace '\s','') + '"')
-            '  → 이 시각이 최근이면 감시가 실제로 엔진을 찔러 본 것이다'
-          } else { '  info.out 없음' }
-          $sf = Join-Path $env:USERPROFILE 'docker_watchdog\state.json'
-          if (Test-Path $sf) { ('  state.json: ' + ((Get-Content $sf -Raw) -replace '\s','')) }
-
-          '########## 4. watchdog 로그 최근 5줄'
-          $wl = Join-Path $env:USERPROFILE 'docker_watchdog\watchdog.log'
-          if (Test-Path $wl) { Get-Content $wl -Tail 5 } else { '로그 없음' }
-          '  (엔진이 멀쩡하면 아무것도 안 적는 것이 정상이다)'
-
-          '########## 5. 배포 로그에 실제 실패가 있었나'
-          $dl = Join-Path $proj 'deploy.log'
-          if (Test-Path $dl) {
-            $d = Get-Content $dl -Raw
-            ('  "unable to start" 횟수      : ' + ([regex]::Matches($d,'unable to start')).Count)
-            ('  "Error response from daemon" : ' + ([regex]::Matches($d,'Error response from daemon')).Count)
-            ('  "Container .* Running" 횟수  : ' + ([regex]::Matches($d,'Container .*Running')).Count)
-          } else { '  deploy.log 없음' }
-
-          '########## 6. 엔진·컨테이너'
-          ('  엔진 서버 버전: ' + (& $docker version --format '{{.Server.Version}}' 2>&1))
-          (& $docker ps --format '{{.Names}} | {{.Status}}' 2>&1 | Out-String).Trim()
+          '########## 7. 윈도우 쪽 사건 (최근 6시간) — 업데이트·백신'
+          try {
+            Get-WinEvent -FilterHashtable @{ LogName='System'; StartTime=(Get-Date).AddHours(-6);
+                                             Id=@(1074,6005,6006,19,43,44,41) } -EA Stop |
+              Sort-Object TimeCreated |
+              ForEach-Object { '  ' + $_.TimeCreated.ToString('MM-dd HH:mm:ss') + ' [' + $_.Id + '] ' +
+                               (($_.Message -split "`n")[0]).Trim() } |
+              Select-Object -First 25
+          } catch { '  해당 사건 없음 또는 조회 실패' }
           EOF
 
           mkdir -p ~/.ssh
