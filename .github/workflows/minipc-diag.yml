@@ -10,15 +10,20 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 6 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+# 점검 회차: 7 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
 #   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
 #   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
 #   이것을 반복한다 — 약 13분 주기로 도커가 재시작되면 CPU 를 계속 먹는다. 그래서
 #   watchdog.log 와 state.json, Docker Desktop 프로세스의 시작 시각을 먼저 본다.
 #
-#   그 다음 일반 용의자 — 프로세스별 현재 CPU%, 컨테이너별 CPU(docker stats),
-#   컨테이너 재시작 횟수, Windows 쪽 사건(업데이트·백신 검사).
+#   그 다음 일반 용의자 — 프로세스별 현재 CPU%, 컨테이너별 CPU(docker stats).
+#
+#   회차 6은 보낼 명령이 12,586자가 되어 윈도우가 "명령줄이 너무 깁니다"로 거부했다
+#   (SSH 는 붙었고 윈도우가 답한 것이다 — 미니PC 장애가 아니다). 실측 한계는 약
+#   8,190자이며 scripts/check_deploy_cmd_len.sh 에 그 근거가 적혀 있다. 그 검사는
+#   워크플로 YAML 의 '줄 길이'만 보므로, 히어독+base64 로 실행 시점에 조립되는 이
+#   명령은 걸러내지 못한다 — 사각지대다. 그래서 회차 7은 꼭 필요한 것만 남겼다.
 
 on:
   push:
@@ -43,81 +48,39 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          $docker = 'C:\Program Files\Docker\Docker\resources\bin\docker.exe'
-          $wdRoot = Join-Path $env:USERPROFILE 'docker_watchdog'
-
-          '########## 0. 기본'
-          $cs = Get-CimInstance Win32_ComputerSystem
-          $os = Get-CimInstance Win32_OperatingSystem
-          ('  논리 코어 수: ' + $cs.NumberOfLogicalProcessors + '  (프로세스 CPU% 는 코어 합산이라 100 을 넘을 수 있다)')
-          ('  마지막 부팅  : ' + $os.LastBootUpTime + '  가동 ' + ((Get-Date) - $os.LastBootUpTime).ToString('d\.hh\:mm\:ss'))
-          ('  메모리 여유  : ' + [math]::Round($os.FreePhysicalMemory/1MB,1) + 'GB / ' +
-                                 [math]::Round($cs.TotalPhysicalMemory/1GB,1) + 'GB')
-
-          '########## 1. 감시가 도커를 반복 재시작하고 있는가  ← 어제 바꾼 판정이 첫 용의자'
-          $wl = Join-Path $wdRoot 'watchdog.log'
-          if (Test-Path $wl) {
-            '--- watchdog.log 최근 30줄 ---'
-            Get-Content $wl -Tail 30
-            $recent = Get-Content $wl | Where-Object { $_ -match '^2026-10-15' }
-            ('--- 오늘(10-15) 줄 수: ' + @($recent).Count)
-            ('--- 오늘 "다시 띄운다" 횟수: ' + @($recent | Where-Object { $_ -match '다시 띄운다' }).Count)
-            '    → 0 이면 감시는 무죄다. 여러 번이면 판정 오판으로 재시작을 반복하는 것이다'
-          } else { '  watchdog.log 없음' }
-          $sf = Join-Path $wdRoot 'state.json'
-          if (Test-Path $sf) { ('  state.json: ' + ((Get-Content $sf -Raw) -replace '\s','')) }
-          $io = Join-Path $wdRoot 'info.out'
-          $ie = Join-Path $wdRoot 'info.err'
-          if (Test-Path $io) { ('  info.out ' + (Get-Item $io).LastWriteTime + ' = "' + ((Get-Content $io -Raw -EA 0) -replace '\s','') + '"') }
-          if (Test-Path $ie) { ('  info.err ' + (Get-Item $ie).LastWriteTime + ' = "' + ((Get-Content $ie -Raw -EA 0) -replace '\s','') + '"') }
-          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog |
-             Select-Object LastRunTime, LastTaskResult, NextRunTime | Format-List | Out-String).Trim()
-
-          '########## 2. Docker Desktop 프로세스 시작 시각 (최근이면 방금 재시작된 것)'
-          (Get-Process 'Docker Desktop','com.docker.backend','com.docker.build','vmmem','vmmemWSL','wslservice' -EA 0 |
-             Select-Object Name, Id, StartTime,
-               @{n='CPU초';e={[math]::Round($_.CPU)}},
-               @{n='WS_MB';e={[math]::Round($_.WorkingSet64/1MB)}} |
-             Sort-Object Name | Format-Table -AutoSize | Out-String).Trim()
-
-          '########## 3. 전체 CPU (2초 간격 3회)'
-          try {
-            (Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval 2 -MaxSamples 3 -EA Stop).CounterSamples |
-              ForEach-Object { '  ' + [math]::Round($_.CookedValue,1) + '%' }
-          } catch { '  Get-Counter 실패: ' + $_.Exception.Message
-                    ('  Win32_Processor LoadPercentage: ' +
-                      ((Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average) + '%') }
-
-          '########## 4. 프로세스별 현재 CPU% 상위 15'
-          (Get-CimInstance Win32_PerfFormattedData_PerfProc_Process |
-             Where-Object { $_.Name -ne '_Total' -and $_.Name -ne 'Idle' } |
-             Sort-Object PercentProcessorTime -Descending | Select-Object -First 15 |
-             Select-Object @{n='이름';e={$_.Name}}, @{n='PID';e={$_.IDProcess}},
-                           @{n='CPU%';e={$_.PercentProcessorTime}},
-                           @{n='WS_MB';e={[math]::Round($_.WorkingSetPrivate/1MB)}} |
-             Format-Table -AutoSize | Out-String).Trim()
-
-          '########## 5. 컨테이너별 CPU·메모리'
-          (& $docker stats --no-stream --format '{{.Name}} | CPU {{.CPUPerc}} | MEM {{.MemUsage}} ({{.MemPerc}})' 2>&1 | Out-String).Trim()
-
-          '########## 6. 컨테이너 재시작 횟수 (재시작 루프 찾기)'
-          $names = & $docker ps -a --format '{{.Names}}' 2>&1
-          foreach ($n in $names) {
-            if ($n -and $n -notmatch 'Error|error') {
-              $rc = & $docker inspect -f '{{.RestartCount}}|{{.State.Status}}|{{.State.StartedAt}}' $n 2>&1
-              ('  ' + $n + ' → 재시작 ' + $rc)
-            }
+          $d='C:\Program Files\Docker\Docker\resources\bin\docker.exe'
+          $w=Join-Path $env:USERPROFILE 'docker_watchdog'
+          $cs=Get-CimInstance Win32_ComputerSystem; $os=Get-CimInstance Win32_OperatingSystem
+          '## 0 기본'
+          ('  코어 '+$cs.NumberOfLogicalProcessors+' | 부팅 '+$os.LastBootUpTime)
+          ('  메모리 여유 '+[math]::Round($os.FreePhysicalMemory/1MB,2)+'GB / '+[math]::Round($cs.TotalPhysicalMemory/1GB,1)+'GB')
+          '## 1 감시가 도커를 반복 재시작하는가 (어제 바꾼 판정이 용의자)'
+          $f=Join-Path $w 'watchdog.log'
+          if(Test-Path $f){
+            $t=Get-Content $f -Tail 20; '--- 최근 20줄'; $t
+            $o=Get-Content $f|Where-Object{$_ -match '^2026-10-15'}
+            ('--- 오늘 줄수 '+@($o).Count+' | 다시띄운다 '+@($o|Where-Object{$_ -match '다시 띄운다'}).Count+'회  → 0이면 무죄')
+          }else{'  로그 없음'}
+          foreach($n in 'state.json','info.out','info.err'){
+            $p2=Join-Path $w $n
+            if(Test-Path $p2){('  '+$n+' '+(Get-Item $p2).LastWriteTime+' = '+(((Get-Content $p2 -Raw -EA 0) -replace '\s','')))}
           }
-
-          '########## 7. 윈도우 쪽 사건 (최근 6시간) — 업데이트·백신'
-          try {
-            Get-WinEvent -FilterHashtable @{ LogName='System'; StartTime=(Get-Date).AddHours(-6);
-                                             Id=@(1074,6005,6006,19,43,44,41) } -EA Stop |
-              Sort-Object TimeCreated |
-              ForEach-Object { '  ' + $_.TimeCreated.ToString('MM-dd HH:mm:ss') + ' [' + $_.Id + '] ' +
-                               (($_.Message -split "`n")[0]).Trim() } |
-              Select-Object -First 25
-          } catch { '  해당 사건 없음 또는 조회 실패' }
+          (Get-ScheduledTaskInfo -TaskName NamuDockerWatchdog|Select-Object LastRunTime,LastTaskResult|Format-List|Out-String).Trim()
+          '## 2 도커/WSL 프로세스 (시작시각이 최근이면 방금 재시작)'
+          (Get-Process 'Docker Desktop','com.docker.backend','vmmem','vmmemWSL' -EA 0|
+            Select-Object Name,Id,StartTime,@{n='CPU초';e={[math]::Round($_.CPU)}},@{n='MB';e={[math]::Round($_.WorkingSet64/1MB)}}|
+            Format-Table -AutoSize|Out-String).Trim()
+          '## 3 전체 CPU (2초x3)'
+          try{(Get-Counter '\Processor(_Total)\% Processor Time' -SampleInterval 2 -MaxSamples 3 -EA Stop).CounterSamples|
+            ForEach-Object{'  '+[math]::Round($_.CookedValue,1)+'%'}}catch{'  실패'}
+          '## 4 프로세스별 CPU% 상위 12 (코어 합산)'
+          (Get-CimInstance Win32_PerfFormattedData_PerfProc_Process|
+            Where-Object{$_.Name -notin '_Total','Idle'}|Sort-Object PercentProcessorTime -Descending|
+            Select-Object -First 12 @{n='이름';e={$_.Name}},@{n='PID';e={$_.IDProcess}},
+              @{n='CPU%';e={$_.PercentProcessorTime}},@{n='MB';e={[math]::Round($_.WorkingSetPrivate/1MB)}}|
+            Format-Table -AutoSize|Out-String).Trim()
+          '## 5 컨테이너별 CPU/MEM'
+          (& $d stats --no-stream --format '{{.Name}} CPU {{.CPUPerc}} MEM {{.MemUsage}}' 2>&1|Out-String).Trim()
           EOF
 
           mkdir -p ~/.ssh
