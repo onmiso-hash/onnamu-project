@@ -7,6 +7,7 @@ import re
 import json
 import time
 import urllib.request
+import threading
 from werkzeug.security import generate_password_hash, check_password_hash
 from auth_helper import (generate_auth_token, login_required, verify_token,
                          set_permission_source, is_machine_identity,
@@ -67,6 +68,20 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   category TEXT, title TEXT, content TEXT, 
                   work_date TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+    # 자원 사용 기록 테이블 (2026-10-15 신설)
+    # 왜: /stats 는 순간값만 돌려주고 아무것도 남기지 않았다. 2026-08-20 과
+    #     2026-10-15 두 번, 사용자가 "CPU가 90~100%"라고 알려 왔을 때 몇 분 뒤
+    #     재어 보니 이미 가라앉아 있어 무엇이 먹었는지 알 수 없었다. 10-15 에는
+    #     컨테이너 접속 로그를 아홉 번 뒤져 겨우 원인을 찾았다.
+    # cpu_max 를 함께 남기는 것이 요점이다 — 1분 평균만 남기면 20초짜리 100%
+    #     스파이크가 33% 로 묻혀 보이지 않는다.
+    c.execute('''CREATE TABLE IF NOT EXISTS system_stats
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  at INTEGER,
+                  cpu_avg REAL, cpu_max REAL,
+                  ram_avg REAL, ram_max REAL,
+                  samples INTEGER)''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_system_stats_at ON system_stats(at)')
     # 뉴스 아카이브 테이블 (기존 데이터 보존용)
     c.execute('''CREATE TABLE IF NOT EXISTS news_archive
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -433,16 +448,119 @@ def huyang_data():
                        collected_at=None, error=str(e)), 200
 
 
+# ── 자원 사용 기록 (2026-10-15) ────────────────────────────────────────────
+#
+# 전에는 /stats 가 psutil.cpu_percent(interval=None) 을 불렀다. 그 호출은 절대값이
+# 아니라 "이 프로세스에서 지난번 호출 이후"를 재는 것이라, 화면을 새로 고치거나 두
+# 탭에서 열면 호출 간격이 좁혀져 값이 크게 튄다(첫 호출은 문서상 의미 없는 0.0 이다).
+# 그래서 재는 일을 일꾼 하나에게 맡기고, 화면은 그 일꾼이 마지막으로 잰 값을 읽는다.
+# 일꾼은 interval 을 명시해 부르므로 호출 이력과 무관한 정의된 값을 얻는다.
+#
+# 남기는 쪽은 1분에 한 줄이고 cpu_max 를 함께 적는다 — 평균만 적으면 20초짜리
+# 100% 스파이크가 1분 평균 33% 로 묻혀 보이지 않는다. 지나간 스파이크를 되짚는 것이
+# 이 표의 존재 이유이므로 최댓값이 평균보다 중요하다.
+#
+# 이 컨테이너가 재는 것은 윈도우 전체가 아니라 도커가 쓰는 리눅스 가상머신이다
+# (컨테이너 안의 psutil 은 /proc/stat 을 읽는다). 윈도우 작업관리자 숫자와 직접
+# 비교하면 안 된다 — .wslconfig 에 배정된 코어 수가 분모다.
+STATS_SAMPLE_SECONDS = 5        # 이 간격으로 재서 화면에 보여준다
+STATS_WRITE_SECONDS = 60        # 이 간격으로 한 줄 남긴다
+STATS_RETENTION_DAYS = 14       # 이보다 오래된 줄은 지운다
+_stats_latest = {"cpu": None, "ram": None, "at": None}
+_stats_lock = threading.Lock()
+
+
+def _stats_write(cpu_avg, cpu_max, ram_avg, ram_max, samples):
+    """한 줄 남긴다. 기록이 서비스를 멎게 해서는 안 되므로 어떤 실패도 삼킨다."""
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        conn.execute(
+            "INSERT INTO system_stats (at, cpu_avg, cpu_max, ram_avg, ram_max, samples)"
+            " VALUES (?, ?, ?, ?, ?, ?)",
+            (int(time.time()), round(cpu_avg, 1), round(cpu_max, 1),
+             round(ram_avg, 1), round(ram_max, 1), samples))
+        conn.commit(); conn.close()
+    except Exception:
+        pass
+
+
+def _stats_prune():
+    try:
+        cutoff = int(time.time()) - STATS_RETENTION_DAYS * 86400
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        conn.execute("DELETE FROM system_stats WHERE at < ?", (cutoff,))
+        conn.commit(); conn.close()
+    except Exception:
+        pass
+
+
+def _stats_sampler():
+    buf = []
+    last_write = time.time()
+    last_prune = 0.0
+    while True:
+        try:
+            # interval 을 주면 그 구간만큼 막고 그 구간의 평균을 돌려준다.
+            cpu = psutil.cpu_percent(interval=STATS_SAMPLE_SECONDS)
+            ram = psutil.virtual_memory().percent
+            with _stats_lock:
+                _stats_latest.update(cpu=cpu, ram=ram, at=time.time())
+            buf.append((cpu, ram))
+            now = time.time()
+            if buf and now - last_write >= STATS_WRITE_SECONDS:
+                cpus = [b[0] for b in buf]; rams = [b[1] for b in buf]
+                _stats_write(sum(cpus) / len(cpus), max(cpus),
+                             sum(rams) / len(rams), max(rams), len(buf))
+                buf = []; last_write = now
+                if now - last_prune > 3600:
+                    _stats_prune(); last_prune = now
+        except Exception:
+            # 재는 데 실패해도 일꾼은 죽지 않는다 — 죽으면 기록이 조용히 끊긴다.
+            time.sleep(STATS_SAMPLE_SECONDS)
+
+
+def start_stats_sampler():
+    threading.Thread(target=_stats_sampler, name="stats-sampler", daemon=True).start()
+
+
 @app.route('/stats')
 @login_required(admin_only=True)
 def stats():
-    cpu = psutil.cpu_percent(interval=None); ram = psutil.virtual_memory().percent
+    with _stats_lock:
+        cpu = _stats_latest["cpu"]; ram = _stats_latest["ram"]
+    if cpu is None:
+        # 일꾼이 첫 값을 내놓기 전(기동 직후)에는 짧게 직접 잰다.
+        cpu = psutil.cpu_percent(interval=0.3); ram = psutil.virtual_memory().percent
     try:
         disk_path = '/host_c' if os.path.exists('/host_c') else '/'
         disk = psutil.disk_usage(disk_path); disk_percent = disk.percent
         disk_detail = f"{disk.used/(1024**3):.1f} GB / {disk.total/(1024**3):.1f} GB"
     except Exception: disk_percent = 0; disk_detail = "Error"
     return jsonify(cpu=cpu, ram=ram, disk_percent=disk_percent, disk_detail=disk_detail)
+
+
+@app.route('/api/stats/history')
+@login_required(admin_only=True)
+def stats_history():
+    """지나간 자원 사용 기록. 시각은 UTC 초이며 읽기 편하게 한국시간도 함께 준다."""
+    hours = request.args.get('hours', 24, type=int) or 24
+    hours = max(1, min(hours, STATS_RETENTION_DAYS * 24))
+    since = int(time.time()) - hours * 3600
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        rows = conn.execute(
+            "SELECT at, cpu_avg, cpu_max, ram_avg, ram_max, samples FROM system_stats"
+            " WHERE at >= ? ORDER BY at", (since,)).fetchall()
+        conn.close()
+    except Exception as e:
+        return jsonify(error=str(e), rows=[]), 200
+    out = [{"at": r[0],
+            "kst": time.strftime('%Y-%m-%d %H:%M', time.gmtime(r[0] + 9 * 3600)),
+            "cpu_avg": r[1], "cpu_max": r[2],
+            "ram_avg": r[3], "ram_max": r[4], "samples": r[5]} for r in rows]
+    peak = max(out, key=lambda r: r["cpu_max"]) if out else None
+    return jsonify(hours=hours, count=len(out), peak=peak, rows=out,
+                   note="컨테이너가 재는 것은 윈도우 전체가 아니라 도커의 리눅스 가상머신이다")
 
 @app.route('/api/news/save', methods=['POST'])
 @login_required(admin_only=True)
@@ -881,4 +999,5 @@ def whois_domain():
         return Response(json.dumps({"error": str(e)}), status=502, content_type='application/json')
 
 if __name__ == '__main__':
-    init_db(); migrate_users_once(); app.run(host='0.0.0.0', port=5001)
+    init_db(); migrate_users_once(); start_stats_sampler()
+    app.run(host='0.0.0.0', port=5001)
