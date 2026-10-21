@@ -10,7 +10,7 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 9 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+# 점검 회차: 13 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
 #   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
 #   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
@@ -48,27 +48,32 @@ jobs:
           cat > d.ps1 <<'EOF'
           $ErrorActionPreference='Continue'; $ProgressPreference='SilentlyContinue'
           [Console]::OutputEncoding=[Text.Encoding]::UTF8
-          $d='C:\Program Files\Docker\Docker\resources\bin\docker.exe'
-          '## 1 갤러리 로그 전문 (최근 90분 — 몇 줄 안 된다)'
-          (& $d logs --since 90m --timestamps my-gallery 2>&1|ForEach-Object{'  '+[string]$_})
-          '## 2 포털 로그 전문 (최근 90분)'
-          (& $d logs --since 90m --timestamps my-portal 2>&1|ForEach-Object{'  '+[string]$_})
-          '## 3 요청된 영상 파일의 크기'
-          foreach($r in 'C:\Users\onmis\media','C:\Users\onmis\project\gallery'){
-            if(Test-Path $r){
-              ('--- '+$r)
-              (Get-ChildItem $r -Recurse -Include *.mp4,*.mkv,*.mov,*.webm -EA 0|
-                Sort-Object Length -Descending|Select-Object -First 8|
-                ForEach-Object{'  '+[math]::Round($_.Length/1MB)+' MB  '+$_.Name})
-            }
+          $hp='172.30.1.89'; $hpUser='onmis'
+          '## 0 여기가 어느 기계인가 (증거는 기계가 말하게 한다)'
+          ('  COMPUTERNAME: '+$env:COMPUTERNAME)
+          '## 1 HP 가 켜져 있고 SSH 문이 열렸나'
+          $t=Test-NetConnection -ComputerName $hp -Port 22 -InformationLevel Quiet -WarningAction SilentlyContinue
+          ('  '+$hp+':22 열림: '+$t)
+          if(-not $t){'  → 꺼져 있거나 SSH 가 안 켜졌거나 방화벽이 막음'}
+          '## 2 미니PC 에 HP 로 갈 열쇠·설정이 있나 (파일 이름만, 내용은 안 본다)'
+          foreach($d in "$env:USERPROFILE\.ssh"){
+            if(Test-Path $d){
+              (Get-ChildItem $d -Force|Select-Object -First 15|ForEach-Object{'  '+$_.Name+'  '+$_.Length+'B'})
+            } else {'  '+$d+' 없음'}
           }
-          '## 4 디펜더 검사 전체 (최근 24시간) — 몇 번 돌았나'
-          try{
-            $e=Get-WinEvent -FilterHashtable @{LogName='Microsoft-Windows-Windows Defender/Operational';
-              StartTime=(Get-Date).AddHours(-24)} -EA Stop|Where-Object{$_.Id -in 1000,1001}
-            ('  검사 사건 '+@($e).Count+'건')
-            $e|Sort-Object TimeCreated|ForEach-Object{'  '+$_.TimeCreated.ToString('MM-dd HH:mm:ss')+' ['+$_.Id+']'}|Select-Object -First 20
-          }catch{'  조회 실패'}
+          '## 3 미니PC → HP 무인 인증이 되나 (암호를 묻지 않게 BatchMode)'
+          $r=(& ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 `
+                 ("$hpUser@$hp") "hostname" 2>&1|Out-String).Trim()
+          ('  결과: '+$r)
+          if($r -match 'onmiso-hp|HP'){'  → 무인 인증 성공'}
+          elseif($r -match 'Permission denied|publickey'){'  → 열쇠 없음/암호 필요 — 무인 접속 불가'}
+          else{'  → 판정 보류 (위 메시지 참고)'}
+          '## 4 되면 WSL 작업 폴더까지 닿나'
+          if($r -match 'onmiso-hp|HP'){
+            (& ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=10 `
+                ("$hpUser@$hp") "wsl -e bash -lc 'pwd; ls ~/project 2>/dev/null | head -5'" 2>&1|
+               ForEach-Object{'  '+[string]$_})
+          } else {'  3번이 안 됐으므로 건너뜀'}
           EOF
 
           mkdir -p ~/.ssh
