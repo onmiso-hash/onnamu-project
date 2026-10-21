@@ -10,7 +10,7 @@ name: Mini PC diagnosis (read-only)
 # Docker Desktop 은 접속이 끊길 때 함께 정리되므로(2026-09-10·09-14 실측,
 # scripts/docker_watchdog.ps1 주석) 효과가 없다.
 #
-# 점검 회차: 14 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
+# 점검 회차: 15 — CPU 사용률이 높다는 신고. 무엇이 먹고 있는지 본다.
 #
 #   첫 용의자는 어제(#17) 바꾼 감시 판정이다. 새 판정이 멀쩡한 엔진을 실패로 오판하면
 #   watchdog 이 연속 2회 뒤 Docker Desktop 을 죽이고 다시 띄우며, 10분 냉각을 두고
@@ -71,7 +71,7 @@ jobs:
             } else {'  '+$d+' 없음'}
           }
           '## 3 미니PC → HP 무인 인증이 되나 (암호를 묻지 않게 BatchMode)'
-          $r=(& ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 `
+          $r=(& ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 `
                  ("$hpUser@$hp") "hostname" 2>&1|Out-String).Trim()
           ('  결과: '+$r)
           if($r -match 'onmiso-hp|HP'){'  → 무인 인증 성공'}
@@ -79,10 +79,11 @@ jobs:
           else{'  → 판정 보류 (위 메시지 참고)'}
           '## 4 되면 WSL 작업 폴더까지 닿나'
           if($r -match 'onmiso-hp|HP'){
-            (& ssh -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 `
+            (& ssh -n -o BatchMode=yes -o StrictHostKeyChecking=no -o ConnectTimeout=5 `
                 ("$hpUser@$hp") "wsl -e bash -lc 'pwd; ls ~/project 2>/dev/null | head -5'" 2>&1|
                ForEach-Object{'  '+[string]$_})
           } else {'  3번이 안 됐으므로 건너뜀'}
+          ('## 경과 '+[int]((Get-Date)-$t0).TotalSeconds+'초')
           EOF
 
           mkdir -p ~/.ssh
@@ -91,8 +92,12 @@ jobs:
           b64=$(iconv -f UTF-8 -t UTF-16LE d.ps1 | base64 -w0)
 
           ok=0
-          for i in $(seq 1 3); do
-            if ssh -i ~/.ssh/k -p "$PORT" \
+          for i in $(seq 1 2); do
+            # -n: stdin 을 /dev/null 로 — ssh 는 stdin 을 읽으므로 액션의 파이프가
+            #     안 닫히면 영원히 기다린다(2026-10-21 실측: 15분 넘게 매달렸다).
+            # timeout: ConnectTimeout 은 TCP 연결까지만 덮는다. 붙은 뒤 원격이
+            #     매달리면 상한이 없으므로 전체를 밖에서 끊는다.
+            if timeout 60 ssh -n -i ~/.ssh/k -p "$PORT" \
                    -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
                    -o ConnectTimeout=5 -o LogLevel=ERROR "$USERNAME@$HOST" \
                    "powershell -NoProfile -NonInteractive -EncodedCommand $b64"; then
